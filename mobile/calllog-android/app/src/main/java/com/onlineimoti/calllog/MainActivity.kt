@@ -107,10 +107,16 @@ class MainActivity : FontScaledAppCompatActivity() {
             MainServerTestsController(this, binding, executor, ::saveConfig, ::setStatus).wire()
         }
         settingsNavigationController.wire()
-        settingsNavigationController.showMenu()
+        if (!openRequestedSettingsSection(intent)) settingsNavigationController.showMenu()
         defaultSmsSettingsController.refresh()
         callScreeningIntegrationSettingsController.refresh()
         permissionFlowController.start()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (::binding.isInitialized) openRequestedSettingsSection(intent)
     }
 
     override fun onResume() {
@@ -153,6 +159,12 @@ class MainActivity : FontScaledAppCompatActivity() {
     }
 
     private fun hydrateFields() = MainSettingsConfigUi.hydrate(binding, ConfigStore.load(this))
+
+    private fun openRequestedSettingsSection(intent: Intent?): Boolean {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_REGISTRATION, false) != true) return false
+        binding.settingsMenuGroup.settingsRegistrationButton.performClick()
+        return true
+    }
 
     private fun wireSettingsActions() {
         MainSettingsActionBinder.wire(
@@ -306,4 +318,8 @@ class MainActivity : FontScaledAppCompatActivity() {
     private fun testStartPopup() = MainTestActions.testStartPopup(this, binding, executor, ::setStatus)
     private fun testEndPopup() = MainTestActions.testEndPopup(this, binding, executor, ::setStatus)
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    companion object {
+        const val EXTRA_OPEN_REGISTRATION = "open_registration_settings"
+    }
 }
