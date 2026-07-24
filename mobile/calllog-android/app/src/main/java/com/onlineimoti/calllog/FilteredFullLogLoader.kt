@@ -30,6 +30,14 @@ internal object FilteredFullLogLoader {
         serverEvents: List<CallReportHistoryEvent>,
     ): List<FilteredFullLogEntry> {
         if (phone.isBlank()) return emptyList()
+        val callTimelineServerEvents = if (remoteEnabled) {
+            // General/contact notes are presented in the yellow main-note area and
+            // must not become standalone blue cards in History > Calls. Concrete
+            // call notes remain and are attached to their matching phone call below.
+            serverEvents.filterNot(CallReportServerNoteClassifier::isGeneralNote)
+        } else {
+            emptyList()
+        }
         val merged = CallReportHistoryMerge.merge(
             context = context,
             phone = phone,
@@ -37,7 +45,7 @@ internal object FilteredFullLogLoader {
             localCalls = local.calls,
             localSms = local.sms,
             localNotes = local.notes,
-            serverEvents = if (remoteEnabled) serverEvents else emptyList(),
+            serverEvents = callTimelineServerEvents,
         )
         return groupedEntries(merged)
     }
