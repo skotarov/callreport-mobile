@@ -78,9 +78,9 @@ internal object HomeNotesSnapshotCache {
         write(
             context,
             Snapshot(
-                contactNotesByNumber = contactNotes.entries.takeLast(MAX_PHONE_ENTRIES)
+                contactNotesByNumber = contactNotes.entries.toList().takeLast(MAX_PHONE_ENTRIES)
                     .associateTo(linkedMapOf()) { it.key to it.value },
-                contactNamesByNumber = contactNames.entries.takeLast(MAX_PHONE_ENTRIES)
+                contactNamesByNumber = contactNames.entries.toList().takeLast(MAX_PHONE_ENTRIES)
                     .associateTo(linkedMapOf()) { it.key to it.value },
                 callNotesByCall = callNotes.entries
                     .sortedByDescending { it.value.updatedAtMs }
