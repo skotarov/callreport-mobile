@@ -16,18 +16,19 @@ internal class CallReportHistoryPaginationUi(
 ) {
     private var pageIndex = 0
     private var totalPages = 1
+    private var preparedPages: List<List<CallReportHistoryRow>> = emptyList()
 
     fun currentPage(rows: List<CallReportHistoryRow>): HistoryPage {
         val pageSize = ConfigStore.load(activity).homeCallPageSize
-        val pages = TimelinePageMode.pages(
+        preparedPages = TimelinePageMode.pages(
             context = activity,
             items = rows,
             pageSize = pageSize,
             groupKey = { row -> TimelineGroupKeys.week(row.timeMs) },
         )
-        totalPages = maxOf(1, pages.size)
+        totalPages = maxOf(1, preparedPages.size)
         pageIndex = pageIndex.coerceIn(0, totalPages - 1)
-        val lastExclusive = pages.take(pageIndex + 1).sumOf { it.size }
+        val lastExclusive = preparedPages.take(pageIndex + 1).sumOf { it.size }
         return HistoryPage(
             rows = rows.take(lastExclusive),
             pageIndex = pageIndex,
@@ -38,6 +39,8 @@ internal class CallReportHistoryPaginationUi(
 
     fun canPrevious(): Boolean = pageIndex > 0
     fun canNext(): Boolean = pageIndex < totalPages - 1
+    fun currentPageIndex(): Int = pageIndex
+    fun pages(): List<List<CallReportHistoryRow>> = preparedPages
 
     fun previousPage(onPageChanged: () -> Unit): Boolean {
         if (!canPrevious()) return false
@@ -56,6 +59,7 @@ internal class CallReportHistoryPaginationUi(
     fun reset() {
         pageIndex = 0
         totalPages = 1
+        preparedPages = emptyList()
     }
 
     fun addNavigation(container: LinearLayout, page: HistoryPage, onPageChanged: () -> Unit) {
