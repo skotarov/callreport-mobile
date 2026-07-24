@@ -31,7 +31,7 @@ internal class TimelineNotesUi(
             text = SearchTextHighlighter.highlightedText(visibleText, highlightQuery, colors.text),
             colors = colors,
             maxLines = 2,
-            serverBacked = serverBacked,
+            cloudDrawableRes = if (serverBacked) R.drawable.ic_cloud_note else 0,
             localDrawableRes = R.drawable.ic_note_lines,
         ))
     }
@@ -49,13 +49,13 @@ internal class TimelineNotesUi(
             .forEach { label ->
                 val colors = NoteUiStyle.General
                 val companyName = label.companyName.ifBlank { label.companyId }
-                val serverBacked = ServerNoteVisuals.isPrefixed(label.generalNote)
                 val visibleNote = ServerNoteVisuals.withoutPrefix(label.generalNote)
                 column.addView(noteCard(
                     text = companyScopedText(companyName, visibleNote, highlightQuery, colors.text),
                     colors = colors,
                     maxLines = 3,
-                    serverBacked = serverBacked,
+                    // The visible company name already identifies this as a cloud scope.
+                    // Do not repeat the same information with a cloud icon.
                 ))
             }
     }
@@ -83,8 +83,13 @@ internal class TimelineNotesUi(
                 },
                 colors = colors,
                 maxLines = 3,
-                // A selected company is a cloud scope even while its write is queued.
-                serverBacked = note.fromServer || note.companyId.isNotBlank(),
+                // A company label is enough by itself. Only an unscoped server note
+                // needs a cloud marker, and that marker is intentionally outlined.
+                cloudDrawableRes = if (note.fromServer && note.companyId.isBlank()) {
+                    R.drawable.ic_cloud_note
+                } else {
+                    0
+                },
             ))
         }
         statusForCall(call)?.let { status ->
@@ -101,7 +106,7 @@ internal class TimelineNotesUi(
         text: CharSequence,
         colors: NoteCardColors,
         maxLines: Int,
-        serverBacked: Boolean = false,
+        cloudDrawableRes: Int = 0,
         localDrawableRes: Int = 0,
     ): TextView {
         return TextView(activity).apply {
@@ -112,14 +117,14 @@ internal class TimelineNotesUi(
             setPadding(dp(8), dp(5), dp(8), dp(5))
             background = roundedRect(colors.background, dp(9), colors.border, dp(1))
             val drawableRes = when {
-                serverBacked -> R.drawable.ic_cloud_note_filled
+                cloudDrawableRes != 0 -> cloudDrawableRes
                 localDrawableRes != 0 -> localDrawableRes
                 else -> 0
             }
             if (drawableRes != 0) {
                 setCompoundDrawablesWithIntrinsicBounds(drawableRes, 0, 0, 0)
                 compoundDrawablePadding = dp(4)
-                if (serverBacked) {
+                if (cloudDrawableRes != 0) {
                     compoundDrawableTintList = ColorStateList.valueOf(
                         activity.getColor(R.color.callreport_icon_background),
                     )
