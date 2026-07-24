@@ -5,7 +5,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
 
-/** Connects whichever History list is active to shared buffered edge paging. */
+/** Connects whichever History list is active to shared bottom-only edge paging. */
 internal class HistoryEdgePagingController(
     private val canPrevious: () -> Boolean,
     private val canNext: () -> Boolean,
@@ -25,11 +25,16 @@ internal class HistoryEdgePagingController(
             appContext?.let(PageLoadingModeStore::usesPrefetch) == true && canNext()
         },
         previousPage = { previousPage(); Unit },
-        nextPage = { nextPage(); Unit },
+        nextPage = {
+            check(nextPage()) { "The next notes and SMS History page is no longer available" }
+        },
         pageReady = pageReady,
         retainPreviousPages = false,
         protectRetainedPrefix = false,
-        prefetchNext = true,
+        prefetchNext = false,
+        loadAtBottomOnly = true,
+        loadingIndicatorLeadMs = HISTORY_LOADER_LEAD_MS,
+        onLoadingChanged = { loading -> updateBoundLoading(loading) },
     )
 
     private val fullLogDelegate = EdgePageScrollController(
@@ -46,21 +51,21 @@ internal class HistoryEdgePagingController(
         protectRetainedPrefix = true,
         prefetchNext = false,
         loadAtBottomOnly = true,
-        loadingIndicatorLeadMs = FULL_LOG_LOADER_LEAD_MS,
-        onLoadingChanged = { loading -> updateFullLogLoading(loading) },
+        loadingIndicatorLeadMs = HISTORY_LOADER_LEAD_MS,
+        onLoadingChanged = { loading -> updateBoundLoading(loading) },
     )
 
     fun reset() {
         notesDelegate.cancelPending()
         fullLogDelegate.cancelPending()
-        if (boundToFullLog) boundRoot?.let(HomeLoadingFooterUi::hide)
+        boundRoot?.let(HomeLoadingFooterUi::hide)
         resetPage()
     }
 
     fun bind(scrollView: ScrollView, root: LinearLayout) {
         appContext = root.context.applicationContext
         val fullLog = root.tag == ContactNotesFullLogUi.FULL_LOG_ROOT_TAG
-        if (boundToFullLog && boundRoot !== root) boundRoot?.let(HomeLoadingFooterUi::hide)
+        if (boundRoot !== root) boundRoot?.let(HomeLoadingFooterUi::hide)
         boundScrollView = scrollView
         boundRoot = root
         boundToFullLog = fullLog
@@ -76,15 +81,14 @@ internal class HistoryEdgePagingController(
     fun release() {
         notesDelegate.release()
         fullLogDelegate.release()
-        if (boundToFullLog) boundRoot?.let(HomeLoadingFooterUi::hide)
+        boundRoot?.let(HomeLoadingFooterUi::hide)
         appContext = null
         boundScrollView = null
         boundRoot = null
         boundToFullLog = false
     }
 
-    private fun updateFullLogLoading(loading: Boolean) {
-        if (!boundToFullLog) return
+    private fun updateBoundLoading(loading: Boolean) {
         val root = boundRoot ?: return
         if (loading) {
             HomeLoadingFooterUi.show(root)
@@ -96,6 +100,6 @@ internal class HistoryEdgePagingController(
     }
 
     private companion object {
-        const val FULL_LOG_LOADER_LEAD_MS = 180L
+        const val HISTORY_LOADER_LEAD_MS = 180L
     }
 }
