@@ -18,6 +18,12 @@ internal data class PostCallOverlayState(
     var initialNoteText: String = "",
     /** True when the incoming-call coordinator already loads server history rows. */
     var remoteRowsArePreloaded: Boolean = false,
+    /** One stable identity shared by all incremental updates for the active call. */
+    var popupSessionId: String = "",
+    var popupUpdateOnly: Boolean = false,
+    var progressCalls: String = "",
+    var progressLocalNotes: String = "",
+    var progressServerNotes: String = "",
     var callAt: Long = 0L,
     var durationSeconds: Long = 0L,
     var actionIssuedAt: Long = 0L,
@@ -35,6 +41,11 @@ internal data class PostCallOverlayState(
         serverClientEventId = intent?.getStringExtra(CallNoteEditorLauncher.EXTRA_SERVER_CLIENT_EVENT_ID).orEmpty().trim()
         initialNoteText = intent?.getStringExtra(CallNoteEditorLauncher.EXTRA_INITIAL_NOTE_TEXT).orEmpty()
         remoteRowsArePreloaded = intent?.getBooleanExtra(PostCallOverlayService.EXTRA_REMOTE_ROWS_ARE_PRELOADED, false) ?: false
+        popupSessionId = intent?.getStringExtra(PostCallOverlayService.EXTRA_POPUP_SESSION_ID).orEmpty()
+        popupUpdateOnly = intent?.getBooleanExtra(PostCallOverlayService.EXTRA_POPUP_UPDATE_ONLY, false) ?: false
+        progressCalls = intent?.getStringExtra(PostCallOverlayService.EXTRA_PROGRESS_CALLS).orEmpty()
+        progressLocalNotes = intent?.getStringExtra(PostCallOverlayService.EXTRA_PROGRESS_LOCAL_NOTES).orEmpty()
+        progressServerNotes = intent?.getStringExtra(PostCallOverlayService.EXTRA_PROGRESS_SERVER_NOTES).orEmpty()
         callAt = intent?.getLongExtra(PostCallOverlayService.EXTRA_CALL_AT, 0L) ?: 0L
         durationSeconds = intent?.getLongExtra(PostCallOverlayService.EXTRA_DURATION, 0L) ?: 0L
         actionIssuedAt = intent?.getLongExtra(CallNoteTargetResolver.EXTRA_ACTION_ISSUED_AT, 0L) ?: 0L
