@@ -74,8 +74,8 @@ internal object HomeCompanyScopeSnapshotCache {
             addAll(fresh.serverBackedPhoneKeys.filter { it.isNotBlank() })
         }
         val limitedKeys = linkedSetOf<String>().apply {
-            labels.keys.takeLast(MAX_PHONE_ENTRIES).forEach(::add)
-            serverKeys.takeLast(MAX_PHONE_ENTRIES).forEach(::add)
+            labels.keys.toList().takeLast(MAX_PHONE_ENTRIES).forEach(::add)
+            serverKeys.toList().takeLast(MAX_PHONE_ENTRIES).forEach(::add)
         }
         val merged = HomeCompanyScopeSnapshot(
             labelsByPhoneKey = labels.filterKeys { it in limitedKeys },
