@@ -93,6 +93,9 @@ internal class HomeCompanyGeneralNotesController(
         requestSignature = ""
         generation.incrementAndGet()
         finishAllBusy()
+        val cached = HomeCompanyScopeSnapshotCache.read(context.applicationContext)
+        labelsByPhoneKey = cached.labelsByPhoneKey
+        serverBackedPhoneKeys = cached.serverBackedPhoneKeys
     }
 
     fun release() {
