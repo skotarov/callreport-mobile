@@ -66,9 +66,14 @@ internal class HomeServerCallNotesController(
         } ?: 0L
         if (busyToken > 0L) busyTokens += busyToken
         executor.execute {
-            val history = runCatching {
-                historyForPage(config, phones)
-            }.getOrDefault(CallReportHistoryLookupResult())
+            val history = runCatching { historyForPage(config, phones) }.getOrNull()
+            if (history == null) {
+                handler.post {
+                    finishBusy(busyToken)
+                    if (expectedGeneration == generation.get()) onFinished()
+                }
+                return@execute
+            }
             // Pending operations come last. Their newer timestamp wins immediately;
             // an empty pending note acts as a tombstone until the server confirms it.
             val combinedEvents = history.events + CompanyCallNoteOutbox.pendingEvents(appContext, phones)
@@ -110,7 +115,7 @@ internal class HomeServerCallNotesController(
     private fun historyForPage(
         config: AppConfig,
         phones: List<String>,
-    ): CallReportHistoryLookupResult {
+    ): CallReportHistoryLookupResult? {
         val signature = buildString {
             append(config.baseUrl.trim())
             append('#')
@@ -129,7 +134,7 @@ internal class HomeServerCallNotesController(
             it.signature == signature && now - it.loadedAtMs < PAGE_HISTORY_CACHE_MS
         }?.let { return it.result }
 
-        val loaded = CallReportHistoryLookupClient.lookupMany(config, phones, appContext)
+        val loaded = CallReportHistoryLookupClient.lookupManyOrNull(config, phones, appContext) ?: return null
         cachedHistory = CachedHistory(signature, now, loaded)
         return loaded
     }
