@@ -189,14 +189,15 @@ internal class HomeServerCallNotesController(
             }
         }
 
-        val merged = existing.toMutableMap()
-        requestedKeys.forEach { key ->
-            if (ServerNoteVisuals.isPrefixed(merged[key].orEmpty())) merged.remove(key)
+        return existing.toMutableMap().apply {
+            requestedKeys.forEach { key ->
+                val combined = HomeGeneralNoteBundle.replaceServer(
+                    existing = get(key),
+                    serverValue = latest[key]?.second,
+                )
+                if (combined.isBlank()) remove(key) else put(key, combined)
+            }
         }
-        latest.forEach { (key, value) ->
-            if (merged[key].isNullOrBlank()) merged[key] = value.second
-        }
-        return merged
     }
 
     private data class CachedHistory(
