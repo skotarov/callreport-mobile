@@ -60,14 +60,28 @@ internal object CallReportHistoryLookupClient {
         if (!isReady(config) || phone.isBlank()) return CallReportHistoryLookupResult()
         // Keep the single-contact History screen compatible with older server code:
         // it is known to work with GET ?phone=..., while POST/batch support may be absent.
-        val result = lookupSinglePhoneVariants(config, phone, limit, context)
+        val result = lookupSinglePhoneVariantsOrNull(config, phone, limit, context)
+            ?: CallReportHistoryLookupResult()
         updateGeneralNoteServerPresence(phone, result.events)
         return result
     }
 
     /** One request for Home, with safe fallback to the same single-phone GET used by History. */
     fun lookupMany(config: AppConfig, phones: List<String>, context: Context? = null): CallReportHistoryLookupResult {
-        if (!isReady(config)) return CallReportHistoryLookupResult()
+        return lookupManyOrNull(config, phones, context) ?: CallReportHistoryLookupResult()
+    }
+
+    /**
+     * Same lookup as [lookupMany], but distinguishes a real successful empty response
+     * from a total network failure. Home uses this to keep its last-known note cache
+     * visible when the server is temporarily unreachable.
+     */
+    fun lookupManyOrNull(
+        config: AppConfig,
+        phones: List<String>,
+        context: Context? = null,
+    ): CallReportHistoryLookupResult? {
+        if (!isReady(config)) return null
         val originalPhones = phones
             .map { it.trim() }
             .filter { phoneKey(it).isNotBlank() }
@@ -87,12 +101,13 @@ internal object CallReportHistoryLookupClient {
             batch
         } else {
             // If the server ignores/doesn't support POST phones=[...], Home must still
-            // behave like the History screen where notes are already visible.
-            mergeResults(
-                listOfNotNull(batch) + originalPhones.map { phone ->
-                    lookupSinglePhoneVariants(config, phone, DEFAULT_LIMIT, context)
-                },
-            )
+            // behave like the History screen where notes are already visible. At least
+            // one successful GET is required before an empty result is authoritative.
+            val singleResults = originalPhones.mapNotNull { phone ->
+                lookupSinglePhoneVariantsOrNull(config, phone, DEFAULT_LIMIT, context)
+            }
+            if (singleResults.isEmpty()) return null
+            mergeResults(listOfNotNull(batch) + singleResults)
         }
         originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result.events) }
         return result
@@ -111,16 +126,18 @@ internal object CallReportHistoryLookupClient {
         }
     }
 
-    private fun lookupSinglePhoneVariants(
+    private fun lookupSinglePhoneVariantsOrNull(
         config: AppConfig,
         phone: String,
         limit: Int,
         context: Context? = null,
-    ): CallReportHistoryLookupResult {
+    ): CallReportHistoryLookupResult? {
         val variants = phoneCandidatesForLookup(phone).ifEmpty { listOf(phone) }
-        return mergeResults(variants.mapNotNull { variant ->
+        val successful = variants.mapNotNull { variant ->
             runCatching { request(config, listOf(variant), limit, context) }.getOrNull()
-        })
+        }
+        if (successful.isEmpty()) return null
+        return mergeResults(successful)
     }
 
     private fun mergeResults(results: List<CallReportHistoryLookupResult>): CallReportHistoryLookupResult {
