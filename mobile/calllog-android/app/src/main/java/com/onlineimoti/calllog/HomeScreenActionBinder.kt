@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import android.content.Intent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.ActivityHomeBinding
@@ -22,10 +23,12 @@ internal object HomeScreenActionBinder {
         applyCompactBottomBarSpacing(binding)
         binding.settingsButton.setOnClickListener { openOverflow() }
         binding.crmModeButton.apply {
-            setIconResource(R.drawable.ic_client_money)
-            setOnClickListener { openCrmContacts() }
+            setIconResource(R.drawable.ic_settings_registration)
+            contentDescription = activity.getString(R.string.settings_registration_section)
+            setOnClickListener { openRegistration(activity) }
         }
-        binding.crmControlsScroll.setOnClickListener { openCrmContacts() }
+        (binding.crmControlsScroll.getChildAt(1) as? TextView)?.setText(R.string.settings_registration_section)
+        binding.crmControlsScroll.setOnClickListener { openRegistration(activity) }
         binding.dialPadActionSlot.setOnClickListener { binding.dialPadButton.performClick() }
         binding.smsHistoryButton.setOnClickListener {
             activity.startActivity(Intent(activity, SmsHistoryActivity::class.java))
@@ -54,6 +57,12 @@ internal object HomeScreenActionBinder {
 
     fun updateBrandShortcutVisibility(binding: ActivityHomeBinding, visible: Boolean) {
         binding.relationshipManagerWordmark.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun openRegistration(activity: AppCompatActivity) {
+        activity.startActivity(Intent(activity, MainActivity::class.java).apply {
+            putExtra(MainActivity.EXTRA_OPEN_REGISTRATION, true)
+        })
     }
 
     private fun applyCompactBottomBarSpacing(binding: ActivityHomeBinding) {
