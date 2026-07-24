@@ -1,7 +1,6 @@
 package com.onlineimoti.calllog
 
 import android.Manifest
-import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -111,10 +110,9 @@ class CallStateReceiver : BroadcastReceiver() {
             state = state,
             number = number,
             handled = true,
-            reason = "пускам стартов popup",
+            reason = "пускам един прогресивен стартов popup",
         )
         val config = ConfigStore.load(context.applicationContext)
-        showInstantLoading(context, config, number, "Зарежда се информация…", "Проверявам разговори и бележка…")
         showLookup(context, config, number, direction, fullscreen = direction == "in")
     }
 
@@ -135,28 +133,6 @@ class CallStateReceiver : BroadcastReceiver() {
         if (endedAt > now + 60_000L) return null
         if (now - endedAt > 2 * 60_000L) return null
         return ActiveCallRecord(number = latest.number, direction = latest.direction, startedAt = latest.startedAt)
-    }
-
-    private fun showInstantLoading(
-        context: Context,
-        config: AppConfig,
-        number: String,
-        title: String,
-        subtitle: String,
-    ) {
-        if (!config.useOverlayPopups || !config.useCustomStartPopup || !Settings.canDrawOverlays(context) || isScreenLocked(context)) return
-        context.startService(
-            Intent(context, PostCallOverlayService::class.java)
-                .putExtra(PostCallOverlayService.EXTRA_MODE, PostCallOverlayService.MODE_LOADING)
-                .putExtra(PostCallOverlayService.EXTRA_PHONE, number)
-                .putExtra(PostCallOverlayService.EXTRA_TITLE, title)
-                .putExtra(PostCallOverlayService.EXTRA_SUBTITLE, subtitle),
-        )
-    }
-
-    private fun isScreenLocked(context: Context): Boolean {
-        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-        return keyguardManager?.isKeyguardLocked == true
     }
 
     private fun remoteReady(config: AppConfig): Boolean {
