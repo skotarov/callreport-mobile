@@ -23,18 +23,18 @@ internal class TimelineNotesUi(
         highlightQuery: String,
         visible: Boolean,
     ) {
-        if (!visible || contactNote.isNullOrBlank()) return
+        if (!visible) return
         val colors = NoteUiStyle.General
-        val serverBacked = ServerNoteVisuals.isPrefixed(contactNote)
-        val visibleText = ServerNoteVisuals.withoutPrefix(contactNote)
-        addGeneralNoteRow(
-            column = column,
-            text = SearchTextHighlighter.highlightedText(visibleText, highlightQuery, colors.text),
-            colors = colors,
-            maxLines = 3,
-            drawableRes = if (serverBacked) R.drawable.ic_cloud_note else R.drawable.ic_note_lines,
-            tintDrawable = serverBacked,
-        )
+        HomeGeneralNoteBundle.entries(contactNote).forEach { entry ->
+            addGeneralNoteRow(
+                column = column,
+                text = SearchTextHighlighter.highlightedText(entry.text, highlightQuery, colors.text),
+                colors = colors,
+                maxLines = 3,
+                drawableRes = if (entry.fromServer) R.drawable.ic_cloud_note else R.drawable.ic_note_lines,
+                tintDrawable = entry.fromServer,
+            )
+        }
     }
 
     /** Adds every company-scoped main note to the same shared yellow container. */
@@ -60,7 +60,7 @@ internal class TimelineNotesUi(
             }
     }
 
-    /** Shows Local plus every independent company call note, one blue card per scope. */
+    /** All notes attached to one exact call share one blue container. */
     fun addCallNote(
         column: LinearLayout,
         call: PhoneCallRecord,
@@ -69,28 +69,27 @@ internal class TimelineNotesUi(
         statusForCall: (PhoneCallRecord) -> String?,
         companyLabels: List<HomeCompanyScopeLabel>? = null,
     ) {
-        val notes = callNote?.expandedNotes().orEmpty().filter { it.text.isNotBlank() }
+        val notes = dedupeCallNotes(callNote?.expandedNotes().orEmpty())
         if (notes.isEmpty()) return
         val colors = NoteUiStyle.Call
+        val container = callNotesContainer(column, colors)
         notes.forEach { note ->
             val companyName = companyNameFor(note.companyId, companyLabels)
             val textValue = note.text.trim()
-            column.addView(noteCard(
+            addCallNoteRow(
+                container = container,
                 text = if (companyName.isBlank()) {
                     SearchTextHighlighter.highlightedText(textValue, highlightQuery, colors.text)
                 } else {
                     companyScopedText(companyName, textValue, highlightQuery, colors.text)
                 },
                 colors = colors,
-                maxLines = 3,
-                // A company label is enough by itself. Only an unscoped server note
-                // needs a cloud marker, and that marker is intentionally outlined.
                 cloudDrawableRes = if (note.fromServer && note.companyId.isBlank()) {
                     R.drawable.ic_cloud_note
                 } else {
                     0
                 },
-            ))
+            )
         }
         statusForCall(call)?.let { status ->
             column.addView(TextView(activity).apply {
@@ -138,16 +137,58 @@ internal class TimelineNotesUi(
         })
     }
 
+    private fun addCallNoteRow(
+        container: LinearLayout,
+        text: CharSequence,
+        colors: NoteCardColors,
+        cloudDrawableRes: Int,
+    ) {
+        val rowKey = "$cloudDrawableRes:${normalize(text.toString())}"
+        for (index in 0 until container.childCount) {
+            if (container.getChildAt(index).tag == rowKey) return
+        }
+        container.addView(TextView(activity).apply {
+            tag = rowKey
+            this.text = text
+            setTextColor(colors.text)
+            textSize = 12.5f
+            maxLines = 3
+            setPadding(0, dp(3), 0, dp(3))
+            if (cloudDrawableRes != 0) {
+                setCompoundDrawablesWithIntrinsicBounds(cloudDrawableRes, 0, 0, 0)
+                compoundDrawablePadding = dp(5)
+                compoundDrawableTintList = ColorStateList.valueOf(
+                    activity.getColor(R.color.callreport_icon_background),
+                )
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        })
+    }
+
     private fun generalNotesContainer(
         column: LinearLayout,
         colors: NoteCardColors,
+    ): LinearLayout = sharedContainer(column, colors, GENERAL_NOTES_CONTAINER_TAG)
+
+    private fun callNotesContainer(
+        column: LinearLayout,
+        colors: NoteCardColors,
+    ): LinearLayout = sharedContainer(column, colors, CALL_NOTES_CONTAINER_TAG)
+
+    private fun sharedContainer(
+        column: LinearLayout,
+        colors: NoteCardColors,
+        containerTag: String,
     ): LinearLayout {
         for (index in 0 until column.childCount) {
             val child = column.getChildAt(index)
-            if (child is LinearLayout && child.tag == GENERAL_NOTES_CONTAINER_TAG) return child
+            if (child is LinearLayout && child.tag == containerTag) return child
         }
         return LinearLayout(activity).apply {
-            tag = GENERAL_NOTES_CONTAINER_TAG
+            tag = containerTag
             orientation = LinearLayout.VERTICAL
             setPadding(dp(8), dp(2), dp(8), dp(2))
             background = roundedRect(colors.background, dp(9), colors.border, dp(1))
@@ -158,39 +199,20 @@ internal class TimelineNotesUi(
         }.also { container -> column.addView(container) }
     }
 
-    private fun noteCard(
-        text: CharSequence,
-        colors: NoteCardColors,
-        maxLines: Int,
-        cloudDrawableRes: Int = 0,
-        localDrawableRes: Int = 0,
-    ): TextView {
-        return TextView(activity).apply {
-            this.text = text
-            setTextColor(colors.text)
-            textSize = 12.5f
-            this.maxLines = maxLines
-            setPadding(dp(8), dp(5), dp(8), dp(5))
-            background = roundedRect(colors.background, dp(9), colors.border, dp(1))
-            val drawableRes = when {
-                cloudDrawableRes != 0 -> cloudDrawableRes
-                localDrawableRes != 0 -> localDrawableRes
-                else -> 0
+    private fun dedupeCallNotes(values: List<HomeCallNote>): List<HomeCallNote> {
+        val unique = linkedMapOf<String, HomeCallNote>()
+        values.filter { it.text.isNotBlank() }.forEach { note ->
+            val key = "${note.companyId.trim()}|${normalize(note.text)}"
+            val current = unique[key]
+            if (
+                current == null ||
+                current.fromServer && !note.fromServer ||
+                current.fromServer == note.fromServer && note.updatedAtMs > current.updatedAtMs
+            ) {
+                unique[key] = note.copy(relatedNotes = emptyList())
             }
-            if (drawableRes != 0) {
-                setCompoundDrawablesWithIntrinsicBounds(drawableRes, 0, 0, 0)
-                compoundDrawablePadding = dp(4)
-                if (cloudDrawableRes != 0) {
-                    compoundDrawableTintList = ColorStateList.valueOf(
-                        activity.getColor(R.color.callreport_icon_background),
-                    )
-                }
-            }
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(5) }
         }
+        return unique.values.toList()
     }
 
     private fun companyScopedText(
@@ -232,7 +254,10 @@ internal class TimelineNotesUi(
             ?: id
     }
 
+    private fun normalize(value: String): String = value.trim().replace(Regex("\\s+"), " ").lowercase()
+
     private companion object {
         const val GENERAL_NOTES_CONTAINER_TAG = "relationship_manager_timeline_general_notes"
+        const val CALL_NOTES_CONTAINER_TAG = "relationship_manager_timeline_call_notes"
     }
 }
