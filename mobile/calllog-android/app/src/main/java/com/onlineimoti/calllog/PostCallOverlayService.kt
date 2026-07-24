@@ -48,6 +48,15 @@ class PostCallOverlayService : FontScaledService() {
             title = { state.title },
             lookupLines = { state.lines },
             remoteRowsArePreloaded = { state.remoteRowsArePreloaded },
+            popupSessionId = { state.popupSessionId },
+            popupUpdateOnly = { state.popupUpdateOnly },
+            progressiveRows = {
+                IncomingCallPopupProgress(
+                    calls = state.progressCalls,
+                    localNotes = state.progressLocalNotes,
+                    serverNotes = state.progressServerNotes,
+                )
+            },
             setWindowManager = { windowManager = it },
             removeOverlay = ::removeOverlay,
             addDraggableOverlay = ::addDraggableOverlay,
@@ -120,7 +129,9 @@ class PostCallOverlayService : FontScaledService() {
             stopSelf()
             return START_NOT_STICKY
         }
-        when (intent?.getStringExtra(EXTRA_MODE).orEmpty()) {
+        val mode = intent?.getStringExtra(EXTRA_MODE).orEmpty()
+        if (mode != MODE_LOOKUP) lookupPopup.dismissActiveSession()
+        when (mode) {
             MODE_LOADING -> loadingPopup.show()
             MODE_LOOKUP -> lookupPopup.show()
             MODE_NOTE -> noteEditor.show(UnifiedNoteKind.CALL)
@@ -236,6 +247,11 @@ class PostCallOverlayService : FontScaledService() {
         const val EXTRA_SUBTITLE = "subtitle"
         const val EXTRA_LINES = "lines"
         const val EXTRA_REMOTE_ROWS_ARE_PRELOADED = "remote_rows_are_preloaded"
+        const val EXTRA_POPUP_SESSION_ID = "popup_session_id"
+        const val EXTRA_POPUP_UPDATE_ONLY = "popup_update_only"
+        const val EXTRA_PROGRESS_CALLS = "progress_calls"
+        const val EXTRA_PROGRESS_LOCAL_NOTES = "progress_local_notes"
+        const val EXTRA_PROGRESS_SERVER_NOTES = "progress_server_notes"
         const val EXTRA_CALL_AT = "call_at"
         const val EXTRA_DURATION = "duration"
         private const val LOADING_POPUP_TIMEOUT_MS = 45_000L
