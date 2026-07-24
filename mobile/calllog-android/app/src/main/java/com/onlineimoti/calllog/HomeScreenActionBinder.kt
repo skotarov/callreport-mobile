@@ -32,22 +32,22 @@ internal object HomeScreenActionBinder {
         applyCompactBottomBarSpacing(binding)
         binding.settingsButton.setOnClickListener { openOverflow() }
         binding.crmModeButton.apply {
-            setIconResource(R.drawable.ic_settings_registration)
-            contentDescription = activity.getString(R.string.settings_registration_section)
-            setOnClickListener { openRegistration(activity) }
+            setIconResource(R.drawable.ic_client_money)
+            contentDescription = activity.getString(R.string.runtime_crm_clients)
+            setOnClickListener { openCrmContacts() }
         }
-        (binding.crmControlsScroll.getChildAt(1) as? TextView)?.setText(R.string.settings_registration_section)
-        binding.crmControlsScroll.setOnClickListener { openRegistration(activity) }
+        (binding.crmControlsScroll.getChildAt(1) as? TextView)?.setText(R.string.runtime_crm_clients)
+        binding.crmControlsScroll.setOnClickListener { openCrmContacts() }
         binding.dialPadActionSlot.setOnClickListener { binding.dialPadButton.performClick() }
         binding.smsHistoryButton.setOnClickListener {
             activity.startActivity(Intent(activity, SmsHistoryActivity::class.java))
         }
         binding.smsHistoryActionSlot.setOnClickListener { binding.smsHistoryButton.performClick() }
         binding.relationshipManagerWordmark.apply {
-            contentDescription = activity.getString(R.string.runtime_crm_clients)
+            contentDescription = activity.getString(R.string.settings_registration_section)
             isClickable = true
             isFocusable = true
-            setOnClickListener { openCrmContacts() }
+            setOnClickListener { openRegistration(activity) }
         }
         binding.clearFilterButton.visibility = View.GONE
         binding.filteredDialButton.visibility = View.GONE
