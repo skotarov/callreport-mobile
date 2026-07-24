@@ -44,15 +44,19 @@ object LookupPopupPresenter {
             }
             context.startService(overlayIntent)
 
-            CallReportRuntime.showLookupShadeNotification(
-                context = context,
-                result = result,
-                phone = phone,
-                direction = direction,
-                incomingPopupDataIsPreloaded = remoteRowsArePreloaded,
-            )
-            if (!updateOnly && phone.isNotBlank()) {
-                CallPopupTracker.markPopupOpened(context, phone, direction)
+            // The shade notification is a one-time fallback. Progressive enrichment
+            // updates only the existing overlay rows and must not alert again.
+            if (!updateOnly) {
+                CallReportRuntime.showLookupShadeNotification(
+                    context = context,
+                    result = result,
+                    phone = phone,
+                    direction = direction,
+                    incomingPopupDataIsPreloaded = remoteRowsArePreloaded,
+                )
+                if (phone.isNotBlank()) {
+                    CallPopupTracker.markPopupOpened(context, phone, direction)
+                }
             }
             return
         }
