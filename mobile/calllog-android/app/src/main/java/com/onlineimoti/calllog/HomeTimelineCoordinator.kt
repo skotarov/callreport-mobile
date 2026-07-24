@@ -23,7 +23,7 @@ internal class HomeTimelineCoordinator(
     fun renderCalls() {
         val callsGeneration = callsLoader.invalidate()
         val contactsGeneration = contactsLoader.invalidate()
-        serverCallNotes.invalidate()
+        serverCallNotes.cancelPending()
         if (activeSearchQuery().isBlank()) searchController.cancelActiveTask()
         val size = pageSize()
         val crmEnabled = isCrmModeEnabled()
