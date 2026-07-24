@@ -16,9 +16,11 @@ internal class HomeServerCallNotesController(
     private val executor = Executors.newSingleThreadExecutor()
     private val generation = AtomicInteger(0)
     private val busyTokens = linkedSetOf<Long>()
+    @Volatile private var cachedHistory: CachedHistory? = null
 
     fun invalidate() {
         generation.incrementAndGet()
+        cachedHistory = null
         finishAllBusy()
     }
 
@@ -52,7 +54,7 @@ internal class HomeServerCallNotesController(
         if (busyToken > 0L) busyTokens += busyToken
         executor.execute {
             val history = runCatching {
-                CallReportHistoryLookupClient.lookupMany(config, phones, appContext)
+                historyForPage(config, phones)
             }.getOrDefault(CallReportHistoryLookupResult())
             // Pending operations come last. Their newer timestamp wins immediately;
             // an empty pending note acts as a tombstone until the server confirms it.
@@ -81,8 +83,41 @@ internal class HomeServerCallNotesController(
 
     fun release() {
         generation.incrementAndGet()
+        cachedHistory = null
         finishAllBusy()
         executor.shutdownNow()
+    }
+
+    /**
+     * Home first requests server notes for the immediately visible rows, then asks
+     * again after local notes arrive. Reuse the same fresh response for that second
+     * merge instead of issuing an identical HTTP request.
+     */
+    private fun historyForPage(
+        config: AppConfig,
+        phones: List<String>,
+    ): CallReportHistoryLookupResult {
+        val signature = buildString {
+            append(config.baseUrl.trim())
+            append('#')
+            append(config.accessToken.trim())
+            append('#')
+            phones.map(HomeCallPageLoader::noteKey)
+                .filter { it.isNotBlank() }
+                .sorted()
+                .forEach {
+                    append(it)
+                    append('|')
+                }
+        }
+        val now = System.currentTimeMillis()
+        cachedHistory?.takeIf {
+            it.signature == signature && now - it.loadedAtMs < PAGE_HISTORY_CACHE_MS
+        }?.let { return it.result }
+
+        val loaded = CallReportHistoryLookupClient.lookupMany(config, phones, appContext)
+        cachedHistory = CachedHistory(signature, now, loaded)
+        return loaded
     }
 
     private fun finishBusy(token: Long) {
@@ -129,5 +164,15 @@ internal class HomeServerCallNotesController(
             if (merged[key].isNullOrBlank()) merged[key] = value.second
         }
         return merged
+    }
+
+    private data class CachedHistory(
+        val signature: String,
+        val loadedAtMs: Long,
+        val result: CallReportHistoryLookupResult,
+    )
+
+    private companion object {
+        const val PAGE_HISTORY_CACHE_MS = 5_000L
     }
 }
