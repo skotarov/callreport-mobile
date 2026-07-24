@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 
-object LookupPopupPresenter {
+internal object LookupPopupPresenter {
     fun show(
         context: Context,
         result: LookupResult,
