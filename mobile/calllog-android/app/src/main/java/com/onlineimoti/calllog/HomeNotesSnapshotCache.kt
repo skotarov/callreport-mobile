@@ -29,8 +29,9 @@ internal object HomeNotesSnapshotCache {
         return data.copy(
             contactNotesByNumber = linkedMapOf<String, String>().apply {
                 snapshot.contactNotesByNumber.forEach { (key, value) ->
-                    val visible = remoteReady || !ServerNoteVisuals.isPrefixed(value)
-                    if (key in phoneKeys && value.isNotBlank() && visible) put(key, value)
+                    if (key !in phoneKeys) return@forEach
+                    val visibleValue = if (remoteReady) value else HomeGeneralNoteBundle.withoutServer(value)
+                    if (visibleValue.isNotBlank()) put(key, visibleValue)
                 }
                 data.contactNotesByNumber.forEach(::put)
             },
