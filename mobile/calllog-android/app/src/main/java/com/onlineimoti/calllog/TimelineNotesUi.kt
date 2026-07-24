@@ -155,7 +155,7 @@ internal class TimelineNotesUi(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(5) }
-        }.also(column::addView)
+        }.also { container -> column.addView(container) }
     }
 
     private fun noteCard(
