@@ -86,42 +86,64 @@ internal object LocalCallNotesStore {
             ?: return emptyList()
         if (!LocalNotesIo.exists(ref)) return emptyList()
         return runCatching {
-            val seen = linkedSetOf<String>()
-            LocalNotesIo.readLines(context, ref).asReversed().mapNotNull { line ->
-                val json = runCatching { JSONObject(line) }.getOrNull() ?: return@mapNotNull null
+            val notesByCall = linkedMapOf<String, ContactCallNote>()
+            LocalNotesIo.readLines(context, ref).forEach { line ->
+                val json = runCatching { JSONObject(line) }.getOrNull() ?: return@forEach
                 val note = json.optString("note").trim()
-                if (note.isBlank()) return@mapNotNull null
+                if (note.isBlank()) return@forEach
                 val callAt = json.optLong("call_at", 0L)
                 if (json.optString("type").isNotBlank() &&
                     json.optString("type") != "call_note"
-                ) return@mapNotNull null
+                ) return@forEach
                 if (callAt <= 0L && json.optString("type") != "call_note") {
-                    return@mapNotNull null
+                    return@forEach
                 }
                 val direction = json.optString("direction")
                 val clientNoteId = json.optString("id").ifBlank {
                     clientNoteIdForCall(phoneNumber, callAt, direction)
                 }
-                val key = if (callAt > 0L) {
-                    "$callAt-$direction"
-                } else {
-                    "$callAt-${direction.ifBlank { "call" }}"
-                }
-                if (!seen.add(key)) return@mapNotNull null
-                ContactCallNote(
+                val savedAt = json.optLong("at", 0L)
+                val candidate = ContactCallNote(
                     note = note,
                     callAt = callAt,
-                    savedAt = json.optLong("at", 0L),
+                    savedAt = savedAt,
                     direction = direction,
                     durationSeconds = json.optLong("duration", 0L),
                     clientNoteId = clientNoteId,
                     companyId = json.optString("company_id").trim(),
                 )
-            }.sortedByDescending { note ->
+                val key = when {
+                    // LocalNotesIo.sameCall() already treats an exact call timestamp as
+                    // authoritative even when one historical row has a blank direction.
+                    // Reading must use the same identity rule or both rows become visible.
+                    callAt > 0L -> "call:$callAt"
+                    clientNoteId.isNotBlank() -> "id:$clientNoteId"
+                    else -> "legacy:$savedAt:${direction.ifBlank { "call" }}:${normalizeNote(note)}"
+                }
+                notesByCall[key] = mergeDuplicate(notesByCall[key], candidate)
+            }
+            notesByCall.values.sortedByDescending { note ->
                 note.callAt.takeIf { it > 0L } ?: note.savedAt
             }
         }.getOrDefault(emptyList())
     }
+
+    private fun mergeDuplicate(current: ContactCallNote?, candidate: ContactCallNote): ContactCallNote {
+        current ?: return candidate
+        val newer = if (candidate.savedAt >= current.savedAt) candidate else current
+        val older = if (newer === candidate) current else candidate
+        return newer.copy(
+            direction = newer.direction.ifBlank { older.direction },
+            durationSeconds = newer.durationSeconds.takeIf { it > 0L } ?: older.durationSeconds,
+            clientNoteId = newer.clientNoteId.takeIf {
+                it.isNotBlank() && newer.direction.isNotBlank()
+            } ?: older.clientNoteId.ifBlank { newer.clientNoteId },
+            companyId = newer.companyId.ifBlank { older.companyId },
+            serverClientEventId = newer.serverClientEventId.ifBlank { older.serverClientEventId },
+        )
+    }
+
+    private fun normalizeNote(value: String): String = value.trim().replace(Regex("\\s+"), " ").lowercase()
 
     fun appendCallNote(
         context: Context,
