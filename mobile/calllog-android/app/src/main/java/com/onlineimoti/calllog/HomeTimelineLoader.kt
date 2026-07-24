@@ -124,8 +124,8 @@ internal object HomeTimelineLoader {
         val smsFuture = timelineSourceExecutor.submit<List<PhoneCallRecord>> {
             readSms(context, wantedPerSource)
         }
-        val calls = await(callsFuture)
-        val sms = await(smsFuture)
+        val calls = await(callsFuture, emptyList())
+        val sms = await(smsFuture, emptyList())
         return TimelineSnapshot(
             rows = (calls + sms).sortedByDescending { it.startedAt },
             exhausted = calls.size < wantedPerSource && sms.size < wantedPerSource,
@@ -174,13 +174,15 @@ internal object HomeTimelineLoader {
         return rows
     }
 
-    private fun <T> await(future: Future<T>): T {
+    private fun <T> await(future: Future<T>, fallback: T): T {
         return try {
             future.get()
-        } catch (error: InterruptedException) {
+        } catch (_: InterruptedException) {
             future.cancel(true)
             Thread.currentThread().interrupt()
-            throw error
+            fallback
+        } catch (_: Throwable) {
+            fallback
         }
     }
 
