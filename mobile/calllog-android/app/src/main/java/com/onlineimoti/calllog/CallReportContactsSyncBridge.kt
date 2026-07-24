@@ -12,6 +12,8 @@ import androidx.core.content.ContextCompat
 internal object CallReportContactsSyncBridge {
     private const val PREFS = "callreport_contacts_sync_bridge"
     private const val KEY_LAST_SYNC_REQUEST_MS = "last_sync_request_ms"
+    private const val KEY_LINKED_APP_REPAIR_VERSION = "linked_app_repair_version"
+    private const val LINKED_APP_REPAIR_VERSION = 1
     private const val SYNC_REQUEST_INTERVAL_MS = 24L * 60L * 60L * 1000L
     private const val PERIODIC_SYNC_SECONDS = 6L * 60L * 60L
 
@@ -20,13 +22,18 @@ internal object CallReportContactsSyncBridge {
         CrmContactAccountStore.ensureAccount(appContext, syncAutomatically = true)
         val account = Account(CrmContactAccountStore.ACCOUNT_NAME, CallReportContactIntegration.ACCOUNT_TYPE)
         ensurePeriodicSync(account)
-        if (!force) return
-        if (!canReadAndWriteContacts(appContext)) return
 
         val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val needsLinkedAppRepair =
+            prefs.getInt(KEY_LINKED_APP_REPAIR_VERSION, 0) < LINKED_APP_REPAIR_VERSION
+        if (!force && !needsLinkedAppRepair) return
+        if (!canReadAndWriteContacts(appContext)) return
+
         val now = System.currentTimeMillis()
         val lastRequest = prefs.getLong(KEY_LAST_SYNC_REQUEST_MS, 0L)
-        if (now - lastRequest < SYNC_REQUEST_INTERVAL_MS) return
+        // A metadata repair must run immediately even if an ordinary sync was
+        // requested recently by the previous, incorrectly registered build.
+        if (!needsLinkedAppRepair && now - lastRequest < SYNC_REQUEST_INTERVAL_MS) return
 
         val extras = Bundle().apply {
             putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
@@ -35,7 +42,10 @@ internal object CallReportContactsSyncBridge {
 
         runCatching {
             ContentResolver.requestSync(account, ContactsContract.AUTHORITY, extras)
-            prefs.edit().putLong(KEY_LAST_SYNC_REQUEST_MS, now).apply()
+            prefs.edit()
+                .putLong(KEY_LAST_SYNC_REQUEST_MS, now)
+                .putInt(KEY_LINKED_APP_REPAIR_VERSION, LINKED_APP_REPAIR_VERSION)
+                .apply()
         }
     }
 
