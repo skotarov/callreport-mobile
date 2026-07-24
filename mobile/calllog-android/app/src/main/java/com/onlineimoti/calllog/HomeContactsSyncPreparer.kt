@@ -14,11 +14,21 @@ internal class HomeContactsSyncPreparer(
         if (prepared) return
         prepared = true
         executor.execute {
+            try {
+                Thread.sleep(INITIAL_SYNC_DELAY_MS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return@execute
+            }
             CallReportRuntime.ensureContactsSync(context.applicationContext)
         }
     }
 
     fun release() {
         executor.shutdownNow()
+    }
+
+    private companion object {
+        const val INITIAL_SYNC_DELAY_MS = 500L
     }
 }
