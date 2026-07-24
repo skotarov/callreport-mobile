@@ -18,9 +18,9 @@ internal class HomeServerCallNotesController(
     private val busyTokens = linkedSetOf<Long>()
     @Volatile private var cachedHistory: CachedHistory? = null
 
+    /** Cancels obsolete callbacks without throwing away reusable note snapshots. */
     fun invalidate() {
         generation.incrementAndGet()
-        cachedHistory = null
         finishAllBusy()
     }
 
@@ -33,13 +33,20 @@ internal class HomeServerCallNotesController(
             handler.post(onFinished)
             return
         }
+
+        // This method is entered from Home's main-thread render callback. Apply the
+        // durable last-known notes synchronously, before Android draws the first frame,
+        // so calls, yellow notes and blue notes appear together instead of in stages.
+        val cachedData = HomeNotesSnapshotCache.mergeCached(appContext, renderData)
+        if (cachedData != renderData) onUpdated(cachedData)
+
         val config = ConfigStore.load(appContext)
         if (!CallReportRemoteAccess.isReady(config)) {
             handler.post(onFinished)
             return
         }
         val expectedGeneration = generation.get()
-        val phones = renderData.calls
+        val phones = cachedData.calls
             .filterNot { it.isSms }
             .map { it.number }
             .distinctBy(HomeCallPageLoader::noteKey)
@@ -59,23 +66,24 @@ internal class HomeServerCallNotesController(
             // Pending operations come last. Their newer timestamp wins immediately;
             // an empty pending note acts as a tombstone until the server confirms it.
             val combinedEvents = history.events + CompanyCallNoteOutbox.pendingEvents(appContext, phones)
-            val updated = renderData.copy(
+            val updated = cachedData.copy(
                 contactNotesByNumber = mergeServerGeneralNotes(
-                    calls = renderData.calls,
-                    existing = renderData.contactNotesByNumber,
+                    calls = cachedData.calls,
+                    existing = cachedData.contactNotesByNumber,
                     serverEvents = history.events,
                 ),
                 callNotesByCall = HomeCallNotesResolver.mergeWithServer(
-                    calls = renderData.calls,
-                    localNotes = renderData.callNotesByCall,
+                    calls = cachedData.calls,
+                    localNotes = cachedData.callNotesByCall,
                     serverEvents = combinedEvents,
                     principal = history.principal,
                 ),
             )
+            HomeNotesSnapshotCache.store(appContext, updated)
             handler.post {
                 finishBusy(busyToken)
                 if (expectedGeneration != generation.get()) return@post
-                if (updated != renderData) onUpdated(updated)
+                if (updated != cachedData) onUpdated(updated)
                 onFinished()
             }
         }
@@ -173,6 +181,6 @@ internal class HomeServerCallNotesController(
     )
 
     private companion object {
-        const val PAGE_HISTORY_CACHE_MS = 5_000L
+        const val PAGE_HISTORY_CACHE_MS = 30_000L
     }
 }
