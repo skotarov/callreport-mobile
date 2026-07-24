@@ -18,10 +18,16 @@ internal class HomeServerCallNotesController(
     private val busyTokens = linkedSetOf<Long>()
     @Volatile private var cachedHistory: CachedHistory? = null
 
-    /** Cancels obsolete callbacks without throwing away reusable note snapshots. */
-    fun invalidate() {
+    /** Cancels obsolete callbacks while retaining a reusable response for the same page. */
+    fun cancelPending() {
         generation.incrementAndGet()
         finishAllBusy()
+    }
+
+    /** Real note/settings changes must also force the next request to read the server again. */
+    fun invalidate() {
+        cancelPending()
+        cachedHistory = null
     }
 
     fun enrichAsync(
