@@ -46,18 +46,18 @@ internal class HomeServerCallNotesController(
         val cachedData = HomeNotesSnapshotCache.mergeCached(appContext, renderData)
         if (cachedData != renderData) onUpdated(cachedData)
 
+        val expectedGeneration = generation.get()
         val config = ConfigStore.load(appContext)
         if (!CallReportRemoteAccess.isReady(config)) {
-            handler.post(onFinished)
+            persistWithoutRemote(cachedData, expectedGeneration, onFinished)
             return
         }
-        val expectedGeneration = generation.get()
         val phones = cachedData.calls
             .filterNot { it.isSms }
             .map { it.number }
             .distinctBy(HomeCallPageLoader::noteKey)
         if (phones.isEmpty()) {
-            handler.post(onFinished)
+            persistWithoutRemote(cachedData, expectedGeneration, onFinished)
             return
         }
 
@@ -68,6 +68,7 @@ internal class HomeServerCallNotesController(
         executor.execute {
             val history = runCatching { historyForPage(config, phones) }.getOrNull()
             if (history == null) {
+                HomeNotesSnapshotCache.store(appContext, cachedData)
                 handler.post {
                     finishBusy(busyToken)
                     if (expectedGeneration == generation.get()) onFinished()
@@ -105,6 +106,19 @@ internal class HomeServerCallNotesController(
         cachedHistory = null
         finishAllBusy()
         executor.shutdownNow()
+    }
+
+    private fun persistWithoutRemote(
+        data: HomeRenderData,
+        expectedGeneration: Int,
+        onFinished: () -> Unit,
+    ) {
+        executor.execute {
+            HomeNotesSnapshotCache.store(appContext, data)
+            handler.post {
+                if (expectedGeneration == generation.get()) onFinished()
+            }
+        }
     }
 
     /**
