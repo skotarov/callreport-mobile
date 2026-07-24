@@ -48,7 +48,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
             )
             if (note.isNotBlank() || companyNote.pending) {
                 val card = cards.generalNoteCard(
-                    textValue = note.takeIf { it.isNotBlank() }?.let(ServerNoteVisuals::prefixed).orEmpty(),
+                    textValue = note,
                     muted = note.isBlank(),
                     serverConfirmed = companyNote.confirmedByServer,
                     syncStatusText = if (companyNote.pending) activity.getString(R.string.history_pending_server_sync) else "",
@@ -100,7 +100,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
         section.addView(companyHeader("Без фирма", showCloud = true))
         section.addView(
             cards.generalNoteCard(
-                textValue = ServerNoteVisuals.prefixed(serverNote.note.trim()),
+                textValue = serverNote.note.trim(),
                 muted = false,
                 serverConfirmed = true,
                 syncStatusText = "",
