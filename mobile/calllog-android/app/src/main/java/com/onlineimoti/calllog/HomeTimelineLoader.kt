@@ -7,7 +7,7 @@ import java.util.concurrent.Future
 /**
  * Builds the unfiltered Home timeline from the two device providers. Button pages
  * read only through the requested offset. Automatic scrolling starts with a small
- * snapshot and expands it only when a later page or an unfinished day needs more.
+ * snapshot and expands it until both providers cover the final visible day.
  */
 internal object HomeTimelineLoader {
     private const val CALL_BATCH_SIZE = 500
@@ -19,7 +19,11 @@ internal object HomeTimelineLoader {
 
     private val timelineSourceExecutor = Executors.newFixedThreadPool(2)
     private val groupedCacheLock = Any()
-    private var groupedCache = TimedTimeline(0L, emptyList(), 0, false)
+    private var groupedCache = TimedTimeline(
+        loadedAtMs = 0L,
+        snapshot = TimelineSnapshot(emptyList(), emptyList(), true, true),
+        requestedPerSource = 0,
+    )
     private var groupedCacheGeneration = 0
 
     fun page(context: Context, pageIndex: Int, pageSize: Int): List<PhoneCallRecord> {
@@ -50,7 +54,11 @@ internal object HomeTimelineLoader {
     fun invalidateCache() {
         synchronized(groupedCacheLock) {
             groupedCacheGeneration += 1
-            groupedCache = TimedTimeline(0L, emptyList(), 0, false)
+            groupedCache = TimedTimeline(
+                loadedAtMs = 0L,
+                snapshot = TimelineSnapshot(emptyList(), emptyList(), true, true),
+                requestedPerSource = 0,
+            )
         }
     }
 
@@ -61,7 +69,7 @@ internal object HomeTimelineLoader {
     ): List<PhoneCallRecord> {
         var requestedPerSource = maxOf(
             INITIAL_GROUPED_SOURCE_ROWS,
-            (pageIndex + 2) * pageSize,
+            (pageIndex + 1) * pageSize,
         ).coerceAtMost(GROUPED_TIMELINE_SCAN_LIMIT)
 
         while (true) {
@@ -73,10 +81,10 @@ internal object HomeTimelineLoader {
             )
             val page = pages.getOrNull(pageIndex).orEmpty()
 
-            // A following page proves that the requested page ends at a complete
-            // day boundary. Otherwise expand until the final visible day is whole.
-            val hasFollowingPage = pageIndex < pages.lastIndex
-            if (hasFollowingPage || snapshot.exhausted ||
+            // A page is stable only when unseen rows from both providers are older
+            // than its final visible day. This prevents later SMS batches from
+            // displacing Call Log rows that have already been paged.
+            if (snapshot.covers(page) || snapshot.fullyExhausted ||
                 requestedPerSource >= GROUPED_TIMELINE_SCAN_LIMIT
             ) {
                 return page
@@ -94,8 +102,12 @@ internal object HomeTimelineLoader {
         val loadGeneration: Int
         synchronized(groupedCacheLock) {
             val fresh = now - groupedCache.loadedAtMs < GROUPED_TIMELINE_CACHE_MS
-            if (fresh && (groupedCache.exhausted || groupedCache.requestedPerSource >= requestedPerSource)) {
-                return TimelineSnapshot(groupedCache.rows, groupedCache.exhausted)
+            if (fresh && (
+                    groupedCache.snapshot.fullyExhausted ||
+                        groupedCache.requestedPerSource >= requestedPerSource
+                    )
+            ) {
+                return groupedCache.snapshot
             }
             loadGeneration = groupedCacheGeneration
         }
@@ -106,9 +118,8 @@ internal object HomeTimelineLoader {
             if (loadGeneration == groupedCacheGeneration) {
                 groupedCache = TimedTimeline(
                     loadedAtMs = now,
-                    rows = loaded.rows,
+                    snapshot = loaded,
                     requestedPerSource = requestedPerSource,
-                    exhausted = loaded.exhausted,
                 )
             }
         }
@@ -117,7 +128,9 @@ internal object HomeTimelineLoader {
 
     /** Call Log and SMS are independent providers, so query them concurrently. */
     private fun mergedSnapshot(context: Context, wantedPerSource: Int): TimelineSnapshot {
-        if (wantedPerSource <= 0) return TimelineSnapshot(emptyList(), true)
+        if (wantedPerSource <= 0) {
+            return TimelineSnapshot(emptyList(), emptyList(), true, true)
+        }
         val callsFuture = timelineSourceExecutor.submit<List<PhoneCallRecord>> {
             readCalls(context, wantedPerSource)
         }
@@ -127,8 +140,10 @@ internal object HomeTimelineLoader {
         val calls = await(callsFuture, emptyList())
         val sms = await(smsFuture, emptyList())
         return TimelineSnapshot(
-            rows = (calls + sms).sortedByDescending { it.startedAt },
-            exhausted = calls.size < wantedPerSource && sms.size < wantedPerSource,
+            calls = calls,
+            sms = sms,
+            callsExhausted = calls.size < wantedPerSource,
+            smsExhausted = sms.size < wantedPerSource,
         )
     }
 
@@ -187,14 +202,41 @@ internal object HomeTimelineLoader {
     }
 
     private data class TimelineSnapshot(
-        val rows: List<PhoneCallRecord>,
-        val exhausted: Boolean,
-    )
+        val calls: List<PhoneCallRecord>,
+        val sms: List<PhoneCallRecord>,
+        val callsExhausted: Boolean,
+        val smsExhausted: Boolean,
+    ) {
+        val rows: List<PhoneCallRecord> = (calls + sms).sortedByDescending { it.startedAt }
+        val fullyExhausted: Boolean = callsExhausted && smsExhausted
+
+        fun covers(page: List<PhoneCallRecord>): Boolean {
+            val lastVisible = page.lastOrNull() ?: return fullyExhausted
+            val lastVisibleDay = TimelineGroupKeys.day(lastVisible.startedAt)
+            return sourceCovers(calls, callsExhausted, lastVisible, lastVisibleDay) &&
+                sourceCovers(sms, smsExhausted, lastVisible, lastVisibleDay)
+        }
+
+        private fun sourceCovers(
+            source: List<PhoneCallRecord>,
+            exhausted: Boolean,
+            lastVisible: PhoneCallRecord,
+            lastVisibleDay: Long?,
+        ): Boolean {
+            if (exhausted) return true
+            val oldestLoaded = source.lastOrNull() ?: return false
+            val oldestLoadedDay = TimelineGroupKeys.day(oldestLoaded.startedAt)
+            return if (lastVisibleDay != null && oldestLoadedDay != null) {
+                oldestLoadedDay < lastVisibleDay
+            } else {
+                oldestLoaded.startedAt < lastVisible.startedAt
+            }
+        }
+    }
 
     private data class TimedTimeline(
         val loadedAtMs: Long,
-        val rows: List<PhoneCallRecord>,
+        val snapshot: TimelineSnapshot,
         val requestedPerSource: Int,
-        val exhausted: Boolean,
     )
 }
