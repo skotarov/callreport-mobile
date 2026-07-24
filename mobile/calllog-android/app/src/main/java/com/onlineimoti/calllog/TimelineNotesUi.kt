@@ -27,16 +27,17 @@ internal class TimelineNotesUi(
         val colors = NoteUiStyle.General
         val serverBacked = ServerNoteVisuals.isPrefixed(contactNote)
         val visibleText = ServerNoteVisuals.withoutPrefix(contactNote)
-        column.addView(noteCard(
+        addGeneralNoteRow(
+            column = column,
             text = SearchTextHighlighter.highlightedText(visibleText, highlightQuery, colors.text),
             colors = colors,
-            maxLines = 2,
-            cloudDrawableRes = if (serverBacked) R.drawable.ic_cloud_note else 0,
-            localDrawableRes = R.drawable.ic_note_lines,
-        ))
+            maxLines = 3,
+            drawableRes = if (serverBacked) R.drawable.ic_cloud_note else R.drawable.ic_note_lines,
+            tintDrawable = serverBacked,
+        )
     }
 
-    /** Shows each yellow company-scoped main note after the ordinary local main note. */
+    /** Adds every company-scoped main note to the same shared yellow container. */
     fun addCompanyGeneralNotes(
         column: LinearLayout,
         labels: List<HomeCompanyScopeLabel>?,
@@ -50,13 +51,12 @@ internal class TimelineNotesUi(
                 val colors = NoteUiStyle.General
                 val companyName = label.companyName.ifBlank { label.companyId }
                 val visibleNote = ServerNoteVisuals.withoutPrefix(label.generalNote)
-                column.addView(noteCard(
+                addGeneralNoteRow(
+                    column = column,
                     text = companyScopedText(companyName, visibleNote, highlightQuery, colors.text),
                     colors = colors,
                     maxLines = 3,
-                    // The visible company name already identifies this as a cloud scope.
-                    // Do not repeat the same information with a cloud icon.
-                ))
+                )
             }
     }
 
@@ -100,6 +100,62 @@ internal class TimelineNotesUi(
                 setPadding(dp(8), dp(4), dp(8), 0)
             })
         }
+    }
+
+    private fun addGeneralNoteRow(
+        column: LinearLayout,
+        text: CharSequence,
+        colors: NoteCardColors,
+        maxLines: Int,
+        drawableRes: Int = 0,
+        tintDrawable: Boolean = false,
+    ) {
+        val container = generalNotesContainer(column, colors)
+        val rowKey = "$drawableRes:${text.toString().trim()}"
+        for (index in 0 until container.childCount) {
+            if (container.getChildAt(index).tag == rowKey) return
+        }
+        container.addView(TextView(activity).apply {
+            tag = rowKey
+            this.text = text
+            setTextColor(colors.text)
+            textSize = 12.5f
+            this.maxLines = maxLines
+            setPadding(0, dp(3), 0, dp(3))
+            if (drawableRes != 0) {
+                setCompoundDrawablesWithIntrinsicBounds(drawableRes, 0, 0, 0)
+                compoundDrawablePadding = dp(5)
+                if (tintDrawable) {
+                    compoundDrawableTintList = ColorStateList.valueOf(
+                        activity.getColor(R.color.callreport_icon_background),
+                    )
+                }
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        })
+    }
+
+    private fun generalNotesContainer(
+        column: LinearLayout,
+        colors: NoteCardColors,
+    ): LinearLayout {
+        for (index in 0 until column.childCount) {
+            val child = column.getChildAt(index)
+            if (child is LinearLayout && child.tag == GENERAL_NOTES_CONTAINER_TAG) return child
+        }
+        return LinearLayout(activity).apply {
+            tag = GENERAL_NOTES_CONTAINER_TAG
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(2), dp(8), dp(2))
+            background = roundedRect(colors.background, dp(9), colors.border, dp(1))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(5) }
+        }.also(column::addView)
     }
 
     private fun noteCard(
@@ -174,5 +230,9 @@ internal class TimelineNotesUi(
             ?.trim()
             ?.ifBlank { id }
             ?: id
+    }
+
+    private companion object {
+        const val GENERAL_NOTES_CONTAINER_TAG = "relationship_manager_timeline_general_notes"
     }
 }
