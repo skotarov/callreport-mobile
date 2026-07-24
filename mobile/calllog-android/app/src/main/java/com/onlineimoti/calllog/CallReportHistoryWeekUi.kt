@@ -5,17 +5,13 @@ import android.graphics.Typeface
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Locale
 
+/** Shared weekly heading used by both History lists. */
 internal class CallReportHistoryWeekUi(
     private val activity: Activity,
     private val dp: (Int) -> Int,
 ) {
-    private val dayMonthFormatter = SimpleDateFormat("d MMMM", Locale("bg", "BG"))
-    private val dayMonthYearFormatter = SimpleDateFormat("d MMMM yyyy", Locale("bg", "BG"))
-
     fun currentWeekSerial(): Long? = weekStartSerial(System.currentTimeMillis())
 
     fun weekStartSerial(timestampMs: Long): Long? =
@@ -23,7 +19,7 @@ internal class CallReportHistoryWeekUi(
 
     fun separator(timestampMs: Long, relativeWeeks: Long): TextView {
         return StickyGroupHeaderUi.mark(TextView(activity).apply {
-            text = "Седмица: ${weekDateRange(timestampMs)} (${relativeWeeksLabel(relativeWeeks)})"
+            text = "${relativeWeeksLabel(relativeWeeks)} - ${weekDateRange(timestampMs)}"
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(activity.getColor(R.color.callreport_icon_background))
@@ -46,18 +42,46 @@ internal class CallReportHistoryWeekUi(
             add(Calendar.DAY_OF_YEAR, DAYS_PER_WEEK.toInt() - 1)
         }
         return if (start.get(Calendar.YEAR) == end.get(Calendar.YEAR)) {
-            "${dayMonthFormatter.format(start.time)} – ${dayMonthYearFormatter.format(end.time)}"
+            "${shortDate(start)}-${shortDate(end)} ${end.get(Calendar.YEAR)}"
         } else {
-            "${dayMonthYearFormatter.format(start.time)} – ${dayMonthYearFormatter.format(end.time)}"
+            "${shortDate(start)} ${start.get(Calendar.YEAR)}-${shortDate(end)} ${end.get(Calendar.YEAR)}"
         }
     }
 
+    private fun shortDate(calendar: Calendar): String {
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+        val month = MONTHS_BG.getOrElse(calendar.get(Calendar.MONTH)) { "" }
+        return "$day $month"
+    }
+
     private fun relativeWeeksLabel(weeks: Long): String = when {
-        weeks == 0L -> "преди 0 седмици"
-        weeks == 1L -> "преди 1 седмица"
-        weeks > 1L -> "преди $weeks седмици"
-        weeks == -1L -> "след 1 седмица"
-        else -> "след ${-weeks} седмици"
+        weeks == 0L -> "Тази седмица"
+        weeks == 1L -> "предната седмица"
+        weeks > 1L -> "преди ${durationParts(weeks)}"
+        weeks == -1L -> "следващата седмица"
+        else -> "след ${durationParts(-weeks)}"
+    }
+
+    /**
+     * The list is grouped by exact weeks, so larger periods stay predictable:
+     * 4 weeks = 1 month and 52 weeks = 1 year.
+     */
+    private fun durationParts(totalWeeks: Long): String {
+        val years = totalWeeks / WEEKS_PER_YEAR
+        val afterYears = totalWeeks % WEEKS_PER_YEAR
+        val months = afterYears / WEEKS_PER_MONTH
+        val weeks = afterYears % WEEKS_PER_MONTH
+        val parts = buildList {
+            if (years > 0L) add("$years г.")
+            if (months > 0L) add("$months мес.")
+            if (weeks > 0L) add("$weeks седм.")
+        }
+        return when (parts.size) {
+            0 -> "0 седм."
+            1 -> parts[0]
+            2 -> "${parts[0]} и ${parts[1]}"
+            else -> "${parts[0]} ${parts[1]} и ${parts[2]}"
+        }
     }
 
     private fun weekStartCalendar(timestampMs: Long): Calendar? {
@@ -84,5 +108,11 @@ internal class CallReportHistoryWeekUi(
 
     companion object {
         const val DAYS_PER_WEEK = 7L
+        private const val WEEKS_PER_MONTH = 4L
+        private const val WEEKS_PER_YEAR = 52L
+        private val MONTHS_BG = listOf(
+            "Яну", "Фев", "Мар", "Апр", "Май", "Юн",
+            "Юл", "Авг", "Сеп", "Окт", "Ное", "Дек",
+        )
     }
 }
