@@ -30,6 +30,9 @@ internal object HomeLoadingFooterUi {
             visibility = View.INVISIBLE
             moveToEnd(container, this)
         }
+        // Rows/status are now visible and usable. Names, local notes and server
+        // notes may continue enriching them without keeping the main calls loader.
+        HomePageReadyState.markRowsVisible()
     }
 
     fun isFooter(view: View?): Boolean = view?.tag == FOOTER_TAG
