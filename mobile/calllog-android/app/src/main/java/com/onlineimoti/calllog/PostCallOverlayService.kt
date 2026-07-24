@@ -124,12 +124,14 @@ class PostCallOverlayService : FontScaledService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         state.readExtras(intent)
-        state.hydrateLatestCallIfNeeded(this)
+        val mode = intent?.getStringExtra(EXTRA_MODE).orEmpty()
+        // Lookup data is already resolved asynchronously by the coordinator. Do not
+        // read Call Log synchronously on the service main thread before first paint.
+        if (mode != MODE_LOOKUP) state.hydrateLatestCallIfNeeded(this)
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        val mode = intent?.getStringExtra(EXTRA_MODE).orEmpty()
         if (mode != MODE_LOOKUP) lookupPopup.dismissActiveSession()
         when (mode) {
             MODE_LOADING -> loadingPopup.show()
