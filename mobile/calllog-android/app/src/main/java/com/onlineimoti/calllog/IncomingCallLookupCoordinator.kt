@@ -417,9 +417,11 @@ internal object IncomingCallPopupSessionStore {
         val key = "${phoneKey(phone)}|${direction.trim().lowercase()}"
         synchronized(lock) {
             pruneLocked(now)
+            // Reuse even a dismissed session for duplicate Android sources. That
+            // makes the second event a no-op instead of reopening the card.
             val existing = entries.values
                 .asSequence()
-                .filter { it.key == key && !it.dismissed && now - it.createdAtMs <= REUSE_WINDOW_MS }
+                .filter { it.key == key && now - it.createdAtMs <= REUSE_WINDOW_MS }
                 .maxByOrNull { it.createdAtMs }
             if (existing != null) return Lease(existing.id, isNew = false)
 
