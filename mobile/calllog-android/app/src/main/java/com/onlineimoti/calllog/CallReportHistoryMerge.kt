@@ -42,6 +42,7 @@ internal data class CallReportHistoryRow(
 /** Merges Android history and canonical server history without duplicating matching records. */
 internal object CallReportHistoryMerge {
     private const val FALLBACK_MATCH_WINDOW_MS = 10 * 60 * 1000L
+    private const val NOTE_FALLBACK_MATCH_WINDOW_MS = 2 * 60 * 1000L
 
     fun merge(
         context: Context,
@@ -123,8 +124,11 @@ internal object CallReportHistoryMerge {
             }
             val expectedId = ServerRecordIndex.callNoteEventId(context, clientNoteId)
             val localConfirmed = expectedId.isNotBlank() && ServerRecordIndex.isConfirmed(context, expectedId)
-            val match = serverByClientId[expectedId]
+            val directServerId = note.serverClientEventId.trim()
+            val match = directServerId.takeIf { it.isNotBlank() }?.let(serverByClientId::get)
+                ?: serverByClientId[expectedId]
                 ?: legacyTopicCallMatch(serverEvents, usedServerIndexes, phone, clientNoteId, note.direction, note.callAt)
+                ?: fallbackNoteMatch(serverEvents, usedServerIndexes, phone, note)
             if (match != null) markUsed(match, serverEvents, usedServerIds, usedServerIndexes)
             val foreignAuthor = isOtherBrokerAuthor(match, principal)
             val serverNewer = match != null && note.savedAt > 0L && match.updatedAtMs > note.savedAt && match.note != note.note
@@ -219,6 +223,43 @@ internal object CallReportHistoryMerge {
         return null
     }
 
+    /**
+     * Older local rows may have been written before their server client_event_id was
+     * persisted. Match the same note by phone, text and nearby call timestamp so the
+     * local and cloud copies render as one conversation note rather than two rows.
+     */
+    private fun fallbackNoteMatch(
+        events: List<CallReportHistoryEvent>,
+        usedIndexes: Set<Int>,
+        phone: String,
+        note: ContactCallNote,
+    ): CallReportHistoryEvent? {
+        val expectedPhone = HomeCallPageLoader.noteKey(phone)
+        val expectedText = normalizeNote(note.note)
+        val expectedTime = note.callAt.takeIf { it > 0L } ?: note.savedAt
+        if (expectedPhone.isBlank() || expectedText.isBlank() || expectedTime <= 0L) return null
+
+        var best: CallReportHistoryEvent? = null
+        var bestDelta = Long.MAX_VALUE
+        events.forEachIndexed { index, event ->
+            if (index in usedIndexes) return@forEachIndexed
+            if (!event.communicationType.equals("note", ignoreCase = true)) return@forEachIndexed
+            if (HomeCallPageLoader.noteKey(event.phone) != expectedPhone) return@forEachIndexed
+            if (normalizeNote(event.note) != expectedText) return@forEachIndexed
+            if (
+                note.direction.isNotBlank() && event.direction.isNotBlank() &&
+                note.direction != event.direction
+            ) return@forEachIndexed
+            val eventTime = event.occurredAtMs.takeIf { it > 0L } ?: event.updatedAtMs
+            val delta = abs(eventTime - expectedTime)
+            if (delta <= NOTE_FALLBACK_MATCH_WINDOW_MS && delta < bestDelta) {
+                best = event
+                bestDelta = delta
+            }
+        }
+        return best
+    }
+
     private fun fallbackMatch(
         events: List<CallReportHistoryEvent>,
         usedIndexes: Set<Int>,
@@ -255,6 +296,8 @@ internal object CallReportHistoryMerge {
         }
         if (index >= 0) usedIndexes += index
     }
+
+    private fun normalizeNote(value: String): String = value.trim().replace(Regex("\\s+"), " ").lowercase()
 
     private fun Long?.orEmpty(): Long = this ?: 0L
 }
