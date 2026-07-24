@@ -77,7 +77,12 @@ internal class HomeCallRowRenderer(
         if (showContactIdentity) {
             column.addView(mainNameRow(call, displayName, highlightQuery, crmClient, companyGeneralNoteLabels, showGeneralContactNote && serverBacked))
         }
-        addGeneralNote(column, contactNote, highlightQuery, showGeneralContactNote)
+        notesUi.addGeneralContactNote(
+            column = column,
+            contactNote = contactNote,
+            highlightQuery = highlightQuery,
+            visible = showGeneralContactNote,
+        )
         notesUi.addCompanyGeneralNotes(
             column = column,
             labels = companyGeneralNoteLabels,
@@ -128,25 +133,6 @@ internal class HomeCallRowRenderer(
             textSize = 12.5f
             maxLines = 1
         }
-    }
-
-    private fun addGeneralNote(column: LinearLayout, note: String?, query: String, visible: Boolean) {
-        if (!visible || note.isNullOrBlank()) return
-        val colors = NoteUiStyle.General
-        column.addView(TextView(activity).apply {
-            text = SearchTextHighlighter.highlightedText(note, query, colors.text)
-            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_note_lines, 0, 0, 0)
-            compoundDrawablePadding = dp(4)
-            setTextColor(colors.text)
-            textSize = 12.5f
-            maxLines = 2
-            setPadding(dp(8), dp(5), dp(8), dp(5))
-            background = roundedRect(colors.background, dp(9), colors.border, dp(1))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(5) }
-        })
     }
 
     private fun actions(call: PhoneCallRecord, name: String, note: HomeCallNote?) = LinearLayout(activity).apply {
