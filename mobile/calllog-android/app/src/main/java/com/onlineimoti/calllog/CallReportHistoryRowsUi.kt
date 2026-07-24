@@ -10,7 +10,6 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import kotlin.math.abs
 
 /** Renders already prepared Notes and SMS directly on the History background. */
 internal class CallReportHistoryRowsUi(
@@ -23,12 +22,23 @@ internal class CallReportHistoryRowsUi(
     private val weekUi by lazy { CallReportHistoryWeekUi(activity, dp) }
     private val noteRowUi by lazy { CallReportHistoryNoteRowUi(activity, dp, roundedRect, sharedUi) }
     private val smsRowUi by lazy { CallReportHistorySmsRowUi(activity, dp, sharedUi) }
+    private val pageRowsUi by lazy { CallReportHistoryPageRowsUi(dp, weekUi, noteRowUi, smsRowUi) }
+    private val automaticPages by lazy { CallReportHistoryAutomaticPagesUi(activity) }
 
     fun canPreviousPage(): Boolean = paginationUi.canPrevious()
     fun canNextPage(): Boolean = paginationUi.canNext()
     fun previousPage(onPageChanged: () -> Unit): Boolean = paginationUi.previousPage(onPageChanged)
-    fun nextPage(onPageChanged: () -> Unit): Boolean = paginationUi.nextPage(onPageChanged)
-    fun resetPage() = paginationUi.reset()
+
+    fun nextPage(onPageChanged: () -> Unit): Boolean = paginationUi.nextPage {
+        val appended = PageLoadingModeStore.usesPrefetch(activity) &&
+            automaticPages.appendCurrentPage(paginationUi.currentPageIndex())
+        if (!appended) onPageChanged()
+    }
+
+    fun resetPage() {
+        paginationUi.reset()
+        automaticPages.reset()
+    }
 
     fun addSection(
         root: LinearLayout,
@@ -46,51 +56,29 @@ internal class CallReportHistoryRowsUi(
     ) {
         val companyNames = principal.companies.associate { it.id to it.name }
         val page = paginationUi.currentPage(rows)
-
         root.addView(titleRow())
         latestCallWithoutNote(latestLocalCall, localNotes)?.let { call ->
-            val latestRow = addLatestCallNoteCard(call) { onEditCallNote(call.toContactCallNote()) }
-            root.addView(ListThemeUi.applyRowSpacing(latestRow, dp))
+            root.addView(ListThemeUi.applyRowSpacing(
+                addLatestCallNoteCard(call) { onEditCallNote(call.toContactCallNote()) },
+                dp,
+            ))
         }
-        val currentWeekSerial = weekUi.currentWeekSerial()
-        var previousWeekSerial: Long? = null
-        var index = 0
-        while (index < page.rows.size) {
-            val row = page.rows[index]
-            val rowWeekSerial = weekUi.weekStartSerial(row.timeMs)
-            if (rowWeekSerial != null && rowWeekSerial != previousWeekSerial) {
-                val relativeWeeks = currentWeekSerial
-                    ?.let { (it - rowWeekSerial) / CallReportHistoryWeekUi.DAYS_PER_WEEK }
-                    ?: 0L
-                root.addView(weekUi.separator(row.timeMs, relativeWeeks))
-                previousWeekSerial = rowWeekSerial
-            }
-
-            val groupedNotes = if (canGroupNote(row)) {
-                collectSameCallNotes(page.rows, index)
-            } else {
-                emptyList()
-            }
-            val item = if (groupedNotes.size > 1) {
-                noteRowUi.createGroup(
-                    phone = phone,
-                    rows = groupedNotes,
-                    onEditCallNote = onEditCallNote,
-                    remoteEnabled = remoteEnabled,
-                    companyNames = companyNames,
-                )
-            } else {
-                historyRow(
-                    phone,
-                    row,
-                    onEditCallNote,
-                    onEditSms,
-                    remoteEnabled,
-                    companyNames,
+        if (PageLoadingModeStore.usesPrefetch(activity)) {
+            automaticPages.bind(
+                root = root,
+                pages = paginationUi.pages(),
+                currentPageIndex = page.pageIndex,
+            ) { pageRoot, pageRows, previousRow ->
+                pageRowsUi.render(
+                    pageRoot, phone, pageRows, remoteEnabled, companyNames,
+                    onEditCallNote, onEditSms, previousRow,
                 )
             }
-            root.addView(ListThemeUi.applyRowSpacing(item, dp))
-            index += groupedNotes.size.takeIf { it > 1 } ?: 1
+        } else {
+            pageRowsUi.render(
+                root, phone, page.rows, remoteEnabled, companyNames,
+                onEditCallNote, onEditSms,
+            )
         }
         paginationUi.addNavigation(root, page, onPageChanged)
         addEmptyState(
@@ -103,42 +91,6 @@ internal class CallReportHistoryRowsUi(
             remoteEnabled = remoteEnabled,
         )
     }
-
-    private fun collectSameCallNotes(
-        rows: List<CallReportHistoryRow>,
-        startIndex: Int,
-    ): List<CallReportHistoryRow> {
-        val first = rows[startIndex]
-        val grouped = mutableListOf(first)
-        var index = startIndex + 1
-        while (index < rows.size) {
-            val candidate = rows[index]
-            if (!sameCall(first, candidate)) break
-            grouped += candidate
-            index += 1
-        }
-        return grouped
-    }
-
-    private fun canGroupNote(row: CallReportHistoryRow): Boolean =
-        row.kind == CallReportHistoryRowKind.NOTE && row.editable && !row.authorIsOtherBroker
-
-    private fun sameCall(
-        first: CallReportHistoryRow,
-        second: CallReportHistoryRow,
-    ): Boolean {
-        if (!canGroupNote(first) || !canGroupNote(second)) return false
-        val firstTime = callIdentityTime(first)
-        val secondTime = callIdentityTime(second)
-        if (firstTime <= 0L || secondTime <= 0L) return false
-        if (abs(firstTime - secondTime) > SAME_CALL_TIME_TOLERANCE_MS) return false
-        return first.direction.isBlank() || second.direction.isBlank() || first.direction == second.direction
-    }
-
-    private fun callIdentityTime(row: CallReportHistoryRow): Long =
-        row.localNote?.callAt?.takeIf { it > 0L }
-            ?: row.serverEvent?.occurredAtMs?.takeIf { it > 0L }
-            ?: row.timeMs
 
     private fun latestCallWithoutNote(
         latestCall: PhoneCallRecord?,
@@ -186,9 +138,7 @@ internal class CallReportHistoryRowsUi(
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 setPadding(dp(3), dp(3), dp(3), dp(3))
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                layoutParams = LinearLayout.LayoutParams(dp(16), dp(18)).apply {
-                    marginEnd = dp(4)
-                }
+                layoutParams = LinearLayout.LayoutParams(dp(16), dp(18)).apply { marginEnd = dp(4) }
             })
             addView(TextView(activity).apply {
                 text = listOf(
@@ -200,11 +150,7 @@ internal class CallReportHistoryRowsUi(
                 setTextColor(Color.rgb(100, 116, 139))
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
-                layoutParams = LinearLayout.LayoutParams(
-                    0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    1f,
-                )
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
             addView(TextView(activity).apply {
                 text = activity.getString(R.string.dynamic_notes_add_general)
@@ -227,21 +173,6 @@ internal class CallReportHistoryRowsUi(
             call.direction != "out" && call.durationSeconds <= 0L -> R.drawable.ic_call_missed
             call.direction == "out" -> R.drawable.ic_call_outgoing
             else -> R.drawable.ic_call_incoming
-        }
-    }
-
-    private fun historyRow(
-        phone: String,
-        row: CallReportHistoryRow,
-        onEditCallNote: (ContactCallNote) -> Unit,
-        onEditSms: (SmsMessageRecord, String) -> Unit,
-        remoteEnabled: Boolean,
-        companyNames: Map<String, String>,
-    ): View {
-        return if (row.kind == CallReportHistoryRowKind.SMS) {
-            smsRowUi.create(row, onEditSms, remoteEnabled, companyNames)
-        } else {
-            noteRowUi.create(phone, row, onEditCallNote, remoteEnabled, companyNames)
         }
     }
 
@@ -275,8 +206,4 @@ internal class CallReportHistoryRowsUi(
         durationSeconds = durationSeconds,
         clientNoteId = LocalNotesFileStore.clientNoteIdForCall(number, startedAt, direction),
     )
-
-    private companion object {
-        const val SAME_CALL_TIME_TOLERANCE_MS = 2_000L
-    }
 }
