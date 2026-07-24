@@ -16,8 +16,9 @@ internal class HomeCompanyGeneralNotesController(
     private val generation = AtomicInteger(0)
     private val busyTokens = linkedSetOf<Long>()
     private var requestSignature = ""
-    private var labelsByPhoneKey: Map<String, List<HomeCompanyScopeLabel>> = emptyMap()
-    private var serverBackedPhoneKeys: Set<String> = emptySet()
+    private val initialSnapshot = HomeCompanyScopeSnapshotCache.read(context.applicationContext)
+    private var labelsByPhoneKey: Map<String, List<HomeCompanyScopeLabel>> = initialSnapshot.labelsByPhoneKey
+    private var serverBackedPhoneKeys: Set<String> = initialSnapshot.serverBackedPhoneKeys
 
     fun labelsFor(calls: List<PhoneCallRecord>): Map<String, List<HomeCompanyScopeLabel>> {
         val keys = calls.map { HomeCallPageLoader.noteKey(it.number) }.filter { it.isNotBlank() }.toSet()
@@ -25,7 +26,8 @@ internal class HomeCompanyGeneralNotesController(
     }
 
     fun serverBackedPhoneKeysFor(calls: List<PhoneCallRecord>): Set<String> {
-        val keys = calls.mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }.filterTo(linkedSetOf()) { it.isNotBlank() }
+        val keys = calls.mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
+            .filterTo(linkedSetOf()) { it.isNotBlank() }
         return serverBackedPhoneKeys.filterTo(linkedSetOf()) { it in keys }
     }
 
@@ -65,15 +67,23 @@ internal class HomeCompanyGeneralNotesController(
         if (busyToken > 0L) busyTokens += busyToken
         val currentGeneration = generation.incrementAndGet()
         executor.execute {
-            val snapshot = runCatching {
+            val fresh = runCatching {
                 HomeCompanyGeneralNoteLabels.fetch(context.applicationContext, config, phones)
             }.getOrDefault(HomeCompanyScopeSnapshot())
+            val merged = HomeCompanyScopeSnapshotCache.mergeAndStore(
+                context = context.applicationContext,
+                requestedPhones = phones,
+                fresh = fresh,
+            )
             handler.post {
                 finishBusy(busyToken)
                 if (currentGeneration != generation.get()) return@post
-                if (labelsByPhoneKey == snapshot.labelsByPhoneKey && serverBackedPhoneKeys == snapshot.serverBackedPhoneKeys) return@post
-                labelsByPhoneKey = snapshot.labelsByPhoneKey
-                serverBackedPhoneKeys = snapshot.serverBackedPhoneKeys
+                if (
+                    labelsByPhoneKey == merged.labelsByPhoneKey &&
+                    serverBackedPhoneKeys == merged.serverBackedPhoneKeys
+                ) return@post
+                labelsByPhoneKey = merged.labelsByPhoneKey
+                serverBackedPhoneKeys = merged.serverBackedPhoneKeys
                 onChanged()
             }
         }
