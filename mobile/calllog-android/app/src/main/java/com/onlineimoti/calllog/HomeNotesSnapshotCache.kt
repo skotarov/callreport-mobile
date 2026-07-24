@@ -20,6 +20,7 @@ internal object HomeNotesSnapshotCache {
     fun mergeCached(context: Context, data: HomeRenderData): HomeRenderData {
         if (data.calls.isEmpty()) return data
         val snapshot = read(context) ?: return data
+        val remoteReady = CallReportRemoteAccess.isReady(ConfigStore.load(context.applicationContext))
         val phoneKeys = data.calls
             .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
             .filterTo(linkedSetOf()) { it.isNotBlank() }
@@ -28,7 +29,8 @@ internal object HomeNotesSnapshotCache {
         return data.copy(
             contactNotesByNumber = linkedMapOf<String, String>().apply {
                 snapshot.contactNotesByNumber.forEach { (key, value) ->
-                    if (key in phoneKeys && value.isNotBlank()) put(key, value)
+                    val visible = remoteReady || !ServerNoteVisuals.isPrefixed(value)
+                    if (key in phoneKeys && value.isNotBlank() && visible) put(key, value)
                 }
                 data.contactNotesByNumber.forEach(::put)
             },
@@ -40,7 +42,8 @@ internal object HomeNotesSnapshotCache {
             },
             callNotesByCall = linkedMapOf<String, HomeCallNote>().apply {
                 snapshot.callNotesByCall.forEach { (key, value) ->
-                    if (key in callKeys) put(key, value)
+                    if (key !in callKeys) return@forEach
+                    visibleCallNote(value, remoteReady)?.let { put(key, it) }
                 }
                 data.callNotesByCall.forEach(::put)
             },
@@ -88,6 +91,13 @@ internal object HomeNotesSnapshotCache {
                     .associateTo(linkedMapOf()) { it.key to it.value },
             ),
         )
+    }
+
+    private fun visibleCallNote(note: HomeCallNote, remoteReady: Boolean): HomeCallNote? {
+        if (remoteReady) return note
+        val localNotes = note.expandedNotes().filterNot { it.fromServer }
+        if (localNotes.isEmpty()) return null
+        return localNotes.first().copy(relatedNotes = localNotes.drop(1))
     }
 
     private fun read(context: Context): Snapshot? {
