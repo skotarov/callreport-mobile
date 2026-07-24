@@ -10,6 +10,7 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import kotlin.math.abs
 
 /** Renders already prepared Notes and SMS directly on the History background. */
 internal class CallReportHistoryRowsUi(
@@ -53,7 +54,9 @@ internal class CallReportHistoryRowsUi(
         }
         val currentWeekSerial = weekUi.currentWeekSerial()
         var previousWeekSerial: Long? = null
-        page.rows.forEach { row ->
+        var index = 0
+        while (index < page.rows.size) {
+            val row = page.rows[index]
             val rowWeekSerial = weekUi.weekStartSerial(row.timeMs)
             if (rowWeekSerial != null && rowWeekSerial != previousWeekSerial) {
                 val relativeWeeks = currentWeekSerial
@@ -62,15 +65,32 @@ internal class CallReportHistoryRowsUi(
                 root.addView(weekUi.separator(row.timeMs, relativeWeeks))
                 previousWeekSerial = rowWeekSerial
             }
-            val item = historyRow(
-                phone,
-                row,
-                onEditCallNote,
-                onEditSms,
-                remoteEnabled,
-                companyNames,
-            )
+
+            val groupedNotes = if (canGroupNote(row)) {
+                collectSameCallNotes(page.rows, index)
+            } else {
+                emptyList()
+            }
+            val item = if (groupedNotes.size > 1) {
+                noteRowUi.createGroup(
+                    phone = phone,
+                    rows = groupedNotes,
+                    onEditCallNote = onEditCallNote,
+                    remoteEnabled = remoteEnabled,
+                    companyNames = companyNames,
+                )
+            } else {
+                historyRow(
+                    phone,
+                    row,
+                    onEditCallNote,
+                    onEditSms,
+                    remoteEnabled,
+                    companyNames,
+                )
+            }
             root.addView(ListThemeUi.applyRowSpacing(item, dp))
+            index += groupedNotes.size.takeIf { it > 1 } ?: 1
         }
         paginationUi.addNavigation(root, page, onPageChanged)
         addEmptyState(
@@ -83,6 +103,42 @@ internal class CallReportHistoryRowsUi(
             remoteEnabled = remoteEnabled,
         )
     }
+
+    private fun collectSameCallNotes(
+        rows: List<CallReportHistoryRow>,
+        startIndex: Int,
+    ): List<CallReportHistoryRow> {
+        val first = rows[startIndex]
+        val grouped = mutableListOf(first)
+        var index = startIndex + 1
+        while (index < rows.size) {
+            val candidate = rows[index]
+            if (!sameCall(first, candidate)) break
+            grouped += candidate
+            index += 1
+        }
+        return grouped
+    }
+
+    private fun canGroupNote(row: CallReportHistoryRow): Boolean =
+        row.kind == CallReportHistoryRowKind.NOTE && row.editable && !row.authorIsOtherBroker
+
+    private fun sameCall(
+        first: CallReportHistoryRow,
+        second: CallReportHistoryRow,
+    ): Boolean {
+        if (!canGroupNote(first) || !canGroupNote(second)) return false
+        val firstTime = callIdentityTime(first)
+        val secondTime = callIdentityTime(second)
+        if (firstTime <= 0L || secondTime <= 0L) return false
+        if (abs(firstTime - secondTime) > SAME_CALL_TIME_TOLERANCE_MS) return false
+        return first.direction.isBlank() || second.direction.isBlank() || first.direction == second.direction
+    }
+
+    private fun callIdentityTime(row: CallReportHistoryRow): Long =
+        row.localNote?.callAt?.takeIf { it > 0L }
+            ?: row.serverEvent?.occurredAtMs?.takeIf { it > 0L }
+            ?: row.timeMs
 
     private fun latestCallWithoutNote(
         latestCall: PhoneCallRecord?,
@@ -219,4 +275,8 @@ internal class CallReportHistoryRowsUi(
         durationSeconds = durationSeconds,
         clientNoteId = LocalNotesFileStore.clientNoteIdForCall(number, startedAt, direction),
     )
+
+    private companion object {
+        const val SAME_CALL_TIME_TOLERANCE_MS = 2_000L
+    }
 }
