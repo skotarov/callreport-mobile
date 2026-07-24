@@ -33,6 +33,8 @@ internal class HomeContentRenderer(
     private var currentContactNotesByNumber: Map<String, String> = emptyMap()
     private var currentContactNamesByNumber: Map<String, String> = emptyMap()
     private var currentCallNotesByCall: Map<String, HomeCallNote> = emptyMap()
+    private var currentCompanyLabelsByNumber: Map<String, List<HomeCompanyScopeLabel>> = emptyMap()
+    private var currentServerBackedPhoneKeys: Set<String> = emptySet()
     private val rememberedContactNamesByNumber = linkedMapOf<String, String>()
 
     fun replaceCurrentCalls(calls: List<PhoneCallRecord>) {
@@ -44,6 +46,8 @@ internal class HomeContentRenderer(
         currentContactNotesByNumber = emptyMap()
         currentContactNamesByNumber = emptyMap()
         currentCallNotesByCall = emptyMap()
+        currentCompanyLabelsByNumber = emptyMap()
+        currentServerBackedPhoneKeys = emptySet()
         HomePagedListUi.clear(binding.homeCallsContainer)
         HomeLoadingFooterUi.hide(binding.homeCallsContainer)
     }
@@ -126,7 +130,6 @@ internal class HomeContentRenderer(
             pageSize,
             refreshCompanyLabels = false,
             mergeMode = HomeRenderMergeMode.AUTHORITATIVE,
-            forceRender = true,
         )
     }
 
@@ -166,14 +169,28 @@ internal class HomeContentRenderer(
             rememberedNames = rememberedContactNamesByNumber,
             mode = mergeMode,
         )
-        val unchanged = calls == currentCalls &&
-            state.contactNotesByNumber == currentContactNotesByNumber &&
-            state.contactNamesByNumber == currentContactNamesByNumber &&
-            state.callNotesByCall == currentCallNotesByCall
+        val labels = companyGeneralNotes.labelsFor(calls)
+        val serverBackedKeys = companyGeneralNotes.serverBackedPhoneKeysFor(calls)
+
+        val previousCalls = currentCalls
+        val previousContactNotes = currentContactNotesByNumber
+        val previousContactNames = currentContactNamesByNumber
+        val previousCallNotes = currentCallNotesByCall
+        val previousCompanyLabels = currentCompanyLabelsByNumber
+        val previousServerBackedKeys = currentServerBackedPhoneKeys
+        val unchanged = calls == previousCalls &&
+            state.contactNotesByNumber == previousContactNotes &&
+            state.contactNamesByNumber == previousContactNames &&
+            state.callNotesByCall == previousCallNotes &&
+            labels == previousCompanyLabels &&
+            serverBackedKeys == previousServerBackedKeys
+
         currentCalls = calls
         currentContactNotesByNumber = state.contactNotesByNumber
         currentContactNamesByNumber = state.contactNamesByNumber
         currentCallNotesByCall = state.callNotesByCall
+        currentCompanyLabelsByNumber = labels
+        currentServerBackedPhoneKeys = serverBackedKeys
         binding.fullLogProgress.visibility = View.GONE
         renderStatusAndPagination(pageSize)
         if (unchanged && !forceRender) {
@@ -186,9 +203,67 @@ internal class HomeContentRenderer(
             PageLoadingModeStore.usesPrefetch(activity),
             pageIndex(),
         )
+        val patched = !forceRender && calls == previousCalls && page.childCount > 0 && patchChangedRows(
+            page = page,
+            calls = calls,
+            previousContactNotes = previousContactNotes,
+            previousContactNames = previousContactNames,
+            previousCallNotes = previousCallNotes,
+            previousCompanyLabels = previousCompanyLabels,
+            previousServerBackedKeys = previousServerBackedKeys,
+            state = state,
+            labels = labels,
+            serverBackedKeys = serverBackedKeys,
+        )
+        if (!patched) rebuildPage(page, calls, state, labels, serverBackedKeys)
+
+        HomeLoadingFooterUi.hide(binding.homeCallsContainer)
+        if (refreshCompanyLabels) companyGeneralNotes.refresh(calls)
+    }
+
+    /** Replaces only rows whose visible note/name state changed, preserving the list and scroll position. */
+    private fun patchChangedRows(
+        page: LinearLayout,
+        calls: List<PhoneCallRecord>,
+        previousContactNotes: Map<String, String>,
+        previousContactNames: Map<String, String>,
+        previousCallNotes: Map<String, HomeCallNote>,
+        previousCompanyLabels: Map<String, List<HomeCompanyScopeLabel>>,
+        previousServerBackedKeys: Set<String>,
+        state: HomeRenderState,
+        labels: Map<String, List<HomeCompanyScopeLabel>>,
+        serverBackedKeys: Set<String>,
+    ): Boolean {
+        val changedCalls = calls.filter { call ->
+            val phoneKey = HomeCallPageLoader.noteKey(call.number)
+            val callKey = HomeCallNotesResolver.keyFor(call)
+            previousContactNotes[phoneKey] != state.contactNotesByNumber[phoneKey] ||
+                previousContactNames[phoneKey] != state.contactNamesByNumber[phoneKey] ||
+                previousCallNotes[callKey] != state.callNotesByCall[callKey] ||
+                previousCompanyLabels[phoneKey] != labels[phoneKey] ||
+                (phoneKey in previousServerBackedKeys) != (phoneKey in serverBackedKeys)
+        }
+        if (changedCalls.isEmpty()) return true
+
+        changedCalls.forEach { call ->
+            val tagValue = rowTag(call)
+            val index = (0 until page.childCount).firstOrNull { childIndex ->
+                page.getChildAt(childIndex).tag == tagValue
+            } ?: return false
+            page.removeViewAt(index)
+            page.addView(buildRow(call, state, labels, serverBackedKeys), index)
+        }
+        return true
+    }
+
+    private fun rebuildPage(
+        page: LinearLayout,
+        calls: List<PhoneCallRecord>,
+        state: HomeRenderState,
+        labels: Map<String, List<HomeCompanyScopeLabel>>,
+        serverBackedKeys: Set<String>,
+    ) {
         page.removeAllViews()
-        val labels = companyGeneralNotes.labelsFor(calls)
-        val serverBackedKeys = companyGeneralNotes.serverBackedPhoneKeysFor(calls)
         val today = HomeTimelineDateUi.localDaySerial(System.currentTimeMillis()) ?: 0L
         var previousDay: Long? = null
         calls.forEach { call ->
@@ -197,25 +272,37 @@ internal class HomeContentRenderer(
                 page.addView(dateSeparator(call.startedAt, today - day, page.childCount > 0))
                 previousDay = day
             }
-            val key = HomeCallPageLoader.noteKey(call.number)
-            val displayName = state.contactNamesByNumber[key].orEmpty().ifBlank { call.displayName }
-            val callNote = state.callNotesByCall[HomeCallNotesResolver.keyFor(call)]
-            val row = rowRenderer.compactCallRow(
-                call = call,
-                displayName = displayName,
-                contactNote = state.contactNotesByNumber[key],
-                companyGeneralNoteLabels = labels[key],
-                callNote = callNote,
-                highlightQuery = activeSearchQuery(),
-                showContactIdentity = true,
-                showGeneralContactNote = true,
-                serverBacked = key in serverBackedKeys,
-            )
-            page.addView(ListThemeUi.applyRowSpacing(row, dp))
+            page.addView(buildRow(call, state, labels, serverBackedKeys))
         }
-        HomeLoadingFooterUi.hide(binding.homeCallsContainer)
-        if (refreshCompanyLabels) companyGeneralNotes.refresh(calls)
     }
+
+    private fun buildRow(
+        call: PhoneCallRecord,
+        state: HomeRenderState,
+        labels: Map<String, List<HomeCompanyScopeLabel>>,
+        serverBackedKeys: Set<String>,
+    ): View {
+        val phoneKey = HomeCallPageLoader.noteKey(call.number)
+        val displayName = state.contactNamesByNumber[phoneKey].orEmpty().ifBlank { call.displayName }
+        val callNote = state.callNotesByCall[HomeCallNotesResolver.keyFor(call)]
+        val row = rowRenderer.compactCallRow(
+            call = call,
+            displayName = displayName,
+            contactNote = state.contactNotesByNumber[phoneKey],
+            companyGeneralNoteLabels = labels[phoneKey],
+            callNote = callNote,
+            highlightQuery = activeSearchQuery(),
+            showContactIdentity = true,
+            showGeneralContactNote = true,
+            serverBacked = phoneKey in serverBackedKeys,
+        )
+        return ListThemeUi.applyRowSpacing(row, dp).apply {
+            tag = rowTag(call)
+        }
+    }
+
+    private fun rowTag(call: PhoneCallRecord): String =
+        "$HOME_ROW_TAG_PREFIX${HomeCallNotesResolver.keyFor(call)}"
 
     private fun dateSeparator(timestamp: Long, relativeDays: Long, hasRowsBefore: Boolean): TextView {
         val locale = if (AppLocaleText.isBulgarian()) Locale("bg", "BG") else Locale.US
@@ -274,6 +361,8 @@ internal class HomeContentRenderer(
         currentContactNotesByNumber = emptyMap()
         currentContactNamesByNumber = emptyMap()
         currentCallNotesByCall = emptyMap()
+        currentCompanyLabelsByNumber = emptyMap()
+        currentServerBackedPhoneKeys = emptySet()
         HomePagedListUi.clear(binding.homeCallsContainer)
         binding.fullLogProgress.visibility = View.GONE
         binding.homeStatusText.text = ""
@@ -305,5 +394,9 @@ internal class HomeContentRenderer(
         binding.crmModeButton.backgroundTintList = ColorStateList.valueOf(fill)
         binding.crmModeButton.strokeColor = ColorStateList.valueOf(border)
         binding.crmModeButton.setTextColor(Color.rgb(51, 65, 85))
+    }
+
+    private companion object {
+        const val HOME_ROW_TAG_PREFIX = "relationship_manager_home_row:"
     }
 }
