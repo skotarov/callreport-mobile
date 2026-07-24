@@ -55,6 +55,7 @@ internal object HomeCallNotesResolver {
                     updatedAtMs = localVersionMs(local),
                     fromServer = false,
                     companyId = local.companyId.trim(),
+                    serverClientEventId = local.serverClientEventId.trim().ifBlank { local.clientNoteId.trim() },
                 )
                 return@forEach
             }
@@ -68,6 +69,11 @@ internal object HomeCallNotesResolver {
                     updatedAtMs = call.startedAt,
                     fromServer = false,
                     companyId = LocalNotesFileStore.companyIdForCall(context, call.number, call.startedAt, call.direction),
+                    serverClientEventId = LocalNotesFileStore.clientNoteIdForCall(
+                        call.number,
+                        call.startedAt,
+                        call.direction,
+                    ),
                 )
             }
         }
@@ -109,11 +115,31 @@ internal object HomeCallNotesResolver {
             val companyId = event.companyId.trim()
             val scope = if (companyId.isBlank()) UNSCOPED_SERVER_SCOPE else "company:$companyId"
             val version = serverVersionMs(event)
+            val localMirror = notesByCallAndScope[callKey]
+                ?.get(LOCAL_SCOPE)
+                ?.takeIf { local -> isLocalServerMirror(local, event, principal) }
+
             if (event.note.isBlank()) {
-                val current = notesByCallAndScope[callKey]?.get(scope)
+                val mirrorIdMatches = localMirror != null && sameEventId(localMirror, event)
+                val removalScope = if (mirrorIdMatches) LOCAL_SCOPE else scope
+                val current = notesByCallAndScope[callKey]?.get(removalScope)
                 if (current == null || version >= current.updatedAtMs) {
-                    notesByCallAndScope[callKey]?.remove(scope)
+                    notesByCallAndScope[callKey]?.remove(removalScope)
                 }
+                return@forEach
+            }
+
+            if (localMirror != null) {
+                val serverText = event.note.trim()
+                notesByCallAndScope.getOrPut(callKey) { linkedMapOf() }[LOCAL_SCOPE] = localMirror.copy(
+                    text = if (version >= localMirror.updatedAtMs) serverText else localMirror.text,
+                    updatedAtMs = maxOf(localMirror.updatedAtMs, version),
+                    serverClientEventId = event.clientEventId.trim().ifBlank {
+                        localMirror.serverClientEventId
+                    },
+                    editable = !isOtherBrokerAuthor(event, principal),
+                    relatedNotes = emptyList(),
+                )
                 return@forEach
             }
 
@@ -165,6 +191,23 @@ internal object HomeCallNotesResolver {
         }
     }
 
+    private fun isLocalServerMirror(
+        local: HomeCallNote,
+        event: CallReportHistoryEvent,
+        principal: CallReportHistoryPrincipal,
+    ): Boolean {
+        if (local.fromServer || local.companyId.isNotBlank() || event.companyId.isNotBlank()) return false
+        if (isOtherBrokerAuthor(event, principal)) return false
+        if (sameEventId(local, event)) return true
+        return normalizeNote(local.text) == normalizeNote(event.note) && local.text.isNotBlank()
+    }
+
+    private fun sameEventId(local: HomeCallNote, event: CallReportHistoryEvent): Boolean {
+        val localId = local.serverClientEventId.trim()
+        val eventId = event.clientEventId.trim()
+        return localId.isNotBlank() && eventId.isNotBlank() && localId == eventId
+    }
+
     private fun sameLocalCall(call: PhoneCallRecord, note: ContactCallNote): Boolean {
         if (call.startedAt <= 0L || note.callAt <= 0L) return false
         if (abs(call.startedAt - note.callAt) > LOCAL_NOTE_CALL_MATCH_WINDOW_MS) return false
@@ -211,6 +254,8 @@ internal object HomeCallNotesResolver {
         event.createdAtMs,
         event.occurredAtMs,
     )
+
+    private fun normalizeNote(value: String): String = value.trim().replace(Regex("\\s+"), " ").lowercase()
 
     private fun isNewer(candidate: HomeCallNote, current: HomeCallNote): Boolean =
         candidate.updatedAtMs > current.updatedAtMs ||
