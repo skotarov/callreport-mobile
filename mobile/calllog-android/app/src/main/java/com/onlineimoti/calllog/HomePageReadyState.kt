@@ -33,6 +33,14 @@ internal object HomePageReadyState {
         }
     }
 
+    /**
+     * The call rows are already usable even while names and notes continue loading.
+     * Stop only the primary calls indicator without claiming enrichment is complete.
+     */
+    fun markRowsVisible() {
+        synchronized(lock) { finishBusyLocked() }
+    }
+
     fun markReady() {
         ready.set(true)
         synchronized(lock) { finishBusyLocked() }
