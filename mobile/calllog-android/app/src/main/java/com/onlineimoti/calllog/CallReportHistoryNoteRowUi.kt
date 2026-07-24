@@ -21,6 +21,90 @@ internal class CallReportHistoryNoteRowUi(
     ): View {
         val foreignRecord = remoteEnabled && row.authorIsOtherBroker
         val readOnlyNote = row.kind == CallReportHistoryRowKind.NOTE && !row.editable
+        val colors = colorsFor(row, readOnlyNote)
+        return buildRowContent(
+            phone = phone,
+            row = row,
+            onEditCallNote = onEditCallNote,
+            remoteEnabled = remoteEnabled,
+            companyNames = companyNames,
+            foreignRecord = foreignRecord,
+            readOnlyNote = readOnlyNote,
+            textColor = colors.third,
+            includeMeta = true,
+        ).apply {
+            background = roundedRect(colors.first, dp(12), colors.second, dp(1))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(8) }
+        }
+    }
+
+    /**
+     * Notes attached to one exact call share one blue card. The call metadata is
+     * shown once; company badges and note texts separate the individual notes
+     * without borders or divider lines that would make them look like new calls.
+     */
+    fun createGroup(
+        phone: String,
+        rows: List<CallReportHistoryRow>,
+        onEditCallNote: (ContactCallNote) -> Unit,
+        remoteEnabled: Boolean,
+        companyNames: Map<String, String>,
+    ): View {
+        val first = rows.first()
+        return LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = roundedRect(
+                NoteUiStyle.Call.background,
+                dp(12),
+                NoteUiStyle.Call.border,
+                dp(1),
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(8) }
+
+            addView(shared.metaView(first))
+            rows.forEachIndexed { index, row ->
+                addView(
+                    buildRowContent(
+                        phone = phone,
+                        row = row,
+                        onEditCallNote = onEditCallNote,
+                        remoteEnabled = remoteEnabled,
+                        companyNames = companyNames,
+                        foreignRecord = false,
+                        readOnlyNote = false,
+                        textColor = NoteUiStyle.Call.text,
+                        includeMeta = false,
+                    ).apply {
+                        // A little breathing room is enough; intentionally no line.
+                        setPadding(0, if (index == 0) 0 else dp(2), 0, 0)
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    private fun buildRowContent(
+        phone: String,
+        row: CallReportHistoryRow,
+        onEditCallNote: (ContactCallNote) -> Unit,
+        remoteEnabled: Boolean,
+        companyNames: Map<String, String>,
+        foreignRecord: Boolean,
+        readOnlyNote: Boolean,
+        textColor: Int,
+        includeMeta: Boolean,
+    ): LinearLayout {
         val serverConfirmed = shared.isServerConfirmed(phone, row)
         val localNote = row.localNote
         val pendingGenericSync =
@@ -47,23 +131,10 @@ internal class CallReportHistoryNoteRowUi(
                         activity, phone, it.direction, it.callAt,
                     )
                 } == true
-        val colors = when {
-            readOnlyNote -> Triple(
-                CallReportHistorySharedUi.FOREIGN_BACKGROUND,
-                CallReportHistorySharedUi.FOREIGN_BORDER,
-                CallReportHistorySharedUi.FOREIGN_TEXT,
-            )
-            row.kind == CallReportHistoryRowKind.NOTE -> Triple(
-                NoteUiStyle.Call.background,
-                NoteUiStyle.Call.border,
-                NoteUiStyle.Call.text,
-            )
-            else -> Triple(Color.WHITE, Color.rgb(226, 232, 240), Color.rgb(30, 41, 59))
-        }
+
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = roundedRect(colors.first, dp(12), colors.second, dp(1))
+            if (includeMeta) setPadding(dp(12), dp(10), dp(12), dp(10))
             if (readOnlyNote) {
                 val author = row.authorName.ifBlank { "друг потребител" }
                 contentDescription = "Неактивна бележка. Записал: $author."
@@ -71,58 +142,24 @@ internal class CallReportHistoryNoteRowUi(
                 isFocusable = false
                 isLongClickable = false
                 setOnClickListener(null)
-            }
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { bottomMargin = dp(8) }
-            if (row.kind == CallReportHistoryRowKind.NOTE && row.editable) {
+            } else if (row.kind == CallReportHistoryRowKind.NOTE && row.editable) {
                 isClickable = true
                 isFocusable = true
                 setOnClickListener {
-                    val source = row.localNote?.let { existingLocalNote ->
-                        val serverClientEventId = row.serverEvent?.clientEventId.orEmpty()
-                        if (serverClientEventId.isBlank() || existingLocalNote.serverClientEventId == serverClientEventId) {
-                            existingLocalNote
-                        } else {
-                            existingLocalNote.copy(serverClientEventId = serverClientEventId)
-                        }
-                    } ?: ContactCallNote(
-                        note = row.text,
-                        callAt = row.timeMs,
-                        savedAt = row.serverEvent?.updatedAtMs ?: row.timeMs,
-                        direction = row.direction,
-                        durationSeconds = row.durationSeconds,
-                        clientNoteId = LocalNotesFileStore.clientNoteIdForCall(phone, row.timeMs, row.direction),
-                        companyId = row.companyId,
-                        serverClientEventId = row.serverEvent?.clientEventId.orEmpty(),
-                    )
-                    val editableNote = if (remoteEnabled && row.serverNewer) {
-                        source.copy(
-                            note = row.text,
-                            savedAt = maxOf(source.savedAt, row.serverEvent?.updatedAtMs ?: 0L),
-                            companyId = row.companyId.ifBlank { source.companyId },
-                            serverClientEventId = row.serverEvent?.clientEventId.orEmpty()
-                                .ifBlank { source.serverClientEventId },
-                        )
-                    } else {
-                        source.copy(
-                            companyId = row.companyId.ifBlank { source.companyId },
-                            serverClientEventId = row.serverEvent?.clientEventId.orEmpty()
-                                .ifBlank { source.serverClientEventId },
-                        )
-                    }
-                    onEditCallNote(editableNote)
+                    onEditCallNote(editableNote(phone, row, remoteEnabled))
                 }
             }
-            addView(shared.metaView(row, muted = readOnlyNote))
+
+            if (includeMeta) addView(shared.metaView(row, muted = readOnlyNote))
             shared.companyLabel(row.companyId, companyNames, muted = readOnlyNote)?.let(::addView)
-            if (row.text.isNotBlank()) addView(shared.noteText(row.text, colors.third))
+            if (row.text.isNotBlank()) addView(shared.noteText(row.text, textColor))
             when {
                 pendingCompanyChoice -> addView(shared.pendingCompanyChoiceText())
-                pendingCompanySync -> addView(shared.pendingSyncText(
-                    if (pendingNewCompanySync) "" else CallReportTopicNoteOutbox.lastFailure(activity),
-                ))
+                pendingCompanySync -> addView(
+                    shared.pendingSyncText(
+                        if (pendingNewCompanySync) "" else CallReportTopicNoteOutbox.lastFailure(activity),
+                    ),
+                )
                 pendingGenericSync && !serverConfirmed -> addView(
                     shared.pendingSyncText(CallReportNoteOutbox.lastFailure(activity)),
                 )
@@ -130,5 +167,61 @@ internal class CallReportHistoryNoteRowUi(
             if (readOnlyNote) addView(shared.authorText(row.authorName.ifBlank { "друг потребител" }))
             if (!foreignRecord && remoteEnabled && row.serverNewer) addView(shared.serverNewerText())
         }
+    }
+
+    private fun editableNote(
+        phone: String,
+        row: CallReportHistoryRow,
+        remoteEnabled: Boolean,
+    ): ContactCallNote {
+        val source = row.localNote?.let { existingLocalNote ->
+            val serverClientEventId = row.serverEvent?.clientEventId.orEmpty()
+            if (serverClientEventId.isBlank() || existingLocalNote.serverClientEventId == serverClientEventId) {
+                existingLocalNote
+            } else {
+                existingLocalNote.copy(serverClientEventId = serverClientEventId)
+            }
+        } ?: ContactCallNote(
+            note = row.text,
+            callAt = row.timeMs,
+            savedAt = row.serverEvent?.updatedAtMs ?: row.timeMs,
+            direction = row.direction,
+            durationSeconds = row.durationSeconds,
+            clientNoteId = LocalNotesFileStore.clientNoteIdForCall(phone, row.timeMs, row.direction),
+            companyId = row.companyId,
+            serverClientEventId = row.serverEvent?.clientEventId.orEmpty(),
+        )
+        return if (remoteEnabled && row.serverNewer) {
+            source.copy(
+                note = row.text,
+                savedAt = maxOf(source.savedAt, row.serverEvent?.updatedAtMs ?: 0L),
+                companyId = row.companyId.ifBlank { source.companyId },
+                serverClientEventId = row.serverEvent?.clientEventId.orEmpty()
+                    .ifBlank { source.serverClientEventId },
+            )
+        } else {
+            source.copy(
+                companyId = row.companyId.ifBlank { source.companyId },
+                serverClientEventId = row.serverEvent?.clientEventId.orEmpty()
+                    .ifBlank { source.serverClientEventId },
+            )
+        }
+    }
+
+    private fun colorsFor(
+        row: CallReportHistoryRow,
+        readOnlyNote: Boolean,
+    ): Triple<Int, Int, Int> = when {
+        readOnlyNote -> Triple(
+            CallReportHistorySharedUi.FOREIGN_BACKGROUND,
+            CallReportHistorySharedUi.FOREIGN_BORDER,
+            CallReportHistorySharedUi.FOREIGN_TEXT,
+        )
+        row.kind == CallReportHistoryRowKind.NOTE -> Triple(
+            NoteUiStyle.Call.background,
+            NoteUiStyle.Call.border,
+            NoteUiStyle.Call.text,
+        )
+        else -> Triple(Color.WHITE, Color.rgb(226, 232, 240), Color.rgb(30, 41, 59))
     }
 }
