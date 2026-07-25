@@ -21,6 +21,7 @@ jobs:
   play-manifest-and-build:
     name: Verify Play manifest and signed release build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: mobile/calllog-android
@@ -74,7 +75,8 @@ jobs:
         run: |
           gradle --no-daemon :app:bundleRelease \
             -PplayVersionCode=1000000001 \
-            -PplayVersionName=ci-readiness
+            -PplayVersionName=ci-readiness \
+            -PskipReleaseOptimization=true
 
       - name: Verify signed release AAB
         run: |
