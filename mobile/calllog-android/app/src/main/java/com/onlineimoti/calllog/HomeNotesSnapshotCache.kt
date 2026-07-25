@@ -16,10 +16,11 @@ internal object HomeNotesSnapshotCache {
     private const val KEY_SNAPSHOT = "snapshot"
     private const val MAX_PHONE_ENTRIES = 1_000
     private const val MAX_CALL_ENTRIES = 2_000
+    private val lock = Any()
 
     fun mergeCached(context: Context, data: HomeRenderData): HomeRenderData {
         if (data.calls.isEmpty()) return data
-        val snapshot = read(context) ?: return data
+        val snapshot = synchronized(lock) { read(context) } ?: return data
         val remoteReady = CallReportRemoteAccess.isReady(ConfigStore.load(context.applicationContext))
         val phoneKeys = data.calls
             .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
@@ -54,44 +55,121 @@ internal object HomeNotesSnapshotCache {
     /** Replaces the current page in the cache while keeping other recently viewed pages. */
     fun store(context: Context, data: HomeRenderData) {
         if (data.calls.isEmpty()) return
-        val current = read(context) ?: Snapshot()
-        val phoneKeys = data.calls
-            .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
-            .filterTo(linkedSetOf()) { it.isNotBlank() }
-        val callKeys = data.calls.mapTo(linkedSetOf(), HomeCallNotesResolver::keyFor)
+        synchronized(lock) {
+            val current = read(context) ?: Snapshot()
+            val phoneKeys = data.calls
+                .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
+                .filterTo(linkedSetOf()) { it.isNotBlank() }
+            val callKeys = data.calls.mapTo(linkedSetOf(), HomeCallNotesResolver::keyFor)
 
-        val contactNotes = current.contactNotesByNumber.toMutableMap().apply {
-            phoneKeys.forEach(::remove)
-            data.contactNotesByNumber.forEach { (key, value) ->
-                if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+            val contactNotes = current.contactNotesByNumber.toMutableMap().apply {
+                phoneKeys.forEach(::remove)
+                data.contactNotesByNumber.forEach { (key, value) ->
+                    if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+                }
             }
+            val contactNames = current.contactNamesByNumber.toMutableMap().apply {
+                phoneKeys.forEach(::remove)
+                data.contactNamesByNumber.forEach { (key, value) ->
+                    if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+                }
+            }
+            val callNotes = current.callNotesByCall.toMutableMap().apply {
+                callKeys.forEach(::remove)
+                data.callNotesByCall.forEach { (key, value) ->
+                    if (key.isNotBlank() && value.text.isNotBlank()) put(key, value)
+                }
+            }
+
+            write(
+                context,
+                Snapshot(
+                    contactNotesByNumber = contactNotes.entries.toList().takeLast(MAX_PHONE_ENTRIES)
+                        .associateTo(linkedMapOf()) { it.key to it.value },
+                    contactNamesByNumber = contactNames.entries.toList().takeLast(MAX_PHONE_ENTRIES)
+                        .associateTo(linkedMapOf()) { it.key to it.value },
+                    callNotesByCall = callNotes.entries
+                        .sortedByDescending { it.value.updatedAtMs }
+                        .take(MAX_CALL_ENTRIES)
+                        .associateTo(linkedMapOf()) { it.key to it.value },
+                ),
+            )
         }
-        val contactNames = current.contactNamesByNumber.toMutableMap().apply {
-            phoneKeys.forEach(::remove)
-            data.contactNamesByNumber.forEach { (key, value) ->
-                if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+    }
+
+    /**
+     * A deletion is represented by absence, so it cannot override an older cached value.
+     * Remove that value synchronously before Home resumes. For a blue note, preserve the
+     * other independent Local/company notes attached to the same call whenever its id is known.
+     */
+    fun invalidateDeletedNote(
+        context: Context,
+        phone: String,
+        isGeneralNote: Boolean,
+        callAtMs: Long = 0L,
+        direction: String = "",
+        serverClientEventId: String = "",
+    ) {
+        val phoneKey = HomeCallPageLoader.noteKey(phone)
+        if (phoneKey.isBlank()) return
+        synchronized(lock) {
+            val current = read(context) ?: return
+            val updated = if (isGeneralNote) {
+                current.copy(contactNotesByNumber = current.contactNotesByNumber - phoneKey)
+            } else {
+                current.copy(
+                    callNotesByCall = removeDeletedCallNote(
+                        notes = current.callNotesByCall,
+                        phoneKey = phoneKey,
+                        callAtMs = callAtMs,
+                        direction = direction,
+                        serverClientEventId = serverClientEventId,
+                    ),
+                )
             }
+            write(context, updated, synchronous = true)
         }
-        val callNotes = current.callNotesByCall.toMutableMap().apply {
-            callKeys.forEach(::remove)
-            data.callNotesByCall.forEach { (key, value) ->
-                if (key.isNotBlank() && value.text.isNotBlank()) put(key, value)
-            }
+    }
+
+    internal fun removeDeletedCallNote(
+        notes: Map<String, HomeCallNote>,
+        phoneKey: String,
+        callAtMs: Long,
+        direction: String,
+        serverClientEventId: String,
+    ): Map<String, HomeCallNote> {
+        if (phoneKey.isBlank() || notes.isEmpty()) return notes
+        val targetId = serverClientEventId.trim()
+        val cleanDirection = direction.trim()
+        val result = notes.toMutableMap()
+        val candidateKeys = notes.keys.filter { key ->
+            val parts = key.split('|', limit = 3)
+            if (parts.size < 3 || parts[0] != phoneKey) return@filter false
+            val keyCallAt = parts[1].toLongOrNull() ?: return@filter false
+            val keyDirection = parts[2].trim()
+            (callAtMs <= 0L || keyCallAt == callAtMs) &&
+                (cleanDirection.isBlank() || keyDirection.isBlank() || keyDirection == cleanDirection)
         }
 
-        write(
-            context,
-            Snapshot(
-                contactNotesByNumber = contactNotes.entries.toList().takeLast(MAX_PHONE_ENTRIES)
-                    .associateTo(linkedMapOf()) { it.key to it.value },
-                contactNamesByNumber = contactNames.entries.toList().takeLast(MAX_PHONE_ENTRIES)
-                    .associateTo(linkedMapOf()) { it.key to it.value },
-                callNotesByCall = callNotes.entries
-                    .sortedByDescending { it.value.updatedAtMs }
-                    .take(MAX_CALL_ENTRIES)
-                    .associateTo(linkedMapOf()) { it.key to it.value },
-            ),
-        )
+        candidateKeys.forEach { key ->
+            val current = result[key] ?: return@forEach
+            val expanded = current.expandedNotes()
+            val remaining = if (targetId.isBlank()) {
+                emptyList()
+            } else {
+                expanded.filterNot { note -> note.serverClientEventId.trim() == targetId }
+            }
+            when {
+                remaining.size == expanded.size -> {
+                    // Older snapshots may predate stored event ids. Clearing the concrete
+                    // call is safer than resurrecting the note the user just deleted.
+                    result.remove(key)
+                }
+                remaining.isEmpty() -> result.remove(key)
+                else -> result[key] = remaining.first().copy(relatedNotes = remaining.drop(1))
+            }
+        }
+        return result
     }
 
     private fun visibleCallNote(note: HomeCallNote, remoteReady: Boolean): HomeCallNote? {
@@ -117,7 +195,7 @@ internal object HomeNotesSnapshotCache {
         }.getOrNull()
     }
 
-    private fun write(context: Context, snapshot: Snapshot) {
+    private fun write(context: Context, snapshot: Snapshot, synchronous: Boolean = false) {
         val root = JSONObject().apply {
             put("account", accountKey(context))
             put("saved_at_ms", System.currentTimeMillis())
@@ -127,10 +205,10 @@ internal object HomeNotesSnapshotCache {
                 snapshot.callNotesByCall.forEach { (key, note) -> put(key, noteJson(note)) }
             })
         }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val edit = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_SNAPSHOT, root.toString())
-            .apply()
+        if (synchronous) edit.commit() else edit.apply()
     }
 
     private fun accountKey(context: Context): String {
