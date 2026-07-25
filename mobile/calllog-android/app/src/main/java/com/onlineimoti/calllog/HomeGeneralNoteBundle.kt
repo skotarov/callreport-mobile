@@ -39,6 +39,16 @@ internal object HomeGeneralNoteBundle {
         return encode(local + server)
     }
 
+    /**
+     * Replaces the complete local yellow-note lane while retaining any independently
+     * loaded server lane. A missing [localValue] is an authoritative local deletion.
+     */
+    fun replaceLocal(existing: String?, localValue: String?): String {
+        val local = entries(localValue).filterNot { it.fromServer }
+        val server = entries(existing).filter { it.fromServer }
+        return encode(local + server)
+    }
+
     fun withoutServer(value: String?): String = encode(entries(value).filterNot { it.fromServer })
 
     /** Equal text from local and server is intentionally kept as two visible rows. */
