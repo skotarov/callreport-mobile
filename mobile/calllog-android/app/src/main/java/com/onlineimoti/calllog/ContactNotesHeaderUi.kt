@@ -208,7 +208,8 @@ class ContactNotesHeaderUi(
                     )
                 }
             }
-            row.addView(actionSlot(button, insetStart = index == 0))
+            val slotWeight = if (kind == ContactNotesHeaderAction.CRM) CRM_SLOT_WEIGHT else 1f
+            row.addView(actionSlot(button, insetStart = index == 0, weight = slotWeight))
         }
         return row
     }
@@ -219,7 +220,7 @@ class ContactNotesHeaderUi(
         Gravity.BOTTOM,
     )
 
-    private fun actionSlot(button: View, insetStart: Boolean): LinearLayout {
+    private fun actionSlot(button: View, insetStart: Boolean, weight: Float): LinearLayout {
         button.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -228,7 +229,7 @@ class ContactNotesHeaderUi(
             gravity = Gravity.CENTER
             orientation = LinearLayout.HORIZONTAL
             if (insetStart) setPadding(dp(CRM_SLOT_START_PADDING_DP), 0, 0, 0)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
             addView(button)
         }
     }
@@ -315,8 +316,9 @@ class ContactNotesHeaderUi(
     }
 
     private companion object {
-        const val CRM_SLOT_START_PADDING_DP = 6
+        const val CRM_SLOT_START_PADDING_DP = 2
         const val ACTION_ANCHOR_HEIGHT_DP = 50
         const val ACTION_ROW_HEIGHT_DP = 48
+        const val CRM_SLOT_WEIGHT = 1.2f
     }
 }
