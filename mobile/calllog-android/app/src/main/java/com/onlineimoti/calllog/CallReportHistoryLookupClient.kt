@@ -66,7 +66,7 @@ internal object CallReportHistoryLookupClient {
         return result
     }
 
-    /** One request for Home, with safe fallback to the same single-phone GET used by History. */
+    /** One request for Home, completed only where the batch omitted a phone's notes. */
     fun lookupMany(config: AppConfig, phones: List<String>, context: Context? = null): CallReportHistoryLookupResult {
         return lookupManyOrNull(config, phones, context) ?: CallReportHistoryLookupResult()
     }
@@ -97,20 +97,36 @@ internal object CallReportHistoryLookupClient {
             .take(MAX_PHONE_VARIANTS)
 
         val batch = runCatching { request(config, requestedPhones, DEFAULT_LIMIT, context) }.getOrNull()
-        val result = if (batch != null && batch.events.isNotEmpty()) {
-            batch
-        } else {
-            // If the server ignores/doesn't support POST phones=[...], Home must still
-            // behave like the History screen where notes are already visible. At least
-            // one successful GET is required before an empty result is authoritative.
-            val singleResults = originalPhones.mapNotNull { phone ->
-                lookupSinglePhoneVariantsOrNull(config, phone, DEFAULT_LIMIT, context)
-            }
-            if (singleResults.isEmpty()) return null
-            mergeResults(listOfNotNull(batch) + singleResults)
+        val fallbackPhones = phonesMissingNoteCoverage(originalPhones, batch?.events.orEmpty())
+        val singleResults = fallbackPhones.mapNotNull { phone ->
+            lookupSinglePhoneVariantsOrNull(config, phone, DEFAULT_LIMIT, context)
         }
+
+        // A non-null batch is an authoritative successful response even when empty.
+        // If the batch failed entirely, at least one successful single-phone GET is
+        // required before an empty/partial result may replace Home's last-known cache.
+        if (batch == null && singleResults.isEmpty()) return null
+        val result = mergeResults(listOfNotNull(batch) + singleResults)
         originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result.events) }
         return result
+    }
+
+    /**
+     * The batch endpoint can return calls for a phone while omitting its note rows.
+     * History uses a single-phone GET and therefore still sees those notes. Home only
+     * performs that compatible GET for phone keys without any note coverage in batch.
+     */
+    internal fun phonesMissingNoteCoverage(
+        phones: List<String>,
+        batchEvents: List<CallReportHistoryEvent>,
+    ): List<String> {
+        val coveredKeys = batchEvents.asSequence()
+            .filter { it.communicationType.equals("note", ignoreCase = true) }
+            .filter { it.note.isNotBlank() }
+            .map { phoneKey(it.phone) }
+            .filter { it.isNotBlank() }
+            .toSet()
+        return phones.filter { phone -> phoneKey(phone) !in coveredKeys }
     }
 
     /** Server presence of the main contact note, independent of this installation's client_event_id. */
