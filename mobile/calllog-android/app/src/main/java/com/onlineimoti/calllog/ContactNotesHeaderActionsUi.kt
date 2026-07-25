@@ -54,6 +54,9 @@ internal class ContactNotesHeaderActionsUi(
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(labelColor)
             gravity = Gravity.CENTER_VERTICAL
+            maxLines = 1
+            isSingleLine = true
+            includeFontPadding = false
             setPadding(0, 0, dp(6), 0)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
