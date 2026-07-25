@@ -32,11 +32,8 @@ internal object MainSettingsActionBinder {
         binding.settingsRegistrationGroup.registrationInviteColleagueButton.setOnClickListener {
             RegistrationActions.showInviteDialog(activity)
         }
-        binding.settingsRegistrationGroup.registrationManageCompaniesButton.setOnClickListener {
-            RegistrationActions.showCompanyManagementDialog(activity) {
-                MainSettingsConfigUi.hydrateServerSettings(binding, ConfigStore.load(activity))
-                RegistrationActions.renderCompanySection(activity, binding.settingsRegistrationGroup)
-            }
+        binding.settingsRegistrationGroup.registrationRefreshCompaniesButton.setOnClickListener {
+            RegistrationActions.renderCompanySection(activity, binding.settingsRegistrationGroup)
         }
         RegistrationActions.renderCompanySection(activity, binding.settingsRegistrationGroup)
         activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
