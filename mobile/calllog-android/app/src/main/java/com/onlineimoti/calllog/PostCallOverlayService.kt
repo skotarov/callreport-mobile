@@ -52,9 +52,9 @@ class PostCallOverlayService : FontScaledService() {
             popupUpdateOnly = { state.popupUpdateOnly },
             progressiveRows = {
                 IncomingCallPopupProgress(
-                    calls = state.progressCalls,
-                    localNotes = state.progressLocalNotes,
-                    serverNotes = state.progressServerNotes,
+                    calls = IncomingCallPopupStatusText.compact(state.progressCalls),
+                    localNotes = IncomingCallPopupStatusText.compact(state.progressLocalNotes),
+                    serverNotes = IncomingCallPopupStatusText.compact(state.progressServerNotes),
                 )
             },
             setWindowManager = { windowManager = it },
