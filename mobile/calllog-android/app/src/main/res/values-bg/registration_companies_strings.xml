@@ -1,0 +1,17 @@
+<resources>
+    <string name="settings_registration_companies_section">Включени фирми</string>
+    <string name="settings_registration_companies_description">Виж активната фирма на това устройство и управлявай достъпа до вече регистрирани фирми.</string>
+    <string name="settings_registration_no_company">Няма включена фирма</string>
+    <string name="settings_registration_no_company_description">Влез, създай фирма или се присъедини по покана, за да се покаже тук.</string>
+    <string name="settings_registration_active_company_fallback">Активна фирма</string>
+    <string name="settings_registration_company_connected">Активна на това устройство</string>
+    <string name="settings_registration_company_user">Профил: %1$s</string>
+    <string name="settings_registration_company_identifier">Фирмен ID: %1$s</string>
+    <string name="settings_registration_manage_companies">Управление на регистрирани фирми</string>
+    <string name="settings_registration_manage_title">Управление на фирмите</string>
+    <string name="settings_registration_add_or_switch">Вход или добавяне на друга фирма</string>
+    <string name="settings_registration_disconnect">Изключи текущата фирма</string>
+    <string name="settings_registration_disconnect_title">Да изключа ли фирмата?</string>
+    <string name="settings_registration_disconnect_message">%1$s ще бъде изключена от това устройство. Фирмата и данните ѝ на сървъра няма да бъдат изтрити.</string>
+    <string name="settings_registration_disconnect_confirm">Изключи</string>
+</resources>
