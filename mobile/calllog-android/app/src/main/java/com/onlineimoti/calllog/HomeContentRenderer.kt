@@ -42,6 +42,12 @@ internal class HomeContentRenderer(
     }
 
     fun clearCalls() {
+        // A call-provider notification deliberately keeps the current cached page alive.
+        // The coordinator consumes this one-shot flag immediately after the clear step.
+        if (HomeRefreshRenderPolicy.shouldKeepExistingRows()) {
+            HomeLoadingFooterUi.hide(binding.homeCallsContainer)
+            return
+        }
         currentCalls = emptyList()
         currentContactNotesByNumber = emptyMap()
         currentContactNamesByNumber = emptyMap()
@@ -203,9 +209,10 @@ internal class HomeContentRenderer(
             PageLoadingModeStore.usesPrefetch(activity),
             pageIndex(),
         )
-        val patched = !forceRender && calls == previousCalls && page.childCount > 0 && patchChangedRows(
+        val patched = !forceRender && page.childCount > 0 && patchTimelineRows(
             page = page,
             calls = calls,
+            previousCalls = previousCalls,
             previousContactNotes = previousContactNotes,
             previousContactNames = previousContactNames,
             previousCallNotes = previousCallNotes,
@@ -221,10 +228,15 @@ internal class HomeContentRenderer(
         if (refreshCompanyLabels) companyGeneralNotes.refresh(calls)
     }
 
-    /** Replaces only rows whose visible note/name state changed, preserving the list and scroll position. */
-    private fun patchChangedRows(
+    /**
+     * Reconciles the existing child views by stable row/day tags. New calls are inserted,
+     * displaced calls are moved, and only visibly changed rows are rebuilt. The whole
+     * LinearLayout is never detached, which keeps scrolling stable and prevents flashing.
+     */
+    private fun patchTimelineRows(
         page: LinearLayout,
         calls: List<PhoneCallRecord>,
+        previousCalls: List<PhoneCallRecord>,
         previousContactNotes: Map<String, String>,
         previousContactNames: Map<String, String>,
         previousCallNotes: Map<String, HomeCallNote>,
@@ -234,27 +246,108 @@ internal class HomeContentRenderer(
         labels: Map<String, List<HomeCompanyScopeLabel>>,
         serverBackedKeys: Set<String>,
     ): Boolean {
-        val changedCalls = calls.filter { call ->
-            val phoneKey = HomeCallPageLoader.noteKey(call.number)
-            val callKey = HomeCallNotesResolver.keyFor(call)
-            previousContactNotes[phoneKey] != state.contactNotesByNumber[phoneKey] ||
-                previousContactNames[phoneKey] != state.contactNamesByNumber[phoneKey] ||
-                previousCallNotes[callKey] != state.callNotesByCall[callKey] ||
-                previousCompanyLabels[phoneKey] != labels[phoneKey] ||
-                (phoneKey in previousServerBackedKeys) != (phoneKey in serverBackedKeys)
-        }
-        if (changedCalls.isEmpty()) return true
+        val desired = timelineItems(calls)
+        if (desired.map { it.tag }.toSet().size != desired.size) return false
+        val previousByTag = previousCalls.associateBy(::rowTag)
 
-        changedCalls.forEach { call ->
-            val tagValue = rowTag(call)
-            val index = (0 until page.childCount).firstOrNull { childIndex ->
-                page.getChildAt(childIndex).tag == tagValue
-            } ?: return false
-            page.removeViewAt(index)
-            page.addView(buildRow(call, state, labels, serverBackedKeys), index)
+        page.suppressLayout(true)
+        return try {
+            desired.forEachIndexed { targetIndex, item ->
+                var child = page.getChildAt(targetIndex)
+                if (child?.tag != item.tag) {
+                    val existingIndex = (targetIndex + 1 until page.childCount).firstOrNull { index ->
+                        page.getChildAt(index).tag == item.tag
+                    }
+                    child = if (existingIndex != null) {
+                        page.getChildAt(existingIndex).also { existing ->
+                            page.removeViewAt(existingIndex)
+                            page.addView(existing, targetIndex)
+                        }
+                    } else {
+                        buildTimelineItem(item, state, labels, serverBackedKeys, targetIndex > 0).also { created ->
+                            page.addView(created, targetIndex)
+                        }
+                    }
+                }
+
+                val call = item.call ?: return@forEachIndexed
+                if (callVisibleStateChanged(
+                        call = call,
+                        previousCall = previousByTag[item.tag],
+                        previousContactNotes = previousContactNotes,
+                        previousContactNames = previousContactNames,
+                        previousCallNotes = previousCallNotes,
+                        previousCompanyLabels = previousCompanyLabels,
+                        previousServerBackedKeys = previousServerBackedKeys,
+                        state = state,
+                        labels = labels,
+                        serverBackedKeys = serverBackedKeys,
+                    )
+                ) {
+                    page.removeViewAt(targetIndex)
+                    page.addView(buildRow(call, state, labels, serverBackedKeys), targetIndex)
+                }
+            }
+            while (page.childCount > desired.size) page.removeViewAt(page.childCount - 1)
+            true
+        } catch (_: Throwable) {
+            false
+        } finally {
+            page.suppressLayout(false)
         }
-        return true
     }
+
+    private fun callVisibleStateChanged(
+        call: PhoneCallRecord,
+        previousCall: PhoneCallRecord?,
+        previousContactNotes: Map<String, String>,
+        previousContactNames: Map<String, String>,
+        previousCallNotes: Map<String, HomeCallNote>,
+        previousCompanyLabels: Map<String, List<HomeCompanyScopeLabel>>,
+        previousServerBackedKeys: Set<String>,
+        state: HomeRenderState,
+        labels: Map<String, List<HomeCompanyScopeLabel>>,
+        serverBackedKeys: Set<String>,
+    ): Boolean {
+        if (previousCall != call) return true
+        val phoneKey = HomeCallPageLoader.noteKey(call.number)
+        val callKey = HomeCallNotesResolver.keyFor(call)
+        return previousContactNotes[phoneKey] != state.contactNotesByNumber[phoneKey] ||
+            previousContactNames[phoneKey] != state.contactNamesByNumber[phoneKey] ||
+            previousCallNotes[callKey] != state.callNotesByCall[callKey] ||
+            previousCompanyLabels[phoneKey] != labels[phoneKey] ||
+            (phoneKey in previousServerBackedKeys) != (phoneKey in serverBackedKeys)
+    }
+
+    private fun timelineItems(calls: List<PhoneCallRecord>): List<TimelineItem> {
+        val today = HomeTimelineDateUi.localDaySerial(System.currentTimeMillis()) ?: 0L
+        var previousDay: Long? = null
+        return buildList {
+            calls.forEach { call ->
+                val day = HomeTimelineDateUi.localDaySerial(call.startedAt)
+                if (day != null && day != previousDay) {
+                    add(
+                        TimelineItem(
+                            tag = dayTag(day),
+                            separatorTimestamp = call.startedAt,
+                            relativeDays = today - day,
+                        ),
+                    )
+                    previousDay = day
+                }
+                add(TimelineItem(tag = rowTag(call), call = call))
+            }
+        }
+    }
+
+    private fun buildTimelineItem(
+        item: TimelineItem,
+        state: HomeRenderState,
+        labels: Map<String, List<HomeCompanyScopeLabel>>,
+        serverBackedKeys: Set<String>,
+        hasRowsBefore: Boolean,
+    ): View = item.call?.let { buildRow(it, state, labels, serverBackedKeys) }
+        ?: dateSeparator(item.separatorTimestamp, item.relativeDays, hasRowsBefore).apply { tag = item.tag }
 
     private fun rebuildPage(
         page: LinearLayout,
@@ -263,16 +356,15 @@ internal class HomeContentRenderer(
         labels: Map<String, List<HomeCompanyScopeLabel>>,
         serverBackedKeys: Set<String>,
     ) {
-        page.removeAllViews()
-        val today = HomeTimelineDateUi.localDaySerial(System.currentTimeMillis()) ?: 0L
-        var previousDay: Long? = null
-        calls.forEach { call ->
-            val day = HomeTimelineDateUi.localDaySerial(call.startedAt)
-            if (day != null && day != previousDay) {
-                page.addView(dateSeparator(call.startedAt, today - day, page.childCount > 0))
-                previousDay = day
+        val items = timelineItems(calls)
+        page.suppressLayout(true)
+        try {
+            page.removeAllViews()
+            items.forEachIndexed { index, item ->
+                page.addView(buildTimelineItem(item, state, labels, serverBackedKeys, index > 0))
             }
-            page.addView(buildRow(call, state, labels, serverBackedKeys))
+        } finally {
+            page.suppressLayout(false)
         }
     }
 
@@ -303,6 +395,8 @@ internal class HomeContentRenderer(
 
     private fun rowTag(call: PhoneCallRecord): String =
         "$HOME_ROW_TAG_PREFIX${HomeCallNotesResolver.keyFor(call)}"
+
+    private fun dayTag(day: Long): String = "$HOME_DAY_TAG_PREFIX$day"
 
     private fun dateSeparator(timestamp: Long, relativeDays: Long, hasRowsBefore: Boolean): TextView {
         val locale = if (AppLocaleText.isBulgarian()) Locale("bg", "BG") else Locale.US
@@ -396,7 +490,15 @@ internal class HomeContentRenderer(
         binding.crmModeButton.setTextColor(Color.rgb(51, 65, 85))
     }
 
+    private data class TimelineItem(
+        val tag: String,
+        val call: PhoneCallRecord? = null,
+        val separatorTimestamp: Long = 0L,
+        val relativeDays: Long = 0L,
+    )
+
     private companion object {
         const val HOME_ROW_TAG_PREFIX = "relationship_manager_home_row:"
+        const val HOME_DAY_TAG_PREFIX = "relationship_manager_home_day:"
     }
 }
