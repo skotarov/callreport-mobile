@@ -161,9 +161,17 @@ class MainActivity : FontScaledAppCompatActivity() {
     private fun hydrateFields() = MainSettingsConfigUi.hydrate(binding, ConfigStore.load(this))
 
     private fun openRequestedSettingsSection(intent: Intent?): Boolean {
-        if (intent?.getBooleanExtra(EXTRA_OPEN_REGISTRATION, false) != true) return false
-        binding.settingsMenuGroup.settingsRegistrationButton.performClick()
-        return true
+        return when {
+            intent?.getBooleanExtra(EXTRA_OPEN_SERVER, false) == true -> {
+                binding.settingsMenuGroup.settingsServerButton.performClick()
+                true
+            }
+            intent?.getBooleanExtra(EXTRA_OPEN_REGISTRATION, false) == true -> {
+                binding.settingsMenuGroup.settingsRegistrationButton.performClick()
+                true
+            }
+            else -> false
+        }
     }
 
     private fun wireSettingsActions() {
@@ -321,5 +329,6 @@ class MainActivity : FontScaledAppCompatActivity() {
 
     companion object {
         const val EXTRA_OPEN_REGISTRATION = "open_registration_settings"
+        const val EXTRA_OPEN_SERVER = "open_server_settings"
     }
 }
