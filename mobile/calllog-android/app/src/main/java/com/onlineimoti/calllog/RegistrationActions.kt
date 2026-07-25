@@ -2,16 +2,117 @@ package com.onlineimoti.calllog
 
 import android.content.Intent
 import android.text.InputType
+import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
 /** Shared account-registration actions, reachable from the Settings registration section. */
 internal object RegistrationActions {
     fun openCompanyAccount(activity: AppCompatActivity) {
         activity.startActivity(Intent(activity, CompanyAccountActivity::class.java))
     }
+
+    fun renderCompanySection(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+    ) {
+        val session = CompanySessionStore.load(activity)
+        if (session == null) {
+            binding.registrationActiveCompanyNameText.setText(R.string.settings_registration_no_company)
+            binding.registrationActiveCompanyDetailsText.apply {
+                setText(R.string.settings_registration_no_company_description)
+                visibility = View.VISIBLE
+            }
+            return
+        }
+
+        binding.registrationActiveCompanyNameText.text = session.organizationName.ifBlank {
+            activity.getString(R.string.settings_registration_active_company_fallback)
+        }
+        binding.registrationActiveCompanyDetailsText.apply {
+            text = companyDetails(activity, session)
+            visibility = View.VISIBLE
+        }
+    }
+
+    fun showCompanyManagementDialog(
+        activity: AppCompatActivity,
+        onChanged: () -> Unit,
+    ) {
+        val session = CompanySessionStore.load(activity)
+        if (session == null) {
+            AlertDialog.Builder(activity)
+                .setTitle(R.string.settings_registration_manage_title)
+                .setMessage(R.string.settings_registration_no_company_description)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.settings_registration_add_or_switch) { _, _ ->
+                    openCompanyAccount(activity)
+                }
+                .show()
+            return
+        }
+
+        val actions = arrayOf(
+            activity.getString(R.string.settings_registration_add_or_switch),
+            activity.getString(R.string.settings_registration_disconnect),
+        )
+        AlertDialog.Builder(activity)
+            .setTitle(session.organizationName.ifBlank {
+                activity.getString(R.string.settings_registration_manage_title)
+            })
+            .setMessage(companyDetails(activity, session))
+            .setItems(actions) { _, selected ->
+                when (selected) {
+                    0 -> openCompanyAccount(activity)
+                    1 -> confirmDisconnect(activity, session, onChanged)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun confirmDisconnect(
+        activity: AppCompatActivity,
+        session: CompanySessionStore.Snapshot,
+        onChanged: () -> Unit,
+    ) {
+        val companyName = session.organizationName.ifBlank {
+            activity.getString(R.string.settings_registration_active_company_fallback)
+        }
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.settings_registration_disconnect_title)
+            .setMessage(activity.getString(R.string.settings_registration_disconnect_message, companyName))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.settings_registration_disconnect_confirm) { _, _ ->
+                val current = ConfigStore.load(activity)
+                ConfigStore.save(
+                    activity,
+                    current.copy(
+                        remoteEnabled = false,
+                        accessToken = "",
+                    ),
+                )
+                CompanySessionStore.clear(activity)
+                onChanged()
+            }
+            .show()
+    }
+
+    private fun companyDetails(
+        activity: AppCompatActivity,
+        session: CompanySessionStore.Snapshot,
+    ): String = buildList {
+        add(activity.getString(R.string.settings_registration_company_connected))
+        if (session.userName.isNotBlank()) {
+            add(activity.getString(R.string.settings_registration_company_user, session.userName))
+        }
+        if (session.organizationId.isNotBlank()) {
+            add(activity.getString(R.string.settings_registration_company_identifier, session.organizationId))
+        }
+    }.joinToString("\n")
 
     fun showJoinDialog(activity: AppCompatActivity) {
         val density = activity.resources.displayMetrics.density
