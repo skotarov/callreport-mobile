@@ -1,0 +1,1 @@
+Temporary CI marker for final atomic note deletion cache verification. Do not merge.
