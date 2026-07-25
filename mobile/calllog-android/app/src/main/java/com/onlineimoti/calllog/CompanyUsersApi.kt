@@ -104,11 +104,16 @@ internal object CompanyUsersApi {
 
     private fun parseUser(item: JSONObject): CompanyManagedUser {
         val id = item.optString("id").trim()
+        val role = when (item.optString("role", "member").trim().lowercase()) {
+            "owner" -> "owner"
+            "admin" -> "admin"
+            else -> "member"
+        }
         return CompanyManagedUser(
             id = id,
             name = item.optString("name").trim().ifBlank { id },
             email = item.optString("email").trim(),
-            role = item.optString("role", "broker").trim().lowercase().ifBlank { "broker" },
+            role = role,
             active = item.optBoolean("active", true),
             isCurrentUser = item.optBoolean("is_current_user", false),
             canDeactivate = item.optBoolean("can_deactivate", false),
