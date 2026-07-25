@@ -8,7 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
-/** Shared account-registration actions, reachable from the Settings registration section. */
+/** Shared profile and company-access actions, reachable from the Settings registration section. */
 internal object RegistrationActions {
     fun openCompanyAccount(activity: AppCompatActivity) {
         activity.startActivity(Intent(activity, CompanyAccountActivity::class.java))
@@ -44,7 +44,7 @@ internal object RegistrationActions {
 
         val dialog = AlertDialog.Builder(activity)
             .setTitle("Присъедини се по покана")
-            .setMessage("Поканата е безплатна. Имейлът трябва да съвпада с този, на който owner/admin е създал поканата.")
+            .setMessage("Поканата добавя профила към конкретна фирма. Имейлът трябва да съвпада с този, на който собственик или администратор е създал поканата.")
             .setView(container)
             .setNegativeButton("Отказ", null)
             .setPositiveButton("Присъедини се", null)
@@ -91,8 +91,8 @@ internal object RegistrationActions {
         if (!CorporateAccess.isActive(activity)) {
             AlertDialog.Builder(activity)
                 .setTitle("Покани колега")
-                .setMessage("Първо влез във фирмения профил.")
-                .setPositiveButton("Фирмен профил") { _, _ -> openCompanyAccount(activity) }
+                .setMessage("Първо влез в профила.")
+                .setPositiveButton("Профил") { _, _ -> openCompanyAccount(activity) }
                 .setNegativeButton("Отказ", null)
                 .show()
             return
