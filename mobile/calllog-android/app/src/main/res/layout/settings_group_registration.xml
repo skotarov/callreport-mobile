@@ -48,7 +48,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="@string/settings_registration_description"
+                android:text="@string/settings_registration_profile_description"
                 android:textColor="@color/calllog_muted_text"
                 android:textSize="14sp" />
 
@@ -60,7 +60,7 @@
                 android:layout_marginTop="14dp"
                 android:gravity="center_vertical"
                 android:minHeight="50dp"
-                android:text="@string/settings_registration_company_account"
+                android:text="@string/settings_registration_profile_license"
                 app:icon="@drawable/ic_settings_application"
                 app:iconGravity="textStart"
                 app:iconPadding="12dp"
