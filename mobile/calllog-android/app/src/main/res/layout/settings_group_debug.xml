@@ -21,17 +21,19 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
+
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_debug_section"
+                android:contentDescription="@string/settings_tree_advanced_title"
                 android:src="@drawable/ic_settings_debug" />
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/settings_debug_section"
+                android:text="@string/settings_tree_advanced_title"
                 android:textColor="@color/calllog_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -41,13 +43,31 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="@string/settings_debug_description"
+            android:text="@string/settings_tree_advanced_description"
             android:textColor="@color/calllog_muted_text"
             android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_advanced_popup_tests_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
 
         <include
             android:id="@+id/testsSection"
             layout="@layout/section_tests" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_advanced_server_tests_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
 
         <include
             android:id="@+id/serverTestsSection"
