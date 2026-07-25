@@ -1,6 +1,5 @@
 package com.onlineimoti.calllog
 
-import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -15,7 +14,7 @@ import com.google.android.material.button.MaterialButton
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/** Account login and initial company creation. One account may belong to many companies. */
+/** Profile registration/login and company creation are intentionally separate flows. */
 class CompanyAccountActivity : AppCompatActivity() {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -31,7 +30,6 @@ class CompanyAccountActivity : AppCompatActivity() {
     private lateinit var passwordInput: EditText
     private lateinit var organizationInput: EditText
     private lateinit var eikInput: EditText
-    private lateinit var registrationFields: LinearLayout
 
     private var mode: String = MODE_LOGIN
 
@@ -41,6 +39,7 @@ class CompanyAccountActivity : AppCompatActivity() {
         val requestedMode = intent.getStringExtra(EXTRA_MODE)
         mode = when {
             requestedMode == MODE_REGISTER -> MODE_REGISTER
+            requestedMode == MODE_CREATE_COMPANY && CompanySessionStore.load(this) != null -> MODE_CREATE_COMPANY
             CompanySessionStore.load(this) != null -> MODE_PROFILE
             else -> MODE_LOGIN
         }
@@ -90,16 +89,14 @@ class CompanyAccountActivity : AppCompatActivity() {
         nameInput = editInput("Твоето име", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
         emailInput = editInput("Имейл", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
         passwordInput = editInput("Парола (поне 10 символа)", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        organizationInput = editInput("Име на първата фирма / организация", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+        organizationInput = editInput("Име на фирма / организация", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
         eikInput = editInput("ЕИК / Булстат (незадължително)", InputType.TYPE_CLASS_NUMBER)
 
-        registrationFields = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        registrationFields.addView(nameInput, verticalParams())
-        registrationFields.addView(organizationInput, verticalParams(8))
-        registrationFields.addView(eikInput, verticalParams(8))
-        column.addView(registrationFields)
+        column.addView(nameInput)
         column.addView(emailInput, verticalParams(8))
         column.addView(passwordInput, verticalParams(8))
+        column.addView(organizationInput, verticalParams(8))
+        column.addView(eikInput, verticalParams(8))
 
         submitButton = MaterialButton(this).apply { setOnClickListener { submit() } }
         column.addView(submitButton, verticalParams(16))
@@ -108,14 +105,12 @@ class CompanyAccountActivity : AppCompatActivity() {
         column.addView(switchModeButton, verticalParams(8))
 
         licenseButton = MaterialButton(this).apply {
-            text = "Купи / възстанови лиценз"
-            setOnClickListener { startActivity(Intent(this@CompanyAccountActivity, CompanyLicenseActivity::class.java)) }
+            text = "Купи / възстанови лиценз за фирма"
+            setOnClickListener { startActivity(android.content.Intent(this@CompanyAccountActivity, CompanyLicenseActivity::class.java)) }
         }
         column.addView(licenseButton, verticalParams(8))
 
-        progress = ProgressBar(this).apply {
-            visibility = View.GONE
-        }
+        progress = ProgressBar(this).apply { visibility = View.GONE }
         column.addView(progress, LinearLayout.LayoutParams(dp(42), dp(42)).apply {
             gravity = Gravity.CENTER_HORIZONTAL
             topMargin = dp(14)
@@ -133,58 +128,65 @@ class CompanyAccountActivity : AppCompatActivity() {
         val hasBaseUrl = ConfigStore.load(this).baseUrl.isNotBlank()
         val activation = CompanyLicenseStore.loadValid(this)
         val profile = CompanySessionStore.load(this)
-        if (mode == MODE_PROFILE && profile == null) {
-            mode = MODE_LOGIN
-        }
+        if ((mode == MODE_PROFILE || mode == MODE_CREATE_COMPANY) && profile == null) mode = MODE_LOGIN
 
         val creatingProfile = mode == MODE_REGISTER
+        val creatingCompany = mode == MODE_CREATE_COMPANY
         val viewingProfile = mode == MODE_PROFILE
+        val loggingIn = mode == MODE_LOGIN
 
         titleText.text = when {
-            viewingProfile -> "Профил и фирми"
-            creatingProfile -> "Създай профил и първа фирма"
+            viewingProfile -> "Профил"
+            creatingProfile -> "Създай профил"
+            creatingCompany -> "Създай фирма"
             else -> "Вход в профил"
         }
         descriptionText.text = when {
             viewingProfile -> {
                 val user = profile?.userName.orEmpty().ifBlank { "текущия профил" }
-                "Влезли сте като $user. Един профил може да бъде включен в много фирми, като ролята може да е различна във всяка фирма."
+                "Влезли сте като $user. Профилът е отделен от фирмите и може да участва в много фирми с различни роли."
             }
-            creatingProfile && activation == null -> {
-                "За създаване на профил и първа фирма е нужен потвърден еднократен лиценз. След това профилът може да бъде включен и в други фирми."
-            }
-            creatingProfile -> {
-                "Лицензът е потвърден. Попълни данните, за да създадеш профила и първата фирма към него."
-            }
-            else -> {
-                "Влез еднократно в профила. След вход приложението зарежда всички фирми и ролята във всяка от тях."
-            }
+            creatingProfile -> "Създай личния си профил само с име, имейл и парола. Фирма може да добавиш отделно след вход."
+            creatingCompany && activation == null -> "Фирмата се създава отделно към влезлия профил. За нея е необходим потвърден лиценз."
+            creatingCompany -> "Лицензът е потвърден. Въведи данните на новата фирма."
+            else -> "Влез с имейл и парола. След това ще видиш всички фирми, към които профилът има достъп."
         }
 
-        registrationFields.visibility = if (creatingProfile) View.VISIBLE else View.GONE
-        emailInput.visibility = if (viewingProfile) View.GONE else View.VISIBLE
-        passwordInput.visibility = if (viewingProfile) View.GONE else View.VISIBLE
+        nameInput.visibility = if (creatingProfile) View.VISIBLE else View.GONE
+        emailInput.visibility = if (loggingIn || creatingProfile) View.VISIBLE else View.GONE
+        passwordInput.visibility = if (loggingIn || creatingProfile) View.VISIBLE else View.GONE
+        organizationInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
+        eikInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
         submitButton.visibility = if (viewingProfile) View.GONE else View.VISIBLE
-        submitButton.text = if (creatingProfile) "Създай профил" else "Вход"
-        switchModeButton.text = when {
-            viewingProfile -> "Вход с друг профил"
-            creatingProfile -> "Вече имам профил"
-            else -> "Създай профил и първа фирма"
+        submitButton.text = when {
+            creatingProfile -> "Създай профил"
+            creatingCompany -> "Създай фирма"
+            else -> "Вход"
         }
-        licenseButton.visibility = if (creatingProfile && activation != null) View.GONE else View.VISIBLE
-        submitButton.isEnabled = !viewingProfile && hasBaseUrl && (!creatingProfile || activation != null)
+        switchModeButton.text = when {
+            viewingProfile -> "Създай фирма"
+            creatingCompany -> "Назад към профила"
+            creatingProfile -> "Вече имам профил"
+            else -> "Създай профил"
+        }
+        licenseButton.visibility = if (creatingCompany && activation == null) View.VISIBLE else View.GONE
+        submitButton.isEnabled = hasBaseUrl && when {
+            creatingCompany -> profile != null && activation != null
+            else -> true
+        }
 
         when {
-            viewingProfile -> setStatus("Фирмите и ролите се показват отделно в секцията „Включени фирми“.")
             !hasBaseUrl -> setStatus("Първо настрой сървърния адрес от Настройки → Профил и фирми.")
-            creatingProfile && activation == null -> setStatus("Първо купи или възстанови лиценза от Google Play.")
+            creatingCompany && activation == null -> setStatus("Първо купи или възстанови лиценз за новата фирма.")
+            viewingProfile -> setStatus("Фирмите и ролите се показват в секцията „Включени фирми“.")
             else -> setStatus("")
         }
     }
 
     private fun switchMode() {
         mode = when (mode) {
-            MODE_PROFILE -> MODE_LOGIN
+            MODE_PROFILE -> MODE_CREATE_COMPANY
+            MODE_CREATE_COMPANY -> MODE_PROFILE
             MODE_REGISTER -> MODE_LOGIN
             else -> MODE_REGISTER
         }
@@ -192,47 +194,31 @@ class CompanyAccountActivity : AppCompatActivity() {
     }
 
     private fun submit() {
-        val email = emailInput.text?.toString().orEmpty().trim()
-        val password = passwordInput.text?.toString().orEmpty()
-        if (email.isBlank() || password.isBlank()) {
-            setStatus("Въведи имейл и парола.")
-            return
-        }
-        if (mode == MODE_REGISTER) {
-            val activation = CompanyLicenseStore.loadValid(this)
-            if (activation == null) {
-                setStatus("Лицензът липсва или е изтекъл. Купи или възстанови покупката отново.")
-                return
-            }
-            if (nameInput.text?.toString().orEmpty().trim().isBlank() || organizationInput.text?.toString().orEmpty().trim().isBlank()) {
-                setStatus("Въведи твоето име и име на първата фирма.")
-                return
-            }
-            registerCompany(email, password, activation)
-        } else {
-            login(email, password)
+        when (mode) {
+            MODE_REGISTER -> registerProfile()
+            MODE_CREATE_COMPANY -> createCompany()
+            else -> login()
         }
     }
 
-    private fun registerCompany(email: String, password: String, activation: CompanyLicenseStore.Activation) {
+    private fun registerProfile() {
+        val name = nameInput.text?.toString().orEmpty().trim()
+        val email = emailInput.text?.toString().orEmpty().trim()
+        val password = passwordInput.text?.toString().orEmpty()
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            setStatus("Въведи име, имейл и парола.")
+            return
+        }
         showLoading(true)
         executor.execute {
-            val result = CompanyAccountApi.register(
-                context = applicationContext,
-                email = email,
-                password = password,
-                displayName = nameInput.text?.toString().orEmpty(),
-                organizationName = organizationInput.text?.toString().orEmpty(),
-                organizationEik = eikInput.text?.toString().orEmpty(),
-                activationToken = activation.token,
-            )
+            val result = CompanyAccountApi.registerProfile(applicationContext, email, password, name)
             runOnUiThread {
                 result.onSuccess { session ->
                     CompanyAccountApi.applySession(applicationContext, session)
-                    CompanyLicenseStore.clear(applicationContext)
                     showLoading(false)
-                    setStatus("Профилът и първата фирма са създадени. Достъпните фирми ще бъдат заредени автоматично.")
-                    openHome()
+                    mode = MODE_PROFILE
+                    setStatus("Профилът е създаден. Сега можеш да създадеш фирма или да приемеш покана.")
+                    renderMode()
                 }.onFailure { error ->
                     showLoading(false)
                     setStatus(error.message ?: "Неуспешно създаване на профил.")
@@ -241,7 +227,48 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun login(email: String, password: String) {
+    private fun createCompany() {
+        val activation = CompanyLicenseStore.loadValid(this)
+        val organizationName = organizationInput.text?.toString().orEmpty().trim()
+        if (activation == null) {
+            setStatus("Лицензът липсва или е изтекъл.")
+            return
+        }
+        if (organizationName.isBlank()) {
+            setStatus("Въведи име на фирмата.")
+            return
+        }
+        showLoading(true)
+        executor.execute {
+            val result = CompanyAccountApi.createCompany(
+                applicationContext,
+                organizationName,
+                eikInput.text?.toString().orEmpty(),
+                activation.token,
+            )
+            runOnUiThread {
+                result.onSuccess { session ->
+                    CompanyAccountApi.applySession(applicationContext, session)
+                    CompanyLicenseStore.clear(applicationContext)
+                    showLoading(false)
+                    mode = MODE_PROFILE
+                    setStatus("Фирмата е създадена и е добавена към профила.")
+                    renderMode()
+                }.onFailure { error ->
+                    showLoading(false)
+                    setStatus(error.message ?: "Неуспешно създаване на фирма.")
+                }
+            }
+        }
+    }
+
+    private fun login() {
+        val email = emailInput.text?.toString().orEmpty().trim()
+        val password = passwordInput.text?.toString().orEmpty()
+        if (email.isBlank() || password.isBlank()) {
+            setStatus("Въведи имейл и парола.")
+            return
+        }
         showLoading(true)
         executor.execute {
             val result = CompanyAccountApi.login(applicationContext, email, password)
@@ -249,21 +276,15 @@ class CompanyAccountActivity : AppCompatActivity() {
                 result.onSuccess { session ->
                     CompanyAccountApi.applySession(applicationContext, session)
                     showLoading(false)
-                    setStatus("Успешен вход в профила. Достъпните фирми ще бъдат заредени автоматично.")
-                    openHome()
+                    mode = MODE_PROFILE
+                    setStatus("Успешен вход в профила.")
+                    renderMode()
                 }.onFailure { error ->
                     showLoading(false)
                     setStatus(error.message ?: "Неуспешен вход.")
                 }
             }
         }
-    }
-
-    private fun openHome() {
-        startActivity(Intent(this, HomeActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        })
-        finish()
     }
 
     private fun showLoading(show: Boolean) {
@@ -282,5 +303,6 @@ class CompanyAccountActivity : AppCompatActivity() {
         const val MODE_PROFILE = "profile"
         const val MODE_LOGIN = "login"
         const val MODE_REGISTER = "register"
+        const val MODE_CREATE_COMPANY = "create_company"
     }
 }
