@@ -33,6 +33,10 @@ internal class ContactNoteEditSaveController(
         )
         if (!result.saved) return ContactNoteEditSaveOutcome(saved = false)
         if (!result.writeResult.savedAsGeneralNote) applyTarget(result.writeResult.target)
+
+        // Home is normally paused while this editor is visible. Persist the change
+        // before broadcasting so Home can still detect it after the receiver was absent.
+        HomeNoteChangeSignal.markChanged(activity)
         activity.sendBroadcast(
             Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(activity.packageName),
         )
