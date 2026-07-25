@@ -179,27 +179,11 @@
                 android:orientation="vertical" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/registrationInviteColleagueButton"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center_vertical"
-                android:minHeight="50dp"
-                android:text="@string/settings_registration_invite"
-                app:icon="@drawable/ic_settings_rm_contacts"
-                app:iconGravity="textStart"
-                app:iconPadding="12dp"
-                app:iconTint="@color/calllog_text"
-                app:strokeColor="@color/calllog_border"
-                app:strokeWidth="1dp" />
-
-            <com.google.android.material.button.MaterialButton
                 android:id="@+id/registrationRefreshCompaniesButton"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:gravity="center_vertical"
                 android:minHeight="46dp"
                 android:text="@string/settings_registration_refresh_companies"
