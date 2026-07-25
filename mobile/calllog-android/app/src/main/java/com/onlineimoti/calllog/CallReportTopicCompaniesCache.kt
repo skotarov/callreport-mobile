@@ -27,11 +27,6 @@ internal data class TopicCompaniesLoadResult(
 )
 
 internal object CallReportTopicCompaniesRepository {
-    /**
-     * Note forms are cache-first so opening an editor never waits for another
-     * company request. The server sync refreshes this cache in the background.
-     * A live request remains as the first-use bootstrap when no cache exists yet.
-     */
     fun load(context: Context, config: AppConfig): TopicCompaniesLoadResult {
         CallReportTopicCompaniesCache.read(context, config)?.let { cached ->
             return TopicCompaniesLoadResult(
@@ -74,6 +69,8 @@ internal object CallReportTopicCompaniesCache {
                     put(JSONObject().apply {
                         put("id", company.id)
                         put("name", company.name)
+                        put("role", company.role)
+                        put("can_manage_users", company.canManageUsers)
                     })
                 }
         }
@@ -97,7 +94,9 @@ internal object CallReportTopicCompaniesCache {
                 val item = array.optJSONObject(index) ?: continue
                 val id = item.optString("id").trim()
                 val name = item.optString("name").trim().ifBlank { id }
-                if (id.isNotBlank()) add(CallReportTopicCompany(id, name))
+                val role = item.optString("role", "broker").trim().lowercase().ifBlank { "broker" }
+                val canManageUsers = item.optBoolean("can_manage_users", role == "owner" || role == "admin")
+                if (id.isNotBlank()) add(CallReportTopicCompany(id, name, role, canManageUsers))
             }
         }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
         return CachedTopicCompanies(
