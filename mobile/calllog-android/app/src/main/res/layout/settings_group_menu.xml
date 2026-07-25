@@ -6,14 +6,71 @@
     android:layout_marginTop="18dp"
     android:orientation="vertical">
 
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="@color/calllog_surface"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/calllog_border"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_tree_intro_title"
+                android:textColor="@color/calllog_text"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/settings_tree_intro_description"
+                android:textColor="@color/calllog_muted_text"
+                android:textSize="13.5sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/settings_tree_group_setup"
+        android:textColor="@color/calllog_text"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_tree_group_setup_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingsApplicationButton"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_application_section"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_permissions_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_settings_permissions"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
@@ -21,15 +78,38 @@
         app:strokeColor="@color/calllog_border"
         app:strokeWidth="1dp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:text="@string/settings_tree_group_daily"
+        android:textColor="@color/calllog_text"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_tree_group_daily_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingsPopupButton"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_popup_section"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_calls_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_settings_popup"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
@@ -42,11 +122,56 @@
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_integrations_section"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_contacts_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_settings_rm_contacts"
+        app:iconGravity="textStart"
+        app:iconPadding="14dp"
+        app:iconTint="@color/calllog_text"
+        app:strokeColor="@color/calllog_border"
+        app:strokeWidth="1dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:text="@string/settings_tree_group_account"
+        android:textColor="@color/calllog_text"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_tree_group_account_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/settingsRegistrationButton"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_account_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
+        app:icon="@drawable/ic_settings_registration"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
         app:iconTint="@color/calllog_text"
@@ -58,27 +183,17 @@
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_server_section"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_server_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_cloud_sync"
-        app:iconGravity="textStart"
-        app:iconPadding="14dp"
-        app:iconTint="@color/calllog_text"
-        app:strokeColor="@color/calllog_border"
-        app:strokeWidth="1dp" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/settingsRegistrationButton"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_registration_section"
-        app:icon="@drawable/ic_settings_registration"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
         app:iconTint="@color/calllog_text"
@@ -90,10 +205,16 @@
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_storage_section"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_data_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_settings_data_archive"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
@@ -101,15 +222,38 @@
         app:strokeColor="@color/calllog_border"
         app:strokeWidth="1dp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:text="@string/settings_tree_group_personal"
+        android:textColor="@color/calllog_text"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_tree_group_personal_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingsGeneralButton"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_general_section"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_appearance_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_settings_language"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
@@ -117,15 +261,38 @@
         app:strokeColor="@color/calllog_border"
         app:strokeWidth="1dp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:text="@string/settings_tree_group_advanced"
+        android:textColor="@color/calllog_text"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_tree_group_advanced_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingsDebugButton"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:minHeight="52dp"
-        android:text="@string/settings_debug_section"
+        android:gravity="start|center_vertical"
+        android:lineSpacingExtra="2dp"
+        android:minHeight="74dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="@string/settings_tree_advanced_menu"
+        android:textAllCaps="false"
+        android:textSize="14.5sp"
         app:icon="@drawable/ic_settings_debug"
         app:iconGravity="textStart"
         app:iconPadding="14dp"
