@@ -42,68 +42,218 @@ internal class HomeCallsLoader(
         val searchQuery = activeSearchQuery()
         val expectedGeneration = generation.get()
         val appContext = activity.applicationContext
-        val localNotesApplied = AtomicBoolean(false)
-        contentRenderer.showLoading()
+        val visibleRevision = AtomicInteger(0)
+        val firstRenderCompleted = AtomicBoolean(false)
+        val cacheEligible = phoneFilter.isBlank() && searchQuery.isBlank()
+        val cachedCalls = if (cacheEligible) {
+            HomeCallLogSnapshotCache.readPage(appContext, requestedPage, pageSize)
+        } else {
+            emptyList()
+        }
+        val cachedData = cachedCalls.takeIf { it.isNotEmpty() }?.let { calls ->
+            HomeNotesSnapshotCache.mergeCached(
+                appContext,
+                HomeRenderData(calls, emptyMap(), emptyMap(), emptyMap()),
+            )
+        }
+
+        fun completeFirstRender() {
+            if (firstRenderCompleted.compareAndSet(false, true)) onRenderComplete()
+        }
+
+        if (cachedData != null) {
+            // The first frame is a complete last-known Call Log with its yellow and blue
+            // notes. Android providers and the server are checked only after it is visible.
+            contentRenderer.applyProvisionalRenderData(cachedData, pageSize)
+            completeFirstRender()
+            startLocalEnrichment(
+                calls = cachedCalls,
+                pageSize = pageSize,
+                expectedGeneration = expectedGeneration,
+                requestedPage = requestedPage,
+                phoneFilter = phoneFilter,
+                searchQuery = searchQuery,
+                visibleRevision = visibleRevision,
+                expectedVisibleRevision = visibleRevision.get(),
+            )
+        } else {
+            contentRenderer.showLoading()
+        }
+
         localExecutor.execute {
             val calls = loadLocalCalls(appContext, phoneFilter, searchQuery, requestedPage, pageSize)
-            val fastData = HomeRenderData(calls, emptyMap(), emptyMap(), emptyMap())
+            if (cacheEligible && calls.isNotEmpty()) {
+                HomeCallLogSnapshotCache.storePage(appContext, requestedPage, pageSize, calls)
+            }
             handler.post {
                 if (!isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) return@post
                 if (calls.isEmpty()) {
-                    contentRenderer.renderEmptyState()
-                    HomePageReadyState.markReady()
-                    onRenderComplete()
-                } else {
-                    contentRenderer.applyProvisionalRenderData(fastData, pageSize)
-                    serverCallNotes.enrichAsync(fastData) { enriched ->
-                        if (!isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) return@enrichAsync
-                        if (!localNotesApplied.get()) contentRenderer.applySupplementalRenderData(enriched, pageSize)
+                    if (cachedCalls.isEmpty()) {
+                        contentRenderer.renderEmptyState()
+                        HomePageReadyState.markReady()
+                        completeFirstRender()
                     }
-                    onRenderComplete()
+                    return@post
                 }
-            }
-            if (calls.isEmpty()) return@execute
 
-            runCatching {
-                localNotesExecutor.execute notesTask@{
-                    if (!isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) return@notesTask
-                    val data = runCatching {
-                        HomeRenderData(
-                            calls = calls,
-                            contactNotesByNumber = HomeCallPageLoader.contactNotes(appContext, calls),
-                            contactNamesByNumber = HomeCallPageLoader.contactNames(appContext, calls),
-                            callNotesByCall = HomeCallNotesResolver.localNotes(appContext, calls),
+                if (calls == cachedCalls) {
+                    // The cache is current. Parallel local/server enrichment already runs
+                    // against these exact rows, so touching the list again would be noise.
+                    return@post
+                }
+
+                val nextVisibleRevision = visibleRevision.incrementAndGet()
+                serverCallNotes.cancelPending()
+                val freshData = HomeNotesSnapshotCache.mergeCached(
+                    appContext,
+                    HomeRenderData(calls, emptyMap(), emptyMap(), emptyMap()),
+                )
+                contentRenderer.applyProvisionalRenderData(freshData, pageSize)
+                completeFirstRender()
+                startLocalEnrichment(
+                    calls = calls,
+                    pageSize = pageSize,
+                    expectedGeneration = expectedGeneration,
+                    requestedPage = requestedPage,
+                    phoneFilter = phoneFilter,
+                    searchQuery = searchQuery,
+                    visibleRevision = visibleRevision,
+                    expectedVisibleRevision = nextVisibleRevision,
+                )
+            }
+        }
+    }
+
+    /** Local note reads and the remote refresh run beside the Android Call Log check. */
+    private fun startLocalEnrichment(
+        calls: List<PhoneCallRecord>,
+        pageSize: Int,
+        expectedGeneration: Int,
+        requestedPage: Int,
+        phoneFilter: String,
+        searchQuery: String,
+        visibleRevision: AtomicInteger,
+        expectedVisibleRevision: Int,
+    ) {
+        if (calls.isEmpty()) return
+        val appContext = activity.applicationContext
+        val localNotesApplied = AtomicBoolean(false)
+        val fastData = HomeRenderData(calls, emptyMap(), emptyMap(), emptyMap())
+        serverCallNotes.enrichAsync(
+            fastData,
+            onFinished = {
+                if (isCurrentLocalStage(
+                        expectedGeneration,
+                        requestedPage,
+                        phoneFilter,
+                        searchQuery,
+                        visibleRevision,
+                        expectedVisibleRevision,
+                    )
+                ) {
+                    HomePageReadyState.markReady()
+                }
+            },
+        ) { enriched ->
+            if (!isCurrentLocalStage(
+                    expectedGeneration,
+                    requestedPage,
+                    phoneFilter,
+                    searchQuery,
+                    visibleRevision,
+                    expectedVisibleRevision,
+                )
+            ) return@enrichAsync
+            if (!localNotesApplied.get()) contentRenderer.applySupplementalRenderData(enriched, pageSize)
+        }
+
+        runCatching {
+            localNotesExecutor.execute notesTask@{
+                if (!isCurrentLocalStage(
+                        expectedGeneration,
+                        requestedPage,
+                        phoneFilter,
+                        searchQuery,
+                        visibleRevision,
+                        expectedVisibleRevision,
+                    )
+                ) return@notesTask
+                val data = runCatching {
+                    HomeRenderData(
+                        calls = calls,
+                        contactNotesByNumber = HomeCallPageLoader.contactNotes(appContext, calls),
+                        contactNamesByNumber = HomeCallPageLoader.contactNames(appContext, calls),
+                        callNotesByCall = HomeCallNotesResolver.localNotes(appContext, calls),
+                    )
+                }.getOrElse {
+                    handler.post {
+                        if (isCurrentLocalStage(
+                                expectedGeneration,
+                                requestedPage,
+                                phoneFilter,
+                                searchQuery,
+                                visibleRevision,
+                                expectedVisibleRevision,
+                            )
+                        ) {
+                            HomePageReadyState.markReady()
+                        }
+                    }
+                    return@notesTask
+                }
+                handler.post {
+                    if (!isCurrentLocalStage(
+                            expectedGeneration,
+                            requestedPage,
+                            phoneFilter,
+                            searchQuery,
+                            visibleRevision,
+                            expectedVisibleRevision,
                         )
-                    }.getOrElse {
-                        handler.post {
-                            if (isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) {
+                    ) return@post
+                    localNotesApplied.set(true)
+                    contentRenderer.applySupplementalRenderData(data, pageSize)
+                    serverCallNotes.enrichAsync(
+                        data,
+                        onFinished = {
+                            if (isCurrentLocalStage(
+                                    expectedGeneration,
+                                    requestedPage,
+                                    phoneFilter,
+                                    searchQuery,
+                                    visibleRevision,
+                                    expectedVisibleRevision,
+                                )
+                            ) {
                                 HomePageReadyState.markReady()
                             }
-                        }
-                        return@notesTask
-                    }
-                    handler.post {
-                        if (!isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) return@post
-                        localNotesApplied.set(true)
-                        contentRenderer.applySupplementalRenderData(data, pageSize)
-                        serverCallNotes.enrichAsync(
-                            data,
-                            onFinished = {
-                                if (isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) {
-                                    HomePageReadyState.markReady()
-                                }
-                            },
-                        ) { enriched ->
-                            if (!isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) return@enrichAsync
-                            contentRenderer.applyRenderData(enriched, pageSize)
-                        }
+                        },
+                    ) { enriched ->
+                        if (!isCurrentLocalStage(
+                                expectedGeneration,
+                                requestedPage,
+                                phoneFilter,
+                                searchQuery,
+                                visibleRevision,
+                                expectedVisibleRevision,
+                            )
+                        ) return@enrichAsync
+                        contentRenderer.applyRenderData(enriched, pageSize)
                     }
                 }
-            }.onFailure {
-                handler.post {
-                    if (isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)) {
-                        HomePageReadyState.markReady()
-                    }
+            }
+        }.onFailure {
+            handler.post {
+                if (isCurrentLocalStage(
+                        expectedGeneration,
+                        requestedPage,
+                        phoneFilter,
+                        searchQuery,
+                        visibleRevision,
+                        expectedVisibleRevision,
+                    )
+                ) {
+                    HomePageReadyState.markReady()
                 }
             }
         }
@@ -269,6 +419,16 @@ internal class HomeCallsLoader(
             }
         }
     }
+
+    private fun isCurrentLocalStage(
+        expectedGeneration: Int,
+        requestedPage: Int,
+        phoneFilter: String,
+        searchQuery: String,
+        visibleRevision: AtomicInteger,
+        expectedVisibleRevision: Int,
+    ): Boolean = visibleRevision.get() == expectedVisibleRevision &&
+        isCurrentLocalRender(expectedGeneration, requestedPage, phoneFilter, searchQuery)
 
     private fun isCurrentLocalRender(
         expectedGeneration: Int,
