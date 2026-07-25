@@ -119,6 +119,17 @@ class ServerNoteEditActivity : Activity() {
             Toast.makeText(this, "Бележката не може да бъде записана.", Toast.LENGTH_SHORT).show()
             return
         }
+        if (note.isBlank()) {
+            HomeNotesSnapshotCache.invalidateDeletedNote(
+                context = this,
+                phone = phone,
+                isGeneralNote = false,
+                callAtMs = callAt,
+                direction = direction,
+                serverClientEventId = clientEventId,
+            )
+        }
+        HomeNoteChangeSignal.markChanged(this)
         sendBroadcast(Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(packageName))
         Toast.makeText(this, successMessage, Toast.LENGTH_SHORT).show()
         finish()
