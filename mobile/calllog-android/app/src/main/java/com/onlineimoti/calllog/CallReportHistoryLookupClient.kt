@@ -66,7 +66,7 @@ internal object CallReportHistoryLookupClient {
         return result
     }
 
-    /** One request for Home, completed only where the batch omitted a phone's notes. */
+    /** One request for Home, completed only where the batch omitted a phone's call notes. */
     fun lookupMany(config: AppConfig, phones: List<String>, context: Context? = null): CallReportHistoryLookupResult {
         return lookupManyOrNull(config, phones, context) ?: CallReportHistoryLookupResult()
     }
@@ -112,17 +112,16 @@ internal object CallReportHistoryLookupClient {
     }
 
     /**
-     * The batch endpoint can return calls for a phone while omitting its note rows.
-     * History uses a single-phone GET and therefore still sees those notes. Home only
-     * performs that compatible GET for phone keys without any note coverage in batch.
+     * A yellow/general note or a phone record does not prove that the batch included
+     * the blue notes attached to a concrete call. Only concrete call-note rows cover
+     * the phone; otherwise Home completes it with the same GET used by History.
      */
     internal fun phonesMissingNoteCoverage(
         phones: List<String>,
         batchEvents: List<CallReportHistoryEvent>,
     ): List<String> {
         val coveredKeys = batchEvents.asSequence()
-            .filter { it.communicationType.equals("note", ignoreCase = true) }
-            .filter { it.note.isNotBlank() }
+            .filter(CallReportServerNoteClassifier::isConcreteCallNote)
             .map { phoneKey(it.phone) }
             .filter { it.isNotBlank() }
             .toSet()
