@@ -40,6 +40,10 @@ internal class HomeServerCallNotesController(
             return
         }
 
+        // Capture this before reading the snapshot. If a deletion happens after this
+        // point, the final cache write is rejected atomically by storeIfRevision().
+        val expectedMutationRevision = HomeNotesSnapshotCache.mutationRevision(appContext)
+
         // This method is entered from Home's main-thread render callback. Apply the
         // durable last-known notes synchronously, before Android draws the first frame,
         // so calls, yellow notes and blue notes appear together instead of in stages.
@@ -49,7 +53,12 @@ internal class HomeServerCallNotesController(
         val expectedGeneration = generation.get()
         val config = ConfigStore.load(appContext)
         if (!CallReportRemoteAccess.isReady(config)) {
-            persistWithoutRemote(cachedData, expectedGeneration, onFinished)
+            persistWithoutRemote(
+                data = cachedData,
+                expectedGeneration = expectedGeneration,
+                expectedMutationRevision = expectedMutationRevision,
+                onFinished = onFinished,
+            )
             return
         }
         val phones = cachedData.calls
@@ -57,7 +66,12 @@ internal class HomeServerCallNotesController(
             .map { it.number }
             .distinctBy(HomeCallPageLoader::noteKey)
         if (phones.isEmpty()) {
-            persistWithoutRemote(cachedData, expectedGeneration, onFinished)
+            persistWithoutRemote(
+                data = cachedData,
+                expectedGeneration = expectedGeneration,
+                expectedMutationRevision = expectedMutationRevision,
+                onFinished = onFinished,
+            )
             return
         }
 
@@ -68,7 +82,7 @@ internal class HomeServerCallNotesController(
         executor.execute {
             val history = runCatching { historyForPage(config, phones) }.getOrNull()
             if (history == null) {
-                storeIfCurrent(cachedData, expectedGeneration)
+                storeIfCurrent(cachedData, expectedGeneration, expectedMutationRevision)
                 handler.post {
                     finishBusy(busyToken)
                     if (expectedGeneration == generation.get()) onFinished()
@@ -93,7 +107,7 @@ internal class HomeServerCallNotesController(
                     principal = history.principal,
                 ),
             )
-            if (!storeIfCurrent(updated, expectedGeneration)) {
+            if (!storeIfCurrent(updated, expectedGeneration, expectedMutationRevision)) {
                 handler.post { finishBusy(busyToken) }
                 return@execute
             }
@@ -116,10 +130,11 @@ internal class HomeServerCallNotesController(
     private fun persistWithoutRemote(
         data: HomeRenderData,
         expectedGeneration: Int,
+        expectedMutationRevision: Long,
         onFinished: () -> Unit,
     ) {
         executor.execute {
-            storeIfCurrent(data, expectedGeneration)
+            storeIfCurrent(data, expectedGeneration, expectedMutationRevision)
             handler.post {
                 if (expectedGeneration == generation.get()) onFinished()
             }
@@ -127,9 +142,13 @@ internal class HomeServerCallNotesController(
     }
 
     /** Never let a response started before a note mutation repopulate the snapshot. */
-    private fun storeIfCurrent(data: HomeRenderData, expectedGeneration: Int): Boolean {
+    private fun storeIfCurrent(
+        data: HomeRenderData,
+        expectedGeneration: Int,
+        expectedMutationRevision: Long,
+    ): Boolean {
         if (expectedGeneration != generation.get()) return false
-        HomeNotesSnapshotCache.store(appContext, data)
+        if (!HomeNotesSnapshotCache.storeIfRevision(appContext, data, expectedMutationRevision)) return false
         return expectedGeneration == generation.get()
     }
 
