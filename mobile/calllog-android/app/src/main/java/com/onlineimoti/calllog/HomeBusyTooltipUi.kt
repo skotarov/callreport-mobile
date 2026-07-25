@@ -148,7 +148,7 @@ internal object HomeBusyTooltipUi {
                 setPadding(dp(activity, 14), 0, dp(activity, 14), 0)
                 background = GradientDrawable().apply {
                     setColor(Color.rgb(15, 23, 42))
-                    cornerRadius = dp(activity, 15).toFloat()
+                    cornerRadius = dp(activity, 13).toFloat()
                 }
                 contentDescription = text
             }
@@ -156,7 +156,7 @@ internal object HomeBusyTooltipUi {
             popup = PopupWindow(
                 content,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                dp(activity, 30),
+                dp(activity, 26),
                 false,
             ).apply {
                 setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -170,7 +170,7 @@ internal object HomeBusyTooltipUi {
                 }
             }
             runCatching {
-                popup?.showAtLocation(anchor, Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, dp(activity, 72))
+                popup?.showAtLocation(anchor, Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 0)
                 shownAtMs = SystemClock.uptimeMillis()
             }.onFailure {
                 popup = null
