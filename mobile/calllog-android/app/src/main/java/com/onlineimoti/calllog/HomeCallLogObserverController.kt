@@ -14,7 +14,12 @@ internal class HomeCallLogObserverController(
 ) {
     private val appContext = context.applicationContext
     private var registered = false
-    private val refreshRunnable = Runnable(onCallLogChanged)
+    private val refreshRunnable = Runnable {
+        // The visible cached timeline stays in place while the provider is reread. The
+        // renderer then inserts/moves only rows whose stable identities actually changed.
+        HomeRefreshRenderPolicy.requestKeepExistingRows()
+        onCallLogChanged()
+    }
     private val observer = object : ContentObserver(handler) {
         override fun onChange(selfChange: Boolean) = scheduleProviderRefresh()
 
