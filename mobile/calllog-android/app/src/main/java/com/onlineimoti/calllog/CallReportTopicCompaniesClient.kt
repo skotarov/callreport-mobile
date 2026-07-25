@@ -10,6 +10,8 @@ import java.net.URL
 internal data class CallReportTopicCompany(
     val id: String,
     val name: String,
+    val role: String = "broker",
+    val canManageUsers: Boolean = false,
 )
 
 /** Loads only the real firms where the current user is an active member. */
@@ -35,7 +37,9 @@ internal object CallReportTopicCompaniesClient {
             val body = stream?.use { BufferedReader(InputStreamReader(it, Charsets.UTF_8)).readText() }.orEmpty()
             val response = runCatching { JSONObject(body) }.getOrNull()
             if (code !in 200..299 || response?.optBoolean("ok", false) != true) {
-                throw IOException(response?.optString("error").orEmpty().ifBlank { "Company destinations request was rejected." })
+                val message = response?.optJSONObject("error")?.optString("message")
+                    ?: response?.optString("error")
+                throw IOException(message.orEmpty().ifBlank { "Company destinations request was rejected." })
             }
 
             val companies = response.optJSONArray("companies")
@@ -44,7 +48,9 @@ internal object CallReportTopicCompaniesClient {
                     val item = companies?.optJSONObject(index) ?: continue
                     val id = item.optString("id").trim()
                     val name = item.optString("name").trim().ifBlank { id }
-                    if (id.isNotBlank()) add(CallReportTopicCompany(id, name))
+                    val role = item.optString("role", "broker").trim().lowercase().ifBlank { "broker" }
+                    val canManageUsers = item.optBoolean("can_manage_users", role == "owner" || role == "admin")
+                    if (id.isNotBlank()) add(CallReportTopicCompany(id, name, role, canManageUsers))
                 }
             }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
         } finally {
