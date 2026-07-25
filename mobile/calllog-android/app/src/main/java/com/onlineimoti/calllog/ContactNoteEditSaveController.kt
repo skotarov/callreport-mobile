@@ -24,28 +24,15 @@ internal class ContactNoteEditSaveController(
         topicCompanyId: String,
         localOnlyFallback: Boolean = topicState().loadError.isNotBlank(),
     ): ContactNoteEditSaveOutcome {
-        val originalDraft = draft()
         val result = ContactNoteFormWorkflow.save(
             context = activity,
-            draft = originalDraft,
+            draft = draft(),
             noteText = noteText,
             topicCompanyId = topicCompanyId,
             localOnlyFallback = localOnlyFallback,
         )
         if (!result.saved) return ContactNoteEditSaveOutcome(saved = false)
         if (!result.writeResult.savedAsGeneralNote) applyTarget(result.writeResult.target)
-
-        if (noteText.isBlank()) {
-            val target = result.writeResult.target
-            HomeNotesSnapshotCache.invalidateDeletedNote(
-                context = activity,
-                phone = originalDraft.phone,
-                isGeneralNote = result.writeResult.savedAsGeneralNote || originalDraft.isGeneralNote,
-                callAtMs = target.callAt.takeIf { it > 0L } ?: originalDraft.callAt,
-                direction = target.direction.ifBlank { originalDraft.direction },
-                serverClientEventId = originalDraft.serverClientEventId,
-            )
-        }
 
         // Home is normally paused while this editor is visible. Persist the change
         // before broadcasting so Home can still detect it after the receiver was absent.
