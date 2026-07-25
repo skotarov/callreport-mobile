@@ -41,9 +41,10 @@ internal object RegistrationCompaniesController {
             val online = runCatching {
                 CallReportTopicCompaniesRepository.refresh(activity.applicationContext, config)
             }
-            val result = online.getOrElse {
-                runCatching { CallReportTopicCompaniesRepository.load(activity.applicationContext, config) }.getOrNull()
-            }
+            val result = online.getOrNull()
+                ?: runCatching {
+                    CallReportTopicCompaniesRepository.load(activity.applicationContext, config)
+                }.getOrNull()
             activity.runOnUiThread {
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                 if (result != null) {
@@ -80,7 +81,10 @@ internal object RegistrationCompaniesController {
         }
         binding.registrationCompaniesStatusText.visibility = View.GONE
         companies.forEachIndexed { index, company ->
-            binding.registrationCompaniesList.addView(companyRow(activity, company), verticalParams(activity, if (index == 0) 8 else 6))
+            binding.registrationCompaniesList.addView(
+                companyRow(activity, company),
+                verticalParams(activity, if (index == 0) 8 else 6),
+            )
         }
     }
 
@@ -154,7 +158,10 @@ internal object RegistrationCompaniesController {
             })
         } else {
             snapshot.users.forEachIndexed { index, user ->
-                list.addView(userRow(activity, snapshot.company, user), verticalParams(activity, if (index == 0) 4 else 8))
+                list.addView(
+                    userRow(activity, snapshot.company, user),
+                    verticalParams(activity, if (index == 0) 4 else 8),
+                )
             }
         }
         val scroll = ScrollView(activity).apply { addView(list) }
@@ -243,7 +250,9 @@ internal object RegistrationCompaniesController {
         company: CallReportTopicCompany,
         user: CompanyManagedUser,
     ) {
-        runUserAction(activity, company) { config -> CompanyUsersApi.generateKey(config, company.id, user.id) }
+        runUserAction(activity, company) { config ->
+            CompanyUsersApi.generateKey(config, company.id, user.id)
+        }
     }
 
     private fun runUserAction(
@@ -317,7 +326,10 @@ internal object RegistrationCompaniesController {
     )
 
     private fun verticalParams(activity: AppCompatActivity, top: Int): LinearLayout.LayoutParams =
-        LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply {
             topMargin = dp(activity, top)
         }
 
