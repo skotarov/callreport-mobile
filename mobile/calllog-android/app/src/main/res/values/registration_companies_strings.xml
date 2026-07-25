@@ -1,4 +1,6 @@
 <resources>
+    <string name="settings_registration_profile_license">Profile &amp; license</string>
+    <string name="settings_registration_profile_description">Sign in once to your account. One account can be connected to many companies with different roles.</string>
     <string name="settings_registration_companies_section">Connected companies</string>
     <string name="settings_registration_companies_description">These are the same companies shown when saving a note. Roles and permissions come from the server.</string>
     <string name="settings_registration_no_company">No connected companies</string>
