@@ -16,12 +16,19 @@ internal object CompanyInvitationApi {
         val expiresAtMs: Long,
     )
 
-    fun create(context: Context, email: String, role: String): Result<CreatedInvitation> = runCatching {
+    fun create(
+        context: Context,
+        companyId: String,
+        email: String,
+        role: String,
+    ): Result<CreatedInvitation> = runCatching {
         val config = ConfigStore.load(context)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
-        require(config.accessToken.isNotBlank()) { "Влез във фирмения профил, преди да каниш колеги." }
+        require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
+        require(companyId.isNotBlank()) { "Липсва избрана фирма." }
         val payload = JSONObject()
             .put("action", "create")
+            .put("company_id", companyId.trim())
             .put("email", email.trim())
             .put("role", role)
             .toString()
