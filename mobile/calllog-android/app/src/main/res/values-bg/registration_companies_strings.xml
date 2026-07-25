@@ -8,7 +8,7 @@
     <string name="settings_registration_role_owner">Собственик</string>
     <string name="settings_registration_role_admin">Администратор</string>
     <string name="settings_registration_role_member">Потребител</string>
-    <string name="settings_registration_role_broker">Брокер</string>
+    <string name="settings_registration_role_broker">Потребител</string>
     <string name="settings_registration_users">Потребители</string>
     <string name="settings_registration_users_loading">Зареждам потребителите…</string>
     <string name="settings_registration_users_empty">Няма потребители във фирмата.</string>
