@@ -8,17 +8,31 @@ import org.junit.Test
 class HomeGeneralNoteBundleTest {
     @Test
     fun equalLocalAndServerTextRemainSeparateRows() {
-        val bundled = HomeGeneralNoteBundle.replaceServer(
-            existing = "Локал",
-            serverValue = ServerNoteVisuals.prefixed("Локал"),
+        val entries = HomeGeneralNoteBundle.distinctEntries(
+            listOf(
+                HomeGeneralNoteEntry("Локал", fromServer = false),
+                HomeGeneralNoteEntry("Локал", fromServer = true),
+            ),
         )
-
-        val entries = HomeGeneralNoteBundle.entries(bundled)
 
         assertEquals(2, entries.size)
         assertEquals("Локал", entries[0].text)
         assertFalse(entries[0].fromServer)
         assertEquals("Локал", entries[1].text)
         assertTrue(entries[1].fromServer)
+    }
+
+    @Test
+    fun duplicateRowsFromTheSameSourceCollapse() {
+        val entries = HomeGeneralNoteBundle.distinctEntries(
+            listOf(
+                HomeGeneralNoteEntry("  Локал ", fromServer = false),
+                HomeGeneralNoteEntry("локал", fromServer = false),
+            ),
+        )
+
+        assertEquals(1, entries.size)
+        assertEquals("Локал", entries.single().text)
+        assertFalse(entries.single().fromServer)
     }
 }
