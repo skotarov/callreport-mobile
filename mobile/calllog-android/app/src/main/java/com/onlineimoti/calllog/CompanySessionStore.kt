@@ -11,6 +11,12 @@ internal object CompanySessionStore {
     private const val KEY_ORGANIZATION_NAME = "organization_name"
     private const val KEY_ORGANIZATION_ID = "organization_id"
 
+    data class Snapshot(
+        val userName: String,
+        val organizationName: String,
+        val organizationId: String,
+    )
+
     fun save(context: Context, session: CompanyAccountApi.Session) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
@@ -19,6 +25,21 @@ internal object CompanySessionStore {
             .putString(KEY_ORGANIZATION_NAME, session.organizationName)
             .putString(KEY_ORGANIZATION_ID, session.organizationId)
             .apply()
+    }
+
+    fun load(context: Context): Snapshot? {
+        val appContext = context.applicationContext
+        val config = ConfigStore.load(appContext)
+        if (!isCurrent(appContext, config.accessToken)) return null
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val snapshot = Snapshot(
+            userName = prefs.getString(KEY_USER_NAME, "").orEmpty().trim(),
+            organizationName = prefs.getString(KEY_ORGANIZATION_NAME, "").orEmpty().trim(),
+            organizationId = prefs.getString(KEY_ORGANIZATION_ID, "").orEmpty().trim(),
+        )
+        return snapshot.takeIf {
+            it.userName.isNotBlank() || it.organizationName.isNotBlank() || it.organizationId.isNotBlank()
+        }
     }
 
     fun isCurrent(context: Context, accessToken: String): Boolean {
