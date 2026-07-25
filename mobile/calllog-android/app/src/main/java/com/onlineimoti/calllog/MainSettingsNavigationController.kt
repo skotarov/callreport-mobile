@@ -133,7 +133,7 @@ internal class MainSettingsNavigationController(
         CALLS(R.string.settings_popup_section),
         INTEGRATIONS(R.string.settings_integrations_section),
         SERVER(R.string.settings_server_section),
-        REGISTRATION(R.string.settings_registration_section),
+        REGISTRATION(R.string.settings_profile_companies_section),
         DATA_AND_BACKUP(R.string.settings_storage_section),
         LANGUAGE(R.string.settings_general_section),
         DEBUG(R.string.settings_debug_section);
