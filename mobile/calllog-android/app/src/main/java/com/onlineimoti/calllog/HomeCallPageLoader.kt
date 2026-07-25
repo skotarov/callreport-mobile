@@ -253,14 +253,18 @@ object HomeCallPageLoader {
         return drop(pageIndex * pageSize).take(pageSize)
     }
 
+    /**
+     * Returns one entry for every visible phone. A blank value is an intentional
+     * tombstone telling staged Home renders and the snapshot cache that a previously
+     * visible local yellow note has been deleted.
+     */
     fun contactNotes(context: Context, calls: List<PhoneCallRecord>): Map<String, String> {
         val notes = linkedMapOf<String, String>()
         calls.map { call -> call.number }
             .distinctBy { number -> noteKey(number) }
             .forEach { number ->
-                ContactNoteReader.generalNoteForPhone(context, number)
-                    .takeIf { note -> note.isNotBlank() }
-                    ?.let { note -> notes[noteKey(number)] = note }
+                val key = noteKey(number)
+                if (key.isNotBlank()) notes[key] = ContactNoteReader.generalNoteForPhone(context, number)
             }
         return notes
     }
