@@ -6,7 +6,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
-/** Small mobile client for the server-side organization registration/login API. */
+/** Mobile client for profile authentication and separate company creation. */
 internal object CompanyAccountApi {
     private const val AUTH_PATH = "/relationship-manager/api/auth.php"
 
@@ -17,6 +17,38 @@ internal object CompanyAccountApi {
         val organizationId: String,
     )
 
+    fun registerProfile(
+        context: Context,
+        email: String,
+        password: String,
+        displayName: String,
+    ): Result<Session> = post(
+        context,
+        JSONObject()
+            .put("action", "register_profile")
+            .put("email", email.trim())
+            .put("password", password)
+            .put("display_name", displayName.trim())
+            .put("device_name", android.os.Build.MODEL.take(120)),
+    )
+
+    fun createCompany(
+        context: Context,
+        organizationName: String,
+        organizationEik: String,
+        activationToken: String,
+    ): Result<Session> = post(
+        context,
+        JSONObject()
+            .put("action", "create_company")
+            .put("organization_name", organizationName.trim())
+            .put("organization_eik", organizationEik.trim())
+            .put("activation_token", activationToken.trim())
+            .put("device_name", android.os.Build.MODEL.take(120)),
+        authenticated = true,
+    )
+
+    /** Backward-compatible combined registration for older callers. */
     fun register(
         context: Context,
         email: String,
@@ -25,31 +57,27 @@ internal object CompanyAccountApi {
         organizationName: String,
         organizationEik: String,
         activationToken: String,
-    ): Result<Session> {
-        return post(
-            context,
-            JSONObject()
-                .put("action", "register")
-                .put("email", email.trim())
-                .put("password", password)
-                .put("display_name", displayName.trim())
-                .put("organization_name", organizationName.trim())
-                .put("organization_eik", organizationEik.trim())
-                .put("activation_token", activationToken.trim())
-                .put("device_name", android.os.Build.MODEL.take(120)),
-        )
-    }
+    ): Result<Session> = post(
+        context,
+        JSONObject()
+            .put("action", "register")
+            .put("email", email.trim())
+            .put("password", password)
+            .put("display_name", displayName.trim())
+            .put("organization_name", organizationName.trim())
+            .put("organization_eik", organizationEik.trim())
+            .put("activation_token", activationToken.trim())
+            .put("device_name", android.os.Build.MODEL.take(120)),
+    )
 
-    fun login(context: Context, email: String, password: String): Result<Session> {
-        return post(
-            context,
-            JSONObject()
-                .put("action", "login")
-                .put("email", email.trim())
-                .put("password", password)
-                .put("device_name", android.os.Build.MODEL.take(120)),
-        )
-    }
+    fun login(context: Context, email: String, password: String): Result<Session> = post(
+        context,
+        JSONObject()
+            .put("action", "login_profile")
+            .put("email", email.trim())
+            .put("password", password)
+            .put("device_name", android.os.Build.MODEL.take(120)),
+    )
 
     fun applySession(context: Context, session: Session) {
         val current = ConfigStore.load(context)
@@ -63,9 +91,14 @@ internal object CompanyAccountApi {
         CompanySessionStore.save(context, session)
     }
 
-    private fun post(context: Context, payload: JSONObject): Result<Session> = runCatching {
+    private fun post(
+        context: Context,
+        payload: JSONObject,
+        authenticated: Boolean = false,
+    ): Result<Session> = runCatching {
         val config = ConfigStore.load(context)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
+        if (authenticated) require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
         val connection = (URL(buildEndpoint(config.baseUrl, AUTH_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
@@ -73,6 +106,7 @@ internal object CompanyAccountApi {
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
+            if (authenticated) setRequestProperty("Authorization", "Bearer ${config.accessToken}")
         }
         try {
             val body = payload.toString().toByteArray(StandardCharsets.UTF_8)
@@ -81,16 +115,14 @@ internal object CompanyAccountApi {
             val response = JSONObject(stream?.bufferedReader()?.use { it.readText() }.orEmpty().ifBlank { "{}" })
             if (connection.responseCode !in 200..299 || !response.optBoolean("ok", false)) {
                 val error = response.optJSONObject("error")
-                throw IllegalStateException(error?.optString("message").orEmpty().ifBlank { "Неуспешна заявка към фирмения сървър." })
+                throw IllegalStateException(error?.optString("message").orEmpty().ifBlank { "Неуспешна заявка към сървъра." })
             }
             if (response.optBoolean("selection_required", false)) {
-                // The server returns organizations alphabetically. Until the dedicated
-                // chooser screen is added, login continues with the first permitted one.
                 val organizations = response.optJSONArray("organizations")
                 val selectedId = organizations?.optJSONObject(0)?.optString("id").orEmpty().trim()
-                require(selectedId.isNotBlank()) { "Няма достъпна организация за този профил." }
+                require(selectedId.isNotBlank()) { "Няма достъпна фирма за този профил." }
                 val retry = JSONObject(payload.toString()).put("organization_id", selectedId)
-                return@runCatching post(context, retry).getOrThrow()
+                return@runCatching post(context, retry, authenticated).getOrThrow()
             }
             val accessToken = response.optString("access_token").trim()
             require(accessToken.isNotBlank()) { "Сървърът не върна валиден access token." }
