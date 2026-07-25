@@ -1,12 +1,12 @@
 <resources>
     <string name="settings_profile_companies_section">Профил и фирми</string>
-    <string name="settings_profile_companies_description">Избери как приложението да получи сървърен адрес и токън. При вход в профил или присъединяване по покана те се попълват автоматично.</string>
-    <string name="settings_registration_profile_license">Профил и лиценз</string>
-    <string name="settings_registration_profile_description">Входът е еднократен за профила. Към един профил могат да бъдат включени много фирми с различни роли.</string>
+    <string name="settings_profile_companies_description">Създай или отвори профила си, присъедини се по покана и управлявай отделно фирмите към него.</string>
+    <string name="settings_registration_profile_license">Профил</string>
+    <string name="settings_registration_profile_description">Профилът се създава само с име, имейл и парола. Фирмите и лицензите им се добавят отделно.</string>
     <string name="settings_registration_companies_section">Включени фирми</string>
-    <string name="settings_registration_companies_description">Тук са същите фирми, които се показват при запис на бележка. Ролята и правата идват от сървъра.</string>
+    <string name="settings_registration_companies_description">При фирмите, в които си собственик или администратор, има отделен бутон „Покани колега“.</string>
     <string name="settings_registration_no_company">Няма включени фирми</string>
-    <string name="settings_registration_no_company_description">Няма фирми за текущия профил или връзката със сървъра не е настроена.</string>
+    <string name="settings_registration_no_company_description">Профилът още няма фирми. Създай фирма от профила или се присъедини с код от покана.</string>
     <string name="settings_registration_companies_loading">Зареждам фирмите…</string>
     <string name="settings_registration_refresh_companies">Обнови фирмите</string>
     <string name="settings_registration_role_owner">Собственик</string>
