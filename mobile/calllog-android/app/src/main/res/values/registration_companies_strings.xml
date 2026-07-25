@@ -1,0 +1,17 @@
+<resources>
+    <string name="settings_registration_companies_section">Connected companies</string>
+    <string name="settings_registration_companies_description">View the company active on this device and manage access to already registered companies.</string>
+    <string name="settings_registration_no_company">No company is connected</string>
+    <string name="settings_registration_no_company_description">Sign in, create a company or join one by invitation to show it here.</string>
+    <string name="settings_registration_active_company_fallback">Active company</string>
+    <string name="settings_registration_company_connected">Active on this device</string>
+    <string name="settings_registration_company_user">Account: %1$s</string>
+    <string name="settings_registration_company_identifier">Company ID: %1$s</string>
+    <string name="settings_registration_manage_companies">Manage registered companies</string>
+    <string name="settings_registration_manage_title">Company management</string>
+    <string name="settings_registration_add_or_switch">Sign in or add another company</string>
+    <string name="settings_registration_disconnect">Disconnect the current company</string>
+    <string name="settings_registration_disconnect_title">Disconnect company?</string>
+    <string name="settings_registration_disconnect_message">%1$s will be disconnected from this device. The company and its server data will not be deleted.</string>
+    <string name="settings_registration_disconnect_confirm">Disconnect</string>
+</resources>
