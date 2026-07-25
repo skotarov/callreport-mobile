@@ -15,6 +15,10 @@ internal class CallScreeningIntegrationSettingsController(
 
     fun refresh() {
         val active = MainPermissionChecks.hasCallScreeningRole(activity)
+        val current = ConfigStore.load(activity)
+        if (current.useCallScreening != active) {
+            ConfigStore.save(activity, current.copy(useCallScreening = active))
+        }
         section.callScreeningIntegrationStatusText.text = activity.getString(
             if (active) R.string.call_screening_integration_active else R.string.call_screening_integration_inactive,
         )
