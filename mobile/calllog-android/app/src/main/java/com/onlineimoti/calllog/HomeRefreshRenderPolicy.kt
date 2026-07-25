@@ -9,6 +9,10 @@ internal object HomeRefreshRenderPolicy {
         keepExistingRowsOnce = true
     }
 
+    /** Lets the pre-render clear step preserve rows until the coordinator consumes the hint. */
+    @Synchronized
+    fun shouldKeepExistingRows(): Boolean = keepExistingRowsOnce
+
     @Synchronized
     fun consumeKeepExistingRows(): Boolean {
         val requested = keepExistingRowsOnce
