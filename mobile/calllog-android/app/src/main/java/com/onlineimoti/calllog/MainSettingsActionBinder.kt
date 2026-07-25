@@ -1,5 +1,7 @@
 package com.onlineimoti.calllog
 
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
 import com.onlineimoti.calllog.databinding.ActivityMainBinding
 
@@ -37,6 +39,11 @@ internal object MainSettingsActionBinder {
             }
         }
         RegistrationActions.renderCompanySection(activity, binding.settingsRegistrationGroup)
+        activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                RegistrationActions.renderCompanySection(activity, binding.settingsRegistrationGroup)
+            }
+        })
         binding.archiveSettingsSection.createArchiveButton.setOnClickListener { createArchive() }
         binding.archiveSettingsSection.restoreArchiveButton.setOnClickListener { restoreArchive() }
         if (testStart != null && testEnd != null) {
