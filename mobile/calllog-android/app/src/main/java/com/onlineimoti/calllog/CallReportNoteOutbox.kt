@@ -36,6 +36,19 @@ internal data class CallReportQueuedNote(
         updatedAtMs = updatedAtMs,
         editExistingNote = editExistingServerNote,
     )
+
+    fun toHistoryEvent(): CallReportHistoryEvent = CallReportHistoryEvent(
+        clientEventId = clientEventId,
+        communicationType = "note",
+        phone = phone,
+        direction = direction,
+        occurredAtMs = occurredAtMs,
+        durationSeconds = durationSeconds.coerceAtLeast(0L),
+        note = note,
+        contactName = contactName,
+        createdAtMs = updatedAtMs,
+        updatedAtMs = updatedAtMs,
+    )
 }
 
 internal object CallReportNoteOutbox {
@@ -116,6 +129,25 @@ internal object CallReportNoteOutbox {
             updatedAtMs = now,
             editExistingServerNote = true,
         ))
+    }
+
+    /**
+     * Pending edits/deletes of server-only notes must override an older History response
+     * on Home. In particular, a blank note is a tombstone until the server confirms it.
+     */
+    fun pendingExistingServerEvents(
+        context: Context,
+        phones: Collection<String>,
+    ): List<CallReportHistoryEvent> {
+        val keys = phones.mapTo(hashSetOf(), ::phoneKey).filterTo(hashSetOf()) { it.isNotBlank() }
+        if (keys.isEmpty()) return emptyList()
+        return synchronized(lock) {
+            readLocked(context.applicationContext)
+                .filter { operation ->
+                    operation.editExistingServerNote && phoneKey(operation.phone) in keys
+                }
+                .map(CallReportQueuedNote::toHistoryEvent)
+        }
     }
 
     fun isCallPending(context: Context, phone: String, note: ContactCallNote): Boolean {
