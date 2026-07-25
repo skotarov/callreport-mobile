@@ -94,7 +94,11 @@ internal object CallReportTopicCompaniesCache {
                 val item = array.optJSONObject(index) ?: continue
                 val id = item.optString("id").trim()
                 val name = item.optString("name").trim().ifBlank { id }
-                val role = item.optString("role", "broker").trim().lowercase().ifBlank { "broker" }
+                val role = when (item.optString("role", "member").trim().lowercase()) {
+                    "owner" -> "owner"
+                    "admin" -> "admin"
+                    else -> "member"
+                }
                 val canManageUsers = item.optBoolean("can_manage_users", role == "owner" || role == "admin")
                 if (id.isNotBlank()) add(CallReportTopicCompany(id, name, role, canManageUsers))
             }
