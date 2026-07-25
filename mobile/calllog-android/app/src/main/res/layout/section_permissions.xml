@@ -8,16 +8,24 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="@string/permissions_title"
+        android:text="@string/settings_tree_permissions_all_title"
         android:textColor="@color/calllog_text"
         android:textSize="16sp"
         android:textStyle="bold" />
 
     <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/settings_tree_permissions_all_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
+    <TextView
         android:id="@+id/permissionsSummaryText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:textColor="@color/calllog_muted_text"
         android:textSize="13sp" />
 
@@ -58,26 +66,31 @@
         android:layout_width="1dp"
         android:layout_height="1dp"
         android:visibility="gone" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/openAppPermissionsButton"
         android:layout_width="1dp"
         android:layout_height="1dp"
         android:visibility="gone" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/openOverlayPermissionButton"
         android:layout_width="1dp"
         android:layout_height="1dp"
         android:visibility="gone" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/openCallScreeningButton"
         android:layout_width="1dp"
         android:layout_height="1dp"
         android:visibility="gone" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/openSmsRoleButton"
         android:layout_width="1dp"
         android:layout_height="1dp"
         android:visibility="gone" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/openFullscreenIntentButton"
         android:layout_width="1dp"
