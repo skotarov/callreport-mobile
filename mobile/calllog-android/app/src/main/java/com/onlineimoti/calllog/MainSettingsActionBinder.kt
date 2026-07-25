@@ -23,6 +23,9 @@ internal object MainSettingsActionBinder {
         binding.contactLinkSection.registerAllContactsButton.setOnClickListener { syncContacts() }
         binding.remoteSettingsSection.saveServerSettingsButton.setOnClickListener { saveServerSettings() }
         binding.remoteSettingsSection.testServerConnectionButton.setOnClickListener { testServerConnection() }
+        binding.settingsRegistrationGroup.registrationServerAddressButton.setOnClickListener {
+            binding.settingsMenuGroup.settingsServerButton.performClick()
+        }
         binding.settingsRegistrationGroup.registrationCompanyAccountButton.setOnClickListener {
             RegistrationActions.openCompanyAccount(activity)
         }
