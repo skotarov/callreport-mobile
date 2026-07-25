@@ -13,7 +13,7 @@ generate_upload_key() {
 import os, sys
 print(os.path.abspath(os.path.expanduser(sys.argv[1])))
 PY
-)"
+  )"
   local keystore="$secure_dir/relationship-manager-upload.jks"
   local secrets="$secure_dir/UPLOAD_KEY_SECRETS.txt"
   local properties="$APP_DIR/play-signing.properties"
@@ -74,20 +74,22 @@ build_play_aab() {
   [[ -n "$version_code" && -n "$version_name" ]] || fail "Usage: build-play-aab <version-code> <version-name>"
   require_integer "$version_code"
   [[ -f "$APP_DIR/play-signing.properties" ]] || fail "Missing $APP_DIR/play-signing.properties. Run generate-upload-key first."
-  require_command bash
+  require_command gradle
+  require_command jarsigner
 
   note "Building signed Play AAB"
   (
     cd "$APP_DIR"
-    ./gradlew --no-daemon :app:bundlePlayRelease \
+    gradle --no-daemon :app:bundleRelease \
       -PplayVersionCode="$version_code" \
       -PplayVersionName="$version_name"
   )
 
   local aab
-  aab="$(find "$APP_DIR/app/build/outputs/bundle/playRelease" -maxdepth 1 -type f -name '*.aab' -print -quit)"
-  [[ -n "$aab" && -f "$aab" ]] || fail "Gradle completed but no playRelease AAB was found."
-  printf '\nAAB ready:\n%s\n' "$aab"
+  aab="$(find "$APP_DIR/app/build/outputs/bundle/release" -maxdepth 1 -type f -name '*.aab' -print -quit)"
+  [[ -n "$aab" && -f "$aab" ]] || fail "Gradle completed but no release AAB was found."
+  jarsigner -verify "$aab" >/dev/null || fail "The generated AAB is not signed correctly."
+  printf '\nSigned AAB ready:\n%s\n' "$aab"
 }
 
 publish_internal() {
