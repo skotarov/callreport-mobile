@@ -29,6 +29,17 @@ private class CallReportSyncAdapter(context: Context) : AbstractThreadedSyncAdap
         if (account?.type != CallReportContactIntegration.ACCOUNT_TYPE) return
 
         val result = BulkContactsTaskRunner.registerAllFromSync(context) ?: return
+
+        // Reuse the normal Android/server synchronization point to refresh the
+        // account-scoped list of firms the authenticated user may assign notes to.
+        // A temporary network failure keeps the previous verified cache intact.
+        val config = ConfigStore.load(context.applicationContext)
+        if (CallReportRemoteAccess.isReady(config)) {
+            runCatching {
+                CallReportTopicCompaniesRepository.refresh(context.applicationContext, config)
+            }
+        }
+
         syncResult?.stats?.numEntries = result.scanned.toLong()
         syncResult?.stats?.numInserts = result.created.toLong()
         syncResult?.stats?.numUpdates = result.skippedExisting.toLong()
