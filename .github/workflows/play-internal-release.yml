@@ -98,12 +98,12 @@ jobs:
           printf '%s' "$RM_UPLOAD_KEYSTORE_B64" | base64 --decode > "$keystore"
           chmod 600 "$keystore"
 
-          cat > play-signing.properties <<EOF
-          storeFile=$keystore
-          storeSecret=$RM_UPLOAD_STORE_PASSWORD
-          keyAlias=$RM_UPLOAD_KEY_ALIAS
-          keySecret=$RM_UPLOAD_KEY_PASSWORD
-          EOF
+          printf 'storeFile=%s\nstoreSecret=%s\nkeyAlias=%s\nkeySecret=%s\n' \
+            "$keystore" \
+            "$RM_UPLOAD_STORE_PASSWORD" \
+            "$RM_UPLOAD_KEY_ALIAS" \
+            "$RM_UPLOAD_KEY_PASSWORD" \
+            > play-signing.properties
           chmod 600 play-signing.properties
 
           keytool -list \
