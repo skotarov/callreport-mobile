@@ -1,14 +1,17 @@
 package com.onlineimoti.calllog
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.text.InputType
 import android.widget.EditText
-import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
-/** Shared profile and company-access actions, reachable from the Settings registration section. */
+/** Shared profile and company-access actions, reachable from Profile and companies. */
 internal object RegistrationActions {
     fun openCompanyAccount(activity: AppCompatActivity) {
         activity.startActivity(Intent(activity, CompanyAccountActivity::class.java))
@@ -22,60 +25,46 @@ internal object RegistrationActions {
     }
 
     fun showJoinDialog(activity: AppCompatActivity) {
-        val density = activity.resources.displayMetrics.density
-        fun dp(value: Int) = (value * density).toInt()
-        fun input(hint: String, inputType: Int) = EditText(activity).apply {
-            this.hint = hint
-            this.inputType = inputType
-            setSingleLine(true)
+        if (CompanySessionStore.load(activity) == null) {
+            AlertDialog.Builder(activity)
+                .setTitle("Присъедини се по покана")
+                .setMessage("Първо създай профил или влез с имейл и парола. След това ще въведеш само кода от поканата.")
+                .setPositiveButton("Профил") { _, _ -> openCompanyAccount(activity) }
+                .setNegativeButton("Отказ", null)
+                .show()
+            return
         }
-        val container = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), 0, dp(24), 0)
-        }
-        val name = input("Твоето име", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
-        val email = input("Поканен имейл", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
-        val password = input("Парола (поне 10 символа)", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val code = input("Код от поканата", InputType.TYPE_CLASS_TEXT)
-        container.addView(name)
-        container.addView(email)
-        container.addView(password)
-        container.addView(code)
 
+        val code = EditText(activity).apply {
+            hint = "Код от поканата"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+            val horizontal = (activity.resources.displayMetrics.density * 24).toInt()
+            setPadding(horizontal, 0, horizontal, 0)
+        }
         val dialog = AlertDialog.Builder(activity)
             .setTitle("Присъедини се по покана")
-            .setMessage("Поканата добавя профила към конкретна фирма. Имейлът трябва да съвпада с този, на който собственик или администратор е създал поканата.")
-            .setView(container)
+            .setMessage("Поканата ще добави текущия профил към конкретната фирма.")
+            .setView(code)
             .setNegativeButton("Отказ", null)
             .setPositiveButton("Присъедини се", null)
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val safeName = name.text?.toString().orEmpty().trim()
-                val safeEmail = email.text?.toString().orEmpty().trim()
-                val safePassword = password.text?.toString().orEmpty()
                 val safeCode = code.text?.toString().orEmpty().trim()
-                if (safeName.isBlank() || safeEmail.isBlank() || safePassword.isBlank() || safeCode.isBlank()) {
-                    dialog.setMessage("Попълни всички полета.")
+                if (safeCode.isBlank()) {
+                    dialog.setMessage("Въведи кода от поканата.")
                     return@setOnClickListener
                 }
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                 Thread {
-                    val result = InvitedAccountApi.register(
-                        activity.applicationContext,
-                        safeEmail,
-                        safePassword,
-                        safeName,
-                        safeCode,
-                    )
+                    val result = InvitedAccountApi.accept(activity.applicationContext, safeCode)
                     activity.runOnUiThread {
                         result.onSuccess { session ->
                             CompanyAccountApi.applySession(activity.applicationContext, session)
                             dialog.dismiss()
-                            activity.startActivity(
-                                Intent(activity, HomeActivity::class.java)
-                                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                            )
+                            Toast.makeText(activity, "Профилът е добавен към ${session.organizationName.ifBlank { "фирмата" }}.", Toast.LENGTH_LONG).show()
+                            activity.recreate()
                         }.onFailure { error ->
                             dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
                             dialog.setMessage(error.message ?: "Неуспешно присъединяване към фирмата.")
@@ -87,13 +76,12 @@ internal object RegistrationActions {
         dialog.show()
     }
 
-    fun showInviteDialog(activity: AppCompatActivity) {
-        if (!CorporateAccess.isActive(activity)) {
+    fun showInviteDialog(activity: AppCompatActivity, company: CallReportTopicCompany) {
+        if (!company.canManageUsers) {
             AlertDialog.Builder(activity)
-                .setTitle("Покани колега")
-                .setMessage("Първо влез в профила.")
-                .setPositiveButton("Профил") { _, _ -> openCompanyAccount(activity) }
-                .setNegativeButton("Отказ", null)
+                .setTitle(company.name)
+                .setMessage("Само собственик или администратор може да кани служители в тази фирма.")
+                .setPositiveButton(android.R.string.ok, null)
                 .show()
             return
         }
@@ -105,8 +93,8 @@ internal object RegistrationActions {
             setPadding(horizontal, 0, horizontal, 0)
         }
         val dialog = AlertDialog.Builder(activity)
-            .setTitle("Покани колега")
-            .setMessage("Ще се създаде 7-дневен код, валиден само за този имейл.")
+            .setTitle("Покани в ${company.name}")
+            .setMessage("Ще се създаде 7-дневен еднократен код за роля „Служител“, валиден само за този имейл.")
             .setView(email)
             .setNegativeButton("Отказ", null)
             .setPositiveButton("Създай покана", null)
@@ -120,15 +108,16 @@ internal object RegistrationActions {
                 }
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                 Thread {
-                    val result = CompanyInvitationApi.create(activity.applicationContext, safeEmail, "member")
+                    val result = CompanyInvitationApi.create(
+                        activity.applicationContext,
+                        company.id,
+                        safeEmail,
+                        "member",
+                    )
                     activity.runOnUiThread {
                         result.onSuccess { invitation ->
                             dialog.dismiss()
-                            AlertDialog.Builder(activity)
-                                .setTitle("Поканата е готова")
-                                .setMessage("Изпрати този код на ${invitation.email.ifBlank { safeEmail }}:\n\n${invitation.code}\n\nКодът е валиден 7 дни.")
-                                .setPositiveButton("Готово", null)
-                                .show()
+                            showInvitationCode(activity, company, invitation, safeEmail)
                         }.onFailure { error ->
                             dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
                             dialog.setMessage(error.message ?: "Неуспешно създаване на покана.")
@@ -138,5 +127,29 @@ internal object RegistrationActions {
             }
         }
         dialog.show()
+    }
+
+    private fun showInvitationCode(
+        activity: AppCompatActivity,
+        company: CallReportTopicCompany,
+        invitation: CompanyInvitationApi.CreatedInvitation,
+        fallbackEmail: String,
+    ) {
+        val message = buildString {
+            append("Фирма: ").append(company.name)
+            append("\nИмейл: ").append(invitation.email.ifBlank { fallbackEmail })
+            append("\n\n").append(invitation.code)
+            append("\n\nКодът е валиден 7 дни и може да се използва само веднъж.")
+        }
+        AlertDialog.Builder(activity)
+            .setTitle("Поканата е готова")
+            .setMessage(message)
+            .setNegativeButton("Готово", null)
+            .setPositiveButton("Копирай поканата") { _, _ ->
+                val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Relationship Manager invitation", invitation.code))
+                Toast.makeText(activity, "Поканата е копирана.", Toast.LENGTH_SHORT).show()
+            }
+            .show()
     }
 }
