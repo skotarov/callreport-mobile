@@ -11,10 +11,11 @@ internal class MainSettingsNavigationController(
     private val onLanguageSectionShown: () -> Unit,
 ) {
     private var selectedSection: SettingsSection? = null
+    private var serverReturnsToRegistration = false
 
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
-            showMenu()
+            navigateBack()
         }
     }
 
@@ -23,11 +24,15 @@ internal class MainSettingsNavigationController(
     }
 
     fun wire() {
-        binding.settingsDetailBackButton.setOnClickListener { showMenu() }
+        binding.settingsDetailBackButton.setOnClickListener { navigateBack() }
         binding.settingsMenuGroup.settingsApplicationButton.setOnClickListener { showSection(SettingsSection.STATUS) }
         binding.settingsMenuGroup.settingsPopupButton.setOnClickListener { showSection(SettingsSection.CALLS) }
         binding.settingsMenuGroup.settingsRmContactsButton.setOnClickListener { showSection(SettingsSection.INTEGRATIONS) }
-        binding.settingsMenuGroup.settingsServerButton.setOnClickListener { showSection(SettingsSection.SERVER) }
+        binding.settingsMenuGroup.settingsServerButton.setOnClickListener {
+            val returnToRegistration = activity.intent?.getBooleanExtra(MainActivity.EXTRA_OPEN_SERVER, false) == true
+            activity.intent?.removeExtra(MainActivity.EXTRA_OPEN_SERVER)
+            showSection(SettingsSection.SERVER, returnToRegistration)
+        }
         binding.settingsMenuGroup.settingsRegistrationButton.setOnClickListener { showSection(SettingsSection.REGISTRATION) }
         binding.settingsMenuGroup.settingsDataArchiveButton.setOnClickListener { showSection(SettingsSection.DATA_AND_BACKUP) }
         binding.settingsMenuGroup.settingsGeneralButton.setOnClickListener { showSection(SettingsSection.LANGUAGE) }
@@ -53,6 +58,7 @@ internal class MainSettingsNavigationController(
 
     fun showMenu() {
         selectedSection = null
+        serverReturnsToRegistration = false
         backCallback.isEnabled = false
         binding.settingsMenuGroup.root.visibility = View.VISIBLE
         binding.settingsDescriptionText.visibility = View.VISIBLE
@@ -61,6 +67,14 @@ internal class MainSettingsNavigationController(
         allGroupViews().forEach { it.visibility = View.GONE }
         if (!BuildConfig.DEBUG) binding.settingsDebugGroup.root.visibility = View.GONE
         scrollTop()
+    }
+
+    private fun navigateBack() {
+        if (selectedSection == SettingsSection.SERVER && serverReturnsToRegistration) {
+            showSection(SettingsSection.REGISTRATION)
+        } else {
+            showMenu()
+        }
     }
 
     private fun saveServerSettingsArchive() {
@@ -106,9 +120,10 @@ internal class MainSettingsNavigationController(
         binding.statusText.text = message
     }
 
-    private fun showSection(section: SettingsSection) {
+    private fun showSection(section: SettingsSection, returnToRegistration: Boolean = false) {
         if (section == SettingsSection.DEBUG && !BuildConfig.DEBUG) return
         selectedSection = section
+        serverReturnsToRegistration = section == SettingsSection.SERVER && returnToRegistration
         backCallback.isEnabled = true
         binding.settingsMenuGroup.root.visibility = View.GONE
         binding.settingsDescriptionText.visibility = View.GONE
