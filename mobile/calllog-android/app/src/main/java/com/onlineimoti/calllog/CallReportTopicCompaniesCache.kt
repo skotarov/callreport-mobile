@@ -27,20 +27,28 @@ internal data class TopicCompaniesLoadResult(
 )
 
 internal object CallReportTopicCompaniesRepository {
+    /**
+     * Note forms are cache-first so opening an editor never waits for another
+     * company request. The server sync refreshes this cache in the background.
+     * A live request remains as the first-use bootstrap when no cache exists yet.
+     */
     fun load(context: Context, config: AppConfig): TopicCompaniesLoadResult {
-        return try {
-            val companies = CallReportTopicCompaniesClient.fetch(config)
-            val updatedAtMs = System.currentTimeMillis()
-            CallReportTopicCompaniesCache.save(context, config, companies, updatedAtMs)
-            TopicCompaniesLoadResult(companies, TopicCompaniesSource.ONLINE, updatedAtMs)
-        } catch (error: Throwable) {
-            val cached = CallReportTopicCompaniesCache.read(context, config)
-            if (cached != null) {
-                TopicCompaniesLoadResult(cached.companies, TopicCompaniesSource.CACHED, cached.updatedAtMs)
-            } else {
-                throw error
-            }
+        CallReportTopicCompaniesCache.read(context, config)?.let { cached ->
+            return TopicCompaniesLoadResult(
+                companies = cached.companies,
+                source = TopicCompaniesSource.CACHED,
+                updatedAtMs = cached.updatedAtMs,
+            )
         }
+        return refresh(context, config)
+    }
+
+    /** Replaces the account-scoped cache with the current authorized firms. */
+    fun refresh(context: Context, config: AppConfig): TopicCompaniesLoadResult {
+        val companies = CallReportTopicCompaniesClient.fetch(config)
+        val updatedAtMs = System.currentTimeMillis()
+        CallReportTopicCompaniesCache.save(context, config, companies, updatedAtMs)
+        return TopicCompaniesLoadResult(companies, TopicCompaniesSource.ONLINE, updatedAtMs)
     }
 }
 
@@ -59,6 +67,7 @@ internal object CallReportTopicCompaniesCache {
         val scope = scopeFor(config) ?: return
         val payload = JSONArray().apply {
             companies
+                .filter { it.id.isNotBlank() }
                 .distinctBy { it.id }
                 .sortedBy { it.name.lowercase() }
                 .forEach { company ->
