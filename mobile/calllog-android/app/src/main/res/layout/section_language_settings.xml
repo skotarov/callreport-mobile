@@ -5,15 +5,6 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:text="@string/language_title"
-        android:textColor="@color/calllog_text"
-        android:textSize="15sp"
-        android:textStyle="bold" />
-
     <RadioGroup
         android:id="@+id/appLanguageGroup"
         android:layout_width="match_parent"
@@ -44,16 +35,8 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="@string/language_description"
-        android:textColor="@color/calllog_muted_text"
-        android:textSize="13sp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
         android:layout_marginTop="22dp"
-        android:text="@string/translation_editor_title"
+        android:text="@string/settings_tree_appearance_translation_title"
         android:textColor="@color/calllog_text"
         android:textSize="16sp"
         android:textStyle="bold" />
@@ -62,7 +45,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="@string/translation_editor_description"
+        android:text="@string/settings_tree_appearance_translation_description"
         android:textColor="@color/calllog_muted_text"
         android:textSize="13sp" />
 

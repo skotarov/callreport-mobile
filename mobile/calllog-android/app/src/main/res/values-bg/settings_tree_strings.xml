@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_tree_intro_title">Карта на настройките</string>
+    <string name="settings_tree_intro_description">Започнете от разрешенията, после изберете как да работят разговорите и контактите. Акаунтът, синхронизацията, данните, изгледът и техническите възможности са подредени от общото към подробното.</string>
+
+    <string name="settings_tree_group_setup">1. Първоначално настройване</string>
+    <string name="settings_tree_group_setup_description">Първо проверете дали приложението има нужния достъп, преди да променяте поведението му.</string>
+    <string name="settings_tree_group_daily">2. Ежедневна работа</string>
+    <string name="settings_tree_group_daily_description">Изберете какво да се случва при разговор и как да се организират контактите.</string>
+    <string name="settings_tree_group_account">3. Акаунт и общи данни</string>
+    <string name="settings_tree_group_account_description">Управлявайте фирмения профил, връзката със сървъра и резервните копия.</string>
+    <string name="settings_tree_group_personal">4. Лични предпочитания</string>
+    <string name="settings_tree_group_personal_description">Променете езика, размера на текста и начина, по който изглежда приложението.</string>
+    <string name="settings_tree_group_advanced">5. Подробни и технически</string>
+    <string name="settings_tree_group_advanced_description">Използвайте тези възможности само когато са нужни диагностика, тест или фина настройка.</string>
+
+    <string name="settings_tree_permissions_title">Разрешения и готовност</string>
+    <string name="settings_tree_permissions_menu">Разрешения и готовност\nВсички разрешения, Android роли и проверка дали приложението е готово</string>
+    <string name="settings_tree_permissions_description">Това е първото място след инсталиране. Включете липсващия достъп последователно. За някои разрешения и роли Android ще отвори отделен системен екран.</string>
+    <string name="settings_tree_permissions_all_title">Всички разрешения на едно място</string>
+    <string name="settings_tree_permissions_all_description">Разрешените елементи са готови за работа. Натиснете липсващ елемент, за да го включите. Основният достъп е нужен за разговорите, дневника, контактите и известията. Показването върху други приложения, разпознаването на обаждания, SMS, Достъпност и общата папка са допълнителни и зависят от използваните функции.</string>
+
+    <string name="settings_tree_calls_title">Разговори, popup-и и история</string>
+    <string name="settings_tree_calls_menu">Разговори, popup-и и история\nКакво се показва при и след разговор и как изглежда дневникът</string>
+    <string name="settings_tree_calls_description">Настройте ежедневната работа в три стъпки: какво да се случва при разговор, за кои номера и как да изглеждат началният екран и страницата „История“.</string>
+    <string name="settings_tree_calls_behavior_title">1. Какво да се случва при и след разговор</string>
+    <string name="settings_tree_calls_behavior_description">Изберете вида на popup-а, действието след разговора и кога временните прозорци да се затварят.</string>
+    <string name="settings_tree_calls_people_title">2. За кои номера да се задейства</string>
+    <string name="settings_tree_calls_people_description">Изберете познати контакти, непознати номера и по желание определени групи контакти.</string>
+    <string name="settings_tree_calls_history_title">3. Начален екран и страница „История“</string>
+    <string name="settings_tree_calls_history_description">Определете броя разговори на страница и начина, по който телефонният дневник се показва в приложението.</string>
+
+    <string name="settings_tree_contacts_title">Контакти и CRM</string>
+    <string name="settings_tree_contacts_menu">Контакти и CRM\nAndroid контакти, SMS, разпознаване на обаждания и CRM връзки</string>
+    <string name="settings_tree_contacts_description">Свържете Relationship Manager с контактите в телефона и с допълнителни Android услуги. Разрешенията за тези функции се управляват от „Разрешения и готовност“.</string>
+    <string name="settings_tree_contacts_phone_title">1. Телефонни и SMS интеграции</string>
+    <string name="settings_tree_contacts_phone_description">Допълнителни Android роли за SMS и по-надеждно разпознаване на обаждащия се.</string>
+    <string name="settings_tree_contacts_sync_title">2. Връзка и синхронизация на контактите</string>
+    <string name="settings_tree_contacts_sync_description">Създавайте и поддържайте връзките между записите в Relationship Manager и Android контактите.</string>
+
+    <string name="settings_tree_account_title">Фирмен профил и достъп</string>
+    <string name="settings_tree_account_menu">Фирмен профил и достъп\nЛиценз, членство във фирма, покани и достъп на колеги</string>
+    <string name="settings_tree_server_title">Синхронизация със сървъра</string>
+    <string name="settings_tree_server_menu">Синхронизация със сървъра\nСъстояние на връзката, чакащи бележки, тест и подробни настройки</string>
+    <string name="settings_tree_data_title">Данни и резервно копие</string>
+    <string name="settings_tree_data_menu">Данни и резервно копие\nКъде се пазят бележките, създаване на архив и възстановяване</string>
+    <string name="settings_tree_appearance_title">Език, текст и изглед</string>
+    <string name="settings_tree_appearance_menu">Език, текст и изглед\nРазмер на текста, език, преводи и информация за версията</string>
+    <string name="settings_tree_advanced_title">Разширени настройки и тестове</string>
+    <string name="settings_tree_advanced_menu">Разширени настройки и тестове\nДиагностика и тестови действия, които не са нужни в ежедневната работа</string>
+</resources>

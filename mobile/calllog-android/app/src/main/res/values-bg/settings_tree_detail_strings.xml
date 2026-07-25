@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_tree_account_description">Управлявайте фирмения достъп в лесен ред: първо отворете текущия профил, после при нужда се присъединете по покана или поканете колега, ако управлявате фирмата.</string>
+    <string name="settings_tree_account_current">1. Фирмен профил и лиценз\nПреглед и управление на текущия фирмен акаунт</string>
+    <string name="settings_tree_account_join">2. Присъединяване по покана\nИзползвайте покана, получена от администратор на фирма</string>
+    <string name="settings_tree_account_invite">3. Покани колега\nСъздайте достъп за друг човек във фирмата</string>
+
+    <string name="settings_tree_server_description">Използвайте първата част за нормалната връзка и синхронизация. Пътищата, кодовете за архив и другите технически полета остават скрити в „Подробни настройки“.</string>
+    <string name="settings_tree_server_connection_title">1. Връзка и идентификация</string>
+    <string name="settings_tree_server_connection_description">Включете синхронизацията, въведете адреса на сървъра и токена за достъп, после проверете връзката.</string>
+    <string name="settings_tree_server_queue_title">2. Бележки, които чакат синхронизация</string>
+    <string name="settings_tree_server_queue_description">Приложението пази неизпратените бележки локално. Тук се вижда състоянието им и може да се повтори изпращането след възстановяване на връзката.</string>
+    <string name="settings_tree_server_advanced_title">3. Подробни сървърни настройки</string>
+    <string name="settings_tree_server_advanced_description">Отваряйте само при промяна на техническите пътища или при прехвърляне на сървърните настройки с четирицифрен код.</string>
+
+    <string name="settings_tree_data_description">Първо вижте къде се пазят локалните бележки, а след това при нужда създайте или възстановете цялостен архив.</string>
+    <string name="settings_tree_data_storage_title">1. Къде се пазят бележките</string>
+    <string name="settings_tree_data_storage_description">Достъпът до хранилището се управлява от „Разрешения и готовност“. Текущото състояние е показано отдолу.</string>
+    <string name="settings_tree_data_backup_title">2. Архивиране и възстановяване</string>
+    <string name="settings_tree_data_backup_description">Създайте файл преди преинсталиране или смяна на телефон. Възстановяването зарежда запазените настройки и локални данни от избран архив.</string>
+
+    <string name="settings_tree_appearance_description">Започнете от размера на текста, после изберете езика на приложението. Информацията за версията е най-отдолу. Редактирането на отделни преводи е разширена функция.</string>
+    <string name="settings_tree_appearance_text_title">1. Размер на текста</string>
+    <string name="settings_tree_appearance_text_description">„Нормален“ е стандартният размер. По-големите варианти увеличават текста в цялото приложение.</string>
+    <string name="settings_tree_appearance_language_title">2. Език на приложението</string>
+    <string name="settings_tree_appearance_language_description">Променя се само Relationship Manager. Езикът на телефона не се променя.</string>
+    <string name="settings_tree_appearance_translation_title">3. Разширено: редактиране на отделни преводи</string>
+    <string name="settings_tree_appearance_translation_description">Използвайте само когато конкретен надпис се нуждае от различна формулировка. Промените важат само в приложението и могат да се изчистят за избрания език.</string>
+    <string name="settings_tree_appearance_version_title">4. Версия на приложението</string>
+
+    <string name="settings_tree_advanced_description">Тези инструменти са за диагностика и разработка. Не е необходимо да се променят при нормална ежедневна работа.</string>
+    <string name="settings_tree_advanced_popup_tests_title">1. Тестове на popup-ите при разговор</string>
+    <string name="settings_tree_advanced_server_tests_title">2. Тестове на сървъра и интеграциите</string>
+</resources>

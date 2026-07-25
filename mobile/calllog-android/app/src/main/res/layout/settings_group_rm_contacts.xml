@@ -21,17 +21,19 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
+
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_integrations_section"
+                android:contentDescription="@string/settings_tree_contacts_title"
                 android:src="@drawable/ic_settings_rm_contacts" />
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/settings_integrations_section"
+                android:text="@string/settings_tree_contacts_title"
                 android:textColor="@color/calllog_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -40,8 +42,25 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/settings_integrations_description"
+            android:layout_marginTop="6dp"
+            android:text="@string/settings_tree_contacts_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13.5sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_contacts_phone_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_contacts_phone_description"
             android:textColor="@color/calllog_muted_text"
             android:textSize="13sp" />
 
@@ -52,6 +71,23 @@
         <include
             android:id="@+id/callScreeningIntegrationSection"
             layout="@layout/section_call_screening_integration" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_contacts_sync_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_contacts_sync_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
 
         <include
             android:id="@+id/contactLinkSection"

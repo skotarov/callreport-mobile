@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_tree_intro_title">Settings map</string>
+    <string name="settings_tree_intro_description">Start with permissions, then choose how calls and contacts work. Account, synchronization, data, appearance, and technical options follow from general to detailed.</string>
+
+    <string name="settings_tree_group_setup">1. First-time setup</string>
+    <string name="settings_tree_group_setup_description">Make sure the app has the access it needs before changing its behavior.</string>
+    <string name="settings_tree_group_daily">2. Everyday work</string>
+    <string name="settings_tree_group_daily_description">Choose what happens during calls and how contacts are organized.</string>
+    <string name="settings_tree_group_account">3. Account and shared data</string>
+    <string name="settings_tree_group_account_description">Manage the company profile, server synchronization, and backups.</string>
+    <string name="settings_tree_group_personal">4. Personal preferences</string>
+    <string name="settings_tree_group_personal_description">Change language, text size, and the way the app looks.</string>
+    <string name="settings_tree_group_advanced">5. Detailed and technical</string>
+    <string name="settings_tree_group_advanced_description">Use these options only when you need diagnostics, tests, or fine control.</string>
+
+    <string name="settings_tree_permissions_title">Permissions and readiness</string>
+    <string name="settings_tree_permissions_menu">Permissions and readiness\nAll permissions, Android roles, and an app readiness check</string>
+    <string name="settings_tree_permissions_description">This is the first place to visit after installation. Enable missing access one item at a time. Android may open a separate system screen for some permissions and roles.</string>
+    <string name="settings_tree_permissions_all_title">All permissions in one place</string>
+    <string name="settings_tree_permissions_all_description">Allowed items are ready. Tap a missing item to enable it. Basic access is needed for calls, call history, contacts, and notifications; overlay, call screening, SMS, accessibility, and shared storage are optional and depend on the features you use.</string>
+
+    <string name="settings_tree_calls_title">Calls, popups, and history</string>
+    <string name="settings_tree_calls_menu">Calls, popups, and history\nWhat appears during and after a call, and how the timeline is shown</string>
+    <string name="settings_tree_calls_description">Set the normal daily behavior in three steps: what happens during a call, which numbers trigger it, and how the Home timeline and History screen are displayed.</string>
+    <string name="settings_tree_calls_behavior_title">1. What happens during and after a call</string>
+    <string name="settings_tree_calls_behavior_description">Choose the popup type, the action after the call, and when temporary windows close.</string>
+    <string name="settings_tree_calls_people_title">2. Which numbers trigger the call experience</string>
+    <string name="settings_tree_calls_people_description">Choose known contacts, unknown numbers, and optional contact groups.</string>
+    <string name="settings_tree_calls_history_title">3. Home timeline and History screen</string>
+    <string name="settings_tree_calls_history_description">Control page size and how the phone call history is presented in the app.</string>
+
+    <string name="settings_tree_contacts_title">Contacts and CRM</string>
+    <string name="settings_tree_contacts_menu">Contacts and CRM\nAndroid contacts, optional SMS integration, caller identification, and CRM links</string>
+    <string name="settings_tree_contacts_description">Connect Relationship Manager with phone contacts and optional Android services. The permissions for these features are managed from “Permissions and readiness”.</string>
+    <string name="settings_tree_contacts_phone_title">1. Phone and SMS integrations</string>
+    <string name="settings_tree_contacts_phone_description">Optional Android roles for SMS and additional caller identification.</string>
+    <string name="settings_tree_contacts_sync_title">2. Contact links and synchronization</string>
+    <string name="settings_tree_contacts_sync_description">Create and maintain links between Relationship Manager records and Android contacts.</string>
+
+    <string name="settings_tree_account_title">Company profile and access</string>
+    <string name="settings_tree_account_menu">Company profile and access\nLicense, company membership, invitations, and colleague access</string>
+    <string name="settings_tree_server_title">Server synchronization</string>
+    <string name="settings_tree_server_menu">Server synchronization\nConnection status, pending notes, testing, and advanced server details</string>
+    <string name="settings_tree_data_title">Data and backup</string>
+    <string name="settings_tree_data_menu">Data and backup\nWhere notes are stored, backup creation, and restore</string>
+    <string name="settings_tree_appearance_title">Language, text, and appearance</string>
+    <string name="settings_tree_appearance_menu">Language, text, and appearance\nText size, app language, translations, and version information</string>
+    <string name="settings_tree_advanced_title">Advanced settings and tests</string>
+    <string name="settings_tree_advanced_menu">Advanced settings and tests\nDiagnostics and test actions that are not needed in everyday use</string>
+</resources>

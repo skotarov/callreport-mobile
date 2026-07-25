@@ -129,14 +129,14 @@ internal class MainSettingsNavigationController(
     }
 
     private enum class SettingsSection(val titleRes: Int) {
-        STATUS(R.string.settings_application_section),
-        CALLS(R.string.settings_popup_section),
-        INTEGRATIONS(R.string.settings_integrations_section),
-        SERVER(R.string.settings_server_section),
-        REGISTRATION(R.string.settings_registration_section),
-        DATA_AND_BACKUP(R.string.settings_storage_section),
-        LANGUAGE(R.string.settings_general_section),
-        DEBUG(R.string.settings_debug_section);
+        STATUS(R.string.settings_tree_permissions_title),
+        CALLS(R.string.settings_tree_calls_title),
+        INTEGRATIONS(R.string.settings_tree_contacts_title),
+        SERVER(R.string.settings_tree_server_title),
+        REGISTRATION(R.string.settings_tree_account_title),
+        DATA_AND_BACKUP(R.string.settings_tree_data_title),
+        LANGUAGE(R.string.settings_tree_appearance_title),
+        DEBUG(R.string.settings_tree_advanced_title);
 
         fun view(binding: ActivityMainBinding): View {
             return when (this) {

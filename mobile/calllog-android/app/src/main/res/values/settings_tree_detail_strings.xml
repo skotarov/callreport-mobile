@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_tree_account_description">Manage the company account in a simple order: open the current profile, join an existing company when invited, or invite a colleague when you manage the company.</string>
+    <string name="settings_tree_account_current">1. Company profile and license\nView or manage the current company account</string>
+    <string name="settings_tree_account_join">2. Join with an invitation\nUse an invitation received from a company administrator</string>
+    <string name="settings_tree_account_invite">3. Invite a colleague\nCreate access for another person in the company</string>
+
+    <string name="settings_tree_server_description">Use the first part for normal connection and synchronization. Paths, backup codes, and other technical fields remain hidden under Advanced settings.</string>
+    <string name="settings_tree_server_connection_title">1. Connection and sign-in</string>
+    <string name="settings_tree_server_connection_description">Enable server synchronization, enter the server address and access token, then test the connection.</string>
+    <string name="settings_tree_server_queue_title">2. Notes waiting to be synchronized</string>
+    <string name="settings_tree_server_queue_description">The app keeps unsent notes locally. Check their status here and retry after the connection is restored.</string>
+    <string name="settings_tree_server_advanced_title">3. Advanced server details</string>
+    <string name="settings_tree_server_advanced_description">Open only when changing endpoint paths or transferring server settings with a four-digit backup code.</string>
+
+    <string name="settings_tree_data_description">First choose where local notes are stored, then create or restore a complete backup when needed.</string>
+    <string name="settings_tree_data_storage_title">1. Where notes are stored</string>
+    <string name="settings_tree_data_storage_description">Storage access is controlled from Permissions and readiness. The current status is shown below.</string>
+    <string name="settings_tree_data_backup_title">2. Backup and restore</string>
+    <string name="settings_tree_data_backup_description">Create a file before reinstalling or changing phones. Restore imports saved settings and local data from a selected backup.</string>
+
+    <string name="settings_tree_appearance_description">Start with text size, then choose the app language. Version information is shown last. Editing individual translations is an advanced feature.</string>
+    <string name="settings_tree_appearance_text_title">1. Text size</string>
+    <string name="settings_tree_appearance_text_description">Normal is the default. Larger options increase text throughout the app.</string>
+    <string name="settings_tree_appearance_language_title">2. App language</string>
+    <string name="settings_tree_appearance_language_description">This changes only Relationship Manager; the phone language is not changed.</string>
+    <string name="settings_tree_appearance_translation_title">3. Advanced: edit individual translations</string>
+    <string name="settings_tree_appearance_translation_description">Use only when a specific label needs custom wording. Changes apply inside this app and can be reset for the selected language.</string>
+    <string name="settings_tree_appearance_version_title">4. App version</string>
+
+    <string name="settings_tree_advanced_description">These tools are for diagnostics and development checks. They do not need to be changed for normal daily use.</string>
+    <string name="settings_tree_advanced_popup_tests_title">1. Call popup tests</string>
+    <string name="settings_tree_advanced_server_tests_title">2. Server and integration tests</string>
+</resources>

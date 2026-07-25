@@ -5,11 +5,28 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="@string/settings_tree_server_connection_title"
+        android:textColor="@color/calllog_text"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_tree_server_connection_description"
+        android:textColor="@color/calllog_muted_text"
+        android:textSize="13sp" />
+
     <CheckBox
         android:id="@+id/remoteEnabledCheckBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
+        android:layout_marginTop="10dp"
         android:checked="true"
         android:text="@string/server_enabled" />
 
@@ -73,10 +90,27 @@
             android:visibility="gone" />
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/settings_tree_server_queue_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_server_queue_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
+
+        <TextView
             android:id="@+id/pendingTopicNotesStatusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_settings_info"
             android:paddingStart="12dp"
             android:paddingTop="9dp"
@@ -95,12 +129,29 @@
             app:strokeColor="@color/calllog_border"
             app:strokeWidth="1dp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/settings_tree_server_advanced_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_server_advanced_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/toggleAdvancedServerSettingsButton"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:text="@string/server_advanced_settings_show" />
 
         <LinearLayout

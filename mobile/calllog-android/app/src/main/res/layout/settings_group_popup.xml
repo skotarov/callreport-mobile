@@ -21,25 +21,69 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
+
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_popup_section"
+                android:contentDescription="@string/settings_tree_calls_title"
                 android:src="@drawable/ic_settings_popup" />
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/settings_popup_section"
+                android:text="@string/settings_tree_calls_title"
                 android:textColor="@color/calllog_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/settings_tree_calls_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13.5sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_calls_behavior_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_calls_behavior_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
+
         <include
             android:id="@+id/popupSettingsSection"
             layout="@layout/section_popup_settings" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_calls_people_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_calls_people_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
 
         <include
             android:id="@+id/popupContactFilterSection"
@@ -49,10 +93,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:text="@string/settings_home_screen_section"
+            android:text="@string/settings_tree_calls_history_title"
             android:textColor="@color/calllog_text"
             android:textSize="15sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_calls_history_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
 
         <include
             android:id="@+id/callLogSettingsSection"
