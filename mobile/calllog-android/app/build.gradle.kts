@@ -39,6 +39,9 @@ val playSigning = Properties().apply {
 }
 val hasPlaySigning = listOf("storeFile", "storeSecret", "keyAlias", "keySecret")
     .all { key -> playSigning.getProperty(key).orEmpty().isNotBlank() }
+// CI verifies the release signing/package path without paying the full R8 cost on every PR.
+// Real Play builds omit this property and always keep minification and resource shrinking enabled.
+val releaseOptimizationEnabled = !providers.gradleProperty("skipReleaseOptimization").isPresent
 
 fun ensureFixedDebugKeystore(): File {
     require(fixedDebugKeystoreBase64File.isFile) {
@@ -94,8 +97,8 @@ android {
         }
         release {
             if (hasPlaySigning) signingConfig = signingConfigs.getByName("playRelease")
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = releaseOptimizationEnabled
+            isShrinkResources = releaseOptimizationEnabled
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
