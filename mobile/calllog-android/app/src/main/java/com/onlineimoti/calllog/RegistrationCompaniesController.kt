@@ -3,7 +3,6 @@ package com.onlineimoti.calllog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -19,10 +18,7 @@ import com.google.android.material.button.MaterialButton
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
 internal object RegistrationCompaniesController {
-    fun refresh(
-        activity: AppCompatActivity,
-        binding: SettingsGroupRegistrationBinding,
-    ) {
+    fun refresh(activity: AppCompatActivity, binding: SettingsGroupRegistrationBinding) {
         val config = ConfigStore.load(activity)
         binding.registrationCompaniesList.removeAllViews()
         binding.registrationCompaniesProgress.visibility = View.VISIBLE
@@ -36,20 +32,14 @@ internal object RegistrationCompaniesController {
             renderCompanies(activity, binding, emptyList())
             return
         }
-
         Thread {
-            val online = runCatching {
-                CallReportTopicCompaniesRepository.refresh(activity.applicationContext, config)
-            }
+            val online = runCatching { CallReportTopicCompaniesRepository.refresh(activity.applicationContext, config) }
             val result = online.getOrNull()
-                ?: runCatching {
-                    CallReportTopicCompaniesRepository.load(activity.applicationContext, config)
-                }.getOrNull()
+                ?: runCatching { CallReportTopicCompaniesRepository.load(activity.applicationContext, config) }.getOrNull()
             activity.runOnUiThread {
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
-                if (result != null) {
-                    renderCompanies(activity, binding, result.companies)
-                } else {
+                if (result != null) renderCompanies(activity, binding, result.companies)
+                else {
                     binding.registrationCompaniesProgress.visibility = View.GONE
                     binding.registrationRefreshCompaniesButton.isEnabled = true
                     binding.registrationCompaniesStatusText.apply {
@@ -111,11 +101,21 @@ internal object RegistrationCompaniesController {
             setPadding(0, dp(activity, 3), 0, 0)
         })
         if (company.canManageUsers) {
-            row.addView(MaterialButton(activity).apply {
+            val actions = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END
+            }
+            actions.addView(MaterialButton(activity).apply {
+                text = "Покани колега"
+                isAllCaps = false
+                setOnClickListener { RegistrationActions.showInviteDialog(activity, company) }
+            }, actionParams(activity))
+            actions.addView(MaterialButton(activity).apply {
                 setText(R.string.settings_registration_users)
                 isAllCaps = false
                 setOnClickListener { showUsers(activity, company) }
-            }, verticalParams(activity, 8))
+            }, actionParams(activity, 6))
+            row.addView(actions, verticalParams(activity, 8))
         }
         return row
     }
@@ -158,30 +158,22 @@ internal object RegistrationCompaniesController {
             })
         } else {
             snapshot.users.forEachIndexed { index, user ->
-                list.addView(
-                    userRow(activity, snapshot.company, user),
-                    verticalParams(activity, if (index == 0) 4 else 8),
-                )
+                list.addView(userRow(activity, snapshot.company, user), verticalParams(activity, if (index == 0) 4 else 8))
             }
         }
-        val scroll = ScrollView(activity).apply { addView(list) }
         AlertDialog.Builder(activity)
             .setTitle(snapshot.company.name)
-            .setView(scroll)
+            .setView(ScrollView(activity).apply { addView(list) })
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
-    private fun userRow(
-        activity: AppCompatActivity,
-        company: CallReportTopicCompany,
-        user: CompanyManagedUser,
-    ): View {
+    private fun userRow(activity: AppCompatActivity, company: CallReportTopicCompany, user: CompanyManagedUser): View {
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(activity, 11), dp(activity, 10), dp(activity, 11), dp(activity, 10))
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(ContextCompat.getColor(activity, R.color.calllog_surface))
                 cornerRadius = dp(activity, 11).toFloat()
                 setStroke(dp(activity, 1), ContextCompat.getColor(activity, R.color.calllog_border))
             }
@@ -208,30 +200,22 @@ internal object RegistrationCompaniesController {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.END
             }
-            if (user.canGenerateKey) {
-                actions.addView(MaterialButton(activity).apply {
-                    setText(R.string.settings_registration_generate_key)
-                    isAllCaps = false
-                    setOnClickListener { generateKey(activity, company, user) }
-                }, actionParams(activity))
-            }
-            if (user.canDeactivate) {
-                actions.addView(MaterialButton(activity).apply {
-                    setText(R.string.settings_registration_deactivate_user)
-                    isAllCaps = false
-                    setOnClickListener { confirmDeactivate(activity, company, user) }
-                }, actionParams(activity, 6))
-            }
+            if (user.canGenerateKey) actions.addView(MaterialButton(activity).apply {
+                setText(R.string.settings_registration_generate_key)
+                isAllCaps = false
+                setOnClickListener { generateKey(activity, company, user) }
+            }, actionParams(activity))
+            if (user.canDeactivate) actions.addView(MaterialButton(activity).apply {
+                setText(R.string.settings_registration_deactivate_user)
+                isAllCaps = false
+                setOnClickListener { confirmDeactivate(activity, company, user) }
+            }, actionParams(activity, 6))
             row.addView(actions, verticalParams(activity, 7))
         }
         return row
     }
 
-    private fun confirmDeactivate(
-        activity: AppCompatActivity,
-        company: CallReportTopicCompany,
-        user: CompanyManagedUser,
-    ) {
+    private fun confirmDeactivate(activity: AppCompatActivity, company: CallReportTopicCompany, user: CompanyManagedUser) {
         AlertDialog.Builder(activity)
             .setTitle(R.string.settings_registration_deactivate_title)
             .setMessage(activity.getString(R.string.settings_registration_deactivate_message, user.name, company.name))
@@ -245,14 +229,8 @@ internal object RegistrationCompaniesController {
             .show()
     }
 
-    private fun generateKey(
-        activity: AppCompatActivity,
-        company: CallReportTopicCompany,
-        user: CompanyManagedUser,
-    ) {
-        runUserAction(activity, company) { config ->
-            CompanyUsersApi.generateKey(config, company.id, user.id)
-        }
+    private fun generateKey(activity: AppCompatActivity, company: CallReportTopicCompany, user: CompanyManagedUser) {
+        runUserAction(activity, company) { config -> CompanyUsersApi.generateKey(config, company.id, user.id) }
     }
 
     private fun runUserAction(
@@ -273,8 +251,7 @@ internal object RegistrationCompaniesController {
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                 loading.dismiss()
                 result.onSuccess { generated ->
-                    if (generated != null) showGeneratedKey(activity, generated)
-                    else showUsers(activity, company)
+                    if (generated != null) showGeneratedKey(activity, generated) else showUsers(activity, company)
                 }.onFailure {
                     AlertDialog.Builder(activity)
                         .setTitle(company.name)
@@ -287,26 +264,9 @@ internal object RegistrationCompaniesController {
     }
 
     private fun showGeneratedKey(activity: AppCompatActivity, generated: GeneratedCompanyAccessKey) {
-        val content = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(activity, 20), 0, dp(activity, 20), 0)
-            addView(TextView(activity).apply {
-                setText(R.string.settings_registration_key_once)
-                textSize = 14f
-                setTextColor(ContextCompat.getColor(activity, R.color.calllog_muted_text))
-            })
-            addView(TextView(activity).apply {
-                text = generated.key
-                textSize = 14f
-                typeface = Typeface.MONOSPACE
-                setTextIsSelectable(true)
-                setPadding(0, dp(activity, 14), 0, dp(activity, 6))
-                setTextColor(ContextCompat.getColor(activity, R.color.calllog_text))
-            })
-        }
         AlertDialog.Builder(activity)
             .setTitle(activity.getString(R.string.settings_registration_key_ready) + " · " + generated.user.name)
-            .setView(content)
+            .setMessage(activity.getString(R.string.settings_registration_key_once) + "\n\n" + generated.key)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.settings_registration_copy_key) { _, _ ->
                 val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -325,15 +285,12 @@ internal object RegistrationCompaniesController {
         },
     )
 
-    private fun verticalParams(activity: AppCompatActivity, top: Int): LinearLayout.LayoutParams =
-        LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply {
-            topMargin = dp(activity, top)
-        }
+    private fun verticalParams(activity: AppCompatActivity, top: Int) = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT,
+    ).apply { topMargin = dp(activity, top) }
 
-    private fun actionParams(activity: AppCompatActivity, start: Int = 0): LinearLayout.LayoutParams =
+    private fun actionParams(activity: AppCompatActivity, start: Int = 0) =
         LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
             marginStart = dp(activity, start)
         }
