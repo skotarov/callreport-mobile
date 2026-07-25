@@ -109,7 +109,7 @@ internal object HomeScreenActionBinder {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply {
-                    marginStart = dp(activity, 6)
+                    marginStart = dp(activity, 3)
                 },
             )
         }
@@ -129,9 +129,10 @@ internal object HomeScreenActionBinder {
             cornerRadius = dp(activity, 12).toFloat()
             setStroke(dp(activity, 1), Color.rgb(148, 163, 184))
         }
-        contentDescription = "CRM сървърът е включен"
-        isClickable = false
-        isFocusable = false
+        contentDescription = activity.getString(R.string.settings_registration_section)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { openRegistration(activity) }
         visibility = View.GONE
     }
 
