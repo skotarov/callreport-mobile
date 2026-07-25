@@ -13,7 +13,8 @@ import org.json.JSONObject
  */
 internal object HomeCallLogSnapshotCache {
     private const val PREFS = "relationship_manager_home_call_log_snapshot_v1"
-    private const val KEY_PAGES = "pages"
+    private const val KEY_PAGE_INDEX = "page_index"
+    private const val KEY_PAGE_PREFIX = "page:"
     private const val MAX_PAGES = 8
     private val lock = Any()
 
@@ -22,9 +23,11 @@ internal object HomeCallLogSnapshotCache {
         pageIndex: Int,
         pageSize: Int,
     ): List<PhoneCallRecord> = synchronized(lock) {
-        val pages = readPages(context)
-        val page = pages.optJSONObject(pageKey(context, pageIndex, pageSize)) ?: return@synchronized emptyList()
-        val items = page.optJSONArray("calls") ?: return@synchronized emptyList()
+        val key = pageKey(context, pageIndex, pageSize)
+        val raw = preferences(context).getString(KEY_PAGE_PREFIX + key, "").orEmpty()
+        if (raw.isBlank()) return@synchronized emptyList()
+        val items = runCatching { JSONObject(raw).optJSONArray("calls") }.getOrNull()
+            ?: return@synchronized emptyList()
         buildList {
             for (index in 0 until items.length()) {
                 items.optJSONObject(index)?.let(::callFromJson)?.let(::add)
@@ -40,38 +43,38 @@ internal object HomeCallLogSnapshotCache {
     ) {
         if (calls.isEmpty()) return
         synchronized(lock) {
-            val pages = readPages(context)
+            val prefs = preferences(context)
             val key = pageKey(context, pageIndex, pageSize)
-            pages.put(
-                key,
-                JSONObject().apply {
-                    put("saved_at_ms", System.currentTimeMillis())
-                    put("calls", JSONArray().apply { calls.forEach { put(callJson(it)) } })
-                },
-            )
-            val trimmed = pages.keys().asSequence()
-                .mapNotNull { pageKey ->
-                    pages.optJSONObject(pageKey)?.let { page ->
-                        Triple(pageKey, page.optLong("saved_at_ms"), page)
-                    }
-                }
+            val now = System.currentTimeMillis()
+            val index = readIndex(prefs.getString(KEY_PAGE_INDEX, "").orEmpty())
+            index.put(key, now)
+            val retained = index.keys().asSequence()
+                .map { indexedKey -> indexedKey to index.optLong(indexedKey) }
                 .sortedByDescending { it.second }
                 .take(MAX_PAGES)
                 .toList()
-            val output = JSONObject().apply {
-                trimmed.reversed().forEach { (pageKey, _, page) -> put(pageKey, page) }
+            val retainedKeys = retained.mapTo(linkedSetOf()) { it.first }
+            val trimmedIndex = JSONObject().apply {
+                retained.reversed().forEach { (indexedKey, savedAt) -> put(indexedKey, savedAt) }
             }
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putString(KEY_PAGES, output.toString())
-                .apply()
+            val page = JSONObject().apply {
+                put("saved_at_ms", now)
+                put("calls", JSONArray().apply { calls.forEach { put(callJson(it)) } })
+            }
+            val editor = prefs.edit()
+                .putString(KEY_PAGE_PREFIX + key, page.toString())
+                .putString(KEY_PAGE_INDEX, trimmedIndex.toString())
+            index.keys().asSequence()
+                .filter { it !in retainedKeys }
+                .forEach { editor.remove(KEY_PAGE_PREFIX + it) }
+            editor.apply()
         }
     }
 
-    private fun readPages(context: Context): JSONObject {
-        val raw = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_PAGES, "")
-            .orEmpty()
+    private fun preferences(context: Context) = context.applicationContext
+        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun readIndex(raw: String): JSONObject {
         if (raw.isBlank()) return JSONObject()
         return runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
     }
