@@ -7,8 +7,8 @@
     <string name="settings_registration_refresh_companies">Refresh companies</string>
     <string name="settings_registration_role_owner">Owner</string>
     <string name="settings_registration_role_admin">Administrator</string>
-    <string name="settings_registration_role_member">Member</string>
-    <string name="settings_registration_role_broker">Broker</string>
+    <string name="settings_registration_role_member">User</string>
+    <string name="settings_registration_role_broker">User</string>
     <string name="settings_registration_users">Users</string>
     <string name="settings_registration_users_loading">Loading users…</string>
     <string name="settings_registration_users_empty">There are no users in this company.</string>
