@@ -77,7 +77,9 @@ internal class HomeServerCallNotesController(
             }
             // Pending operations come last. Their newer timestamp wins immediately;
             // an empty pending note acts as a tombstone until the server confirms it.
-            val combinedEvents = history.events + CompanyCallNoteOutbox.pendingEvents(appContext, phones)
+            val combinedEvents = history.events +
+                CompanyCallNoteOutbox.pendingEvents(appContext, phones) +
+                CallReportNoteOutbox.pendingExistingServerEvents(appContext, phones)
             val updated = cachedData.copy(
                 contactNotesByNumber = mergeServerGeneralNotes(
                     calls = cachedData.calls,
