@@ -39,51 +39,70 @@ internal object ContactNoteTopicSelector {
         onSelected: (String) -> Unit,
     ) {
         val options = selectableOptions(context, state)
-        val hasPlaceholder = !state.loading && state.loadError.isBlank() && !state.localOnly && options.isNotEmpty()
         val labels = when {
-            state.loading && state.includeLocalOption -> listOf(context.getString(R.string.note_local_company))
+            state.loading && (state.includeLocalOption || state.localOnly) -> {
+                listOf(context.getString(R.string.note_local_company))
+            }
             state.loading -> listOf(context.getString(R.string.dynamic_note_companies_loading))
-            state.loadError.isNotBlank() && state.includeLocalOption -> listOf(context.getString(R.string.note_local_company))
+            state.loadError.isNotBlank() && (state.includeLocalOption || state.localOnly) -> {
+                listOf(context.getString(R.string.note_local_company))
+            }
             state.loadError.isNotBlank() -> listOf(context.getString(R.string.note_topics_unavailable_local_only))
             state.localOnly -> listOf(context.getString(R.string.note_local_company))
             options.isEmpty() -> listOf(context.getString(R.string.dynamic_note_no_company_destinations))
-            hasPlaceholder -> listOf(context.getString(R.string.dynamic_note_choose_company)) + options.map { it.label }
             else -> options.map { it.label }
         }
         val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, labels).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
         spinner.adapter = adapter
-        // Local is always a valid explicit destination for an eligible contact,
-        // even if the server has no company records to offer yet.
-        spinner.isEnabled = !state.loading && state.loadError.isBlank() && !state.localOnly && options.isNotEmpty()
+        // A single Local destination needs no interaction. Enable the spinner only
+        // when the user can actually switch between Local and one or more firms.
+        spinner.isEnabled = !state.loading &&
+            state.loadError.isBlank() &&
+            !state.localOnly &&
+            options.size > 1
 
-        val optionIndex = options.indexOfFirst { it.id == state.selectedCompanyId }
-        val selectedIndex = when {
-            optionIndex < 0 -> 0
-            hasPlaceholder -> optionIndex + 1
-            else -> optionIndex
-        }
+        val selectedCompanyId = resolvedSelectedCompanyId(state)
+        val selectedIndex = options.indexOfFirst { it.id == selectedCompanyId }.coerceAtLeast(0)
         spinner.setSelection(selectedIndex, false)
-        updateValidationBorder(context, spinner, state, state.selectedCompanyId, options.isNotEmpty())
+        updateValidationBorder(context, spinner, state, selectedCompanyId, options.isNotEmpty())
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val optionPosition = if (hasPlaceholder) position - 1 else position
-                val selectedCompanyId = options.getOrNull(optionPosition)?.id.orEmpty()
-                updateValidationBorder(context, spinner, state, selectedCompanyId, options.isNotEmpty())
-                onSelected(selectedCompanyId)
+                val selected = options.getOrNull(position)?.id.orEmpty()
+                updateValidationBorder(context, spinner, state, selected, options.isNotEmpty())
+                onSelected(selected)
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {
-                updateValidationBorder(context, spinner, state, "", options.isNotEmpty())
-                onSelected("")
+                val fallback = resolvedSelectedCompanyId(state)
+                updateValidationBorder(context, spinner, state, fallback, options.isNotEmpty())
+                onSelected(fallback)
             }
+        }
+    }
+
+    /**
+     * Every visible note form starts from a real destination. Local is preferred;
+     * an existing allowed firm remains selected, while a removed permission falls
+     * back to Local instead of leaving a synthetic "Choose" row selected.
+     */
+    internal fun resolvedSelectedCompanyId(state: ContactNoteTopicState): String {
+        val ids = buildList {
+            if (state.includeLocalOption || state.localOnly) add(ContactNoteTopicState.LOCAL_COMPANY_ID)
+            state.companies.mapTo(this) { it.id }
+        }.filter { it.isNotBlank() }.distinct()
+        val requested = state.selectedCompanyId.trim()
+        return when {
+            requested in ids -> requested
+            ContactNoteTopicState.LOCAL_COMPANY_ID in ids -> ContactNoteTopicState.LOCAL_COMPANY_ID
+            else -> ids.firstOrNull().orEmpty()
         }
     }
 
     private fun selectableOptions(context: Context, state: ContactNoteTopicState): List<TopicOption> {
         val serverOptions = state.companies.map { TopicOption(it.id, it.name) }
-        return if (state.includeLocalOption) {
+        return if (state.includeLocalOption || state.localOnly) {
             listOf(TopicOption(ContactNoteTopicState.LOCAL_COMPANY_ID, context.getString(R.string.note_local_company))) + serverOptions
         } else {
             serverOptions
