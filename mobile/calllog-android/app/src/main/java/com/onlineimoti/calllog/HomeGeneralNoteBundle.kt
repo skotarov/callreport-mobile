@@ -41,21 +41,21 @@ internal object HomeGeneralNoteBundle {
 
     fun withoutServer(value: String?): String = encode(entries(value).filterNot { it.fromServer })
 
-    private fun encode(values: List<HomeGeneralNoteEntry>): String {
+    /** Equal text from local and server is intentionally kept as two visible rows. */
+    internal fun distinctEntries(values: List<HomeGeneralNoteEntry>): List<HomeGeneralNoteEntry> {
         val unique = linkedMapOf<String, HomeGeneralNoteEntry>()
         values.forEach { entry ->
             val text = entry.text.trim()
             if (text.isBlank()) return@forEach
-            // A local note and its server-side counterpart are distinct visible lanes,
-            // even when their text is identical. Only duplicates from the same source
-            // should collapse into one row.
             val source = if (entry.fromServer) "server" else "local"
             val key = "$source|${normalize(text)}"
-            if (key !in unique) {
-                unique[key] = HomeGeneralNoteEntry(text, entry.fromServer)
-            }
+            if (key !in unique) unique[key] = HomeGeneralNoteEntry(text, entry.fromServer)
         }
-        val entries = unique.values.toList()
+        return unique.values.toList()
+    }
+
+    private fun encode(values: List<HomeGeneralNoteEntry>): String {
+        val entries = distinctEntries(values)
         return when (entries.size) {
             0 -> ""
             1 -> entries.first().let { entry ->
