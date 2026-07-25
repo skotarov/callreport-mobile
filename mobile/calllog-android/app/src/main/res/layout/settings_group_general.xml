@@ -26,31 +26,43 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_general_section"
+                android:contentDescription="@string/settings_tree_appearance_title"
                 android:src="@drawable/ic_settings_application" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/settings_general_section"
+                android:text="@string/settings_tree_appearance_title"
                 android:textColor="@color/calllog_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <include
-            android:id="@+id/languageSettingsSection"
-            layout="@layout/section_language_settings" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/settings_tree_appearance_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13.5sp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/font_scale_title"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_appearance_text_title"
             android:textColor="@color/calllog_text"
             android:textSize="15sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_appearance_text_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
 
         <RadioGroup
             android:id="@+id/fontScaleGroup"
@@ -87,17 +99,38 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_appearance_language_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="@string/font_scale_description"
+            android:text="@string/settings_tree_appearance_language_description"
             android:textColor="@color/calllog_muted_text"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
+
+        <include
+            android:id="@+id/languageSettingsSection"
+            layout="@layout/section_language_settings" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_appearance_version_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/buildVersionText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="4dp"
             android:textColor="@color/calllog_muted_text"
             android:textSize="12sp" />
     </LinearLayout>
