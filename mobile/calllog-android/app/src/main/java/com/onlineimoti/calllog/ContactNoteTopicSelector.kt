@@ -80,6 +80,10 @@ internal object ContactNoteTopicSelector {
                 onSelected(fallback)
             }
         }
+
+        // setSelection() runs before the listener is attached, so persist the real
+        // default explicitly. This lets Save work immediately without a tap.
+        if (selectedCompanyId.isNotBlank()) onSelected(selectedCompanyId)
     }
 
     /**
