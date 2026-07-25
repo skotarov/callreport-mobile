@@ -137,10 +137,15 @@ internal object PermissionStatusRenderer {
     }
 
     private fun setScreening(activity: MainActivity, binding: ActivityMainBinding, enabled: Boolean) {
-        save(activity) { it.copy(useCallScreening = enabled) }
+        if (enabled) {
+            // Do not turn on the local flag before Android actually grants the role.
+            // The result callback synchronizes the flag with the real system holder.
+            activity.requestCallScreeningPermissionFromSummary()
+            return
+        }
+        save(activity) { it.copy(useCallScreening = false) }
         refresh(activity, binding)
-        if (enabled) activity.requestCallScreeningPermissionFromSummary()
-        else toast(activity, activity.getString(R.string.settings_screening_disabled))
+        toast(activity, activity.getString(R.string.settings_screening_disabled))
     }
 
     private fun save(activity: MainActivity, update: (AppConfig) -> AppConfig) {
