@@ -68,7 +68,7 @@ internal class HomeServerCallNotesController(
         executor.execute {
             val history = runCatching { historyForPage(config, phones) }.getOrNull()
             if (history == null) {
-                HomeNotesSnapshotCache.store(appContext, cachedData)
+                storeIfCurrent(cachedData, expectedGeneration)
                 handler.post {
                     finishBusy(busyToken)
                     if (expectedGeneration == generation.get()) onFinished()
@@ -93,7 +93,10 @@ internal class HomeServerCallNotesController(
                     principal = history.principal,
                 ),
             )
-            HomeNotesSnapshotCache.store(appContext, updated)
+            if (!storeIfCurrent(updated, expectedGeneration)) {
+                handler.post { finishBusy(busyToken) }
+                return@execute
+            }
             handler.post {
                 finishBusy(busyToken)
                 if (expectedGeneration != generation.get()) return@post
@@ -116,11 +119,18 @@ internal class HomeServerCallNotesController(
         onFinished: () -> Unit,
     ) {
         executor.execute {
-            HomeNotesSnapshotCache.store(appContext, data)
+            storeIfCurrent(data, expectedGeneration)
             handler.post {
                 if (expectedGeneration == generation.get()) onFinished()
             }
         }
+    }
+
+    /** Never let a response started before a note mutation repopulate the snapshot. */
+    private fun storeIfCurrent(data: HomeRenderData, expectedGeneration: Int): Boolean {
+        if (expectedGeneration != generation.get()) return false
+        HomeNotesSnapshotCache.store(appContext, data)
+        return expectedGeneration == generation.get()
     }
 
     /**
