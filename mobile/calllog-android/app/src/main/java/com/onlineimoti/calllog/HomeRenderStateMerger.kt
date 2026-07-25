@@ -3,6 +3,8 @@ package com.onlineimoti.calllog
 internal enum class HomeRenderMergeMode {
     PROVISIONAL,
     SUPPLEMENTAL,
+    /** Fresh local yellow notes replace the local lane, including deletions. */
+    LOCAL_GENERAL_AUTHORITATIVE,
     AUTHORITATIVE,
 }
 
@@ -51,6 +53,15 @@ internal object HomeRenderStateMerger {
 
         val contactNotes = when (mode) {
             HomeRenderMergeMode.AUTHORITATIVE -> incoming.contactNotesByNumber
+            HomeRenderMergeMode.LOCAL_GENERAL_AUTHORITATIVE -> linkedMapOf<String, String>().apply {
+                phoneKeys.forEach { key ->
+                    val merged = HomeGeneralNoteBundle.replaceLocal(
+                        existing = currentContactNotes[key],
+                        localValue = incoming.contactNotesByNumber[key],
+                    )
+                    if (merged.isNotBlank()) put(key, merged)
+                }
+            }
             else -> linkedMapOf<String, String>().apply {
                 currentContactNotes.forEach { (key, value) -> if (key in phoneKeys) put(key, value) }
                 incoming.contactNotesByNumber.forEach { (key, value) -> put(key, value) }
