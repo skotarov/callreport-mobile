@@ -184,6 +184,21 @@ internal object ContactNoteFormWorkflow {
             )
         }
 
+        // Deletion is represented by an absent/blank row, so there is no new value
+        // that can overwrite Home's durable snapshot. Invalidate it in this shared
+        // workflow so full-screen, overlay and future editors all behave identically.
+        if (noteText.isBlank()) {
+            val target = writeResult.target
+            HomeNotesSnapshotCache.invalidateDeletedNote(
+                context = appContext,
+                phone = draft.phone,
+                isGeneralNote = writeResult.savedAsGeneralNote || draft.isGeneralNote,
+                callAtMs = target.callAt.takeIf { it > 0L } ?: draft.callAt,
+                direction = target.direction.ifBlank { draft.direction },
+                serverClientEventId = draft.serverClientEventId,
+            )
+        }
+
         val pendingCompanyChoice = localOnlyFallback &&
             isLocalSelection &&
             serverDestinationAllowed &&
