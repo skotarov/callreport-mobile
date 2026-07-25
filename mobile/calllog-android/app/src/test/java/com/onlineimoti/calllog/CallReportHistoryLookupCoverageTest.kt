@@ -16,8 +16,9 @@ class CallReportHistoryLookupCoverageTest {
             CallReportHistoryEvent(
                 communicationType = "note",
                 phone = "+359888161383",
+                direction = "out",
                 occurredAtMs = 2L,
-                note = "Има бележка",
+                note = "Има бележка към разговор",
             ),
         )
 
@@ -28,12 +29,13 @@ class CallReportHistoryLookupCoverageTest {
     }
 
     @Test
-    fun phoneWithBatchNoteCoverageDoesNotNeedFallback() {
+    fun phoneWithConcreteBatchCallNoteDoesNotNeedFallback() {
         val phones = listOf("0879 975 240")
         val batchEvents = listOf(
             CallReportHistoryEvent(
                 communicationType = "note",
                 phone = "+359879975240",
+                direction = "out",
                 occurredAtMs = 1L,
                 note = "Бояна",
             ),
@@ -41,6 +43,26 @@ class CallReportHistoryLookupCoverageTest {
 
         assertEquals(
             emptyList<String>(),
+            CallReportHistoryLookupClient.phonesMissingNoteCoverage(phones, batchEvents),
+        )
+    }
+
+    @Test
+    fun generalBatchNoteDoesNotHideMissingCallNotes() {
+        val phones = listOf("0879 975 240")
+        val batchEvents = listOf(
+            CallReportHistoryEvent(
+                communicationType = "note",
+                clientEventId = "rm:note:general:0879975240",
+                phone = "+359879975240",
+                occurredAtMs = 1L,
+                note = "Майстор на коли Максим - Бояна",
+                companyId = "maxim",
+            ),
+        )
+
+        assertEquals(
+            phones,
             CallReportHistoryLookupClient.phonesMissingNoteCoverage(phones, batchEvents),
         )
     }
