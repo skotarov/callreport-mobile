@@ -1,98 +1,189 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginTop="16dp"
-    app:cardBackgroundColor="@color/calllog_surface"
-    app:cardCornerRadius="18dp"
-    app:cardElevation="1dp"
-    app:strokeColor="@color/calllog_border"
-    app:strokeWidth="1dp">
+    android:orientation="vertical">
 
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        app:cardBackgroundColor="@color/calllog_surface"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/calllog_border"
+        app:strokeWidth="1dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:padding="16dp">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_registration_section"
-                android:src="@drawable/ic_settings_application" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="@string/settings_registration_section"
+                    android:src="@drawable/ic_settings_application" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/settings_registration_section"
+                    android:textColor="@color/calllog_text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/settings_registration_section"
-                android:textColor="@color/calllog_text"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:layout_marginTop="8dp"
+                android:text="@string/settings_registration_description"
+                android:textColor="@color/calllog_muted_text"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/registrationCompanyAccountButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:minHeight="50dp"
+                android:text="@string/settings_registration_company_account"
+                app:icon="@drawable/ic_settings_application"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconTint="@color/calllog_text"
+                app:strokeColor="@color/calllog_border"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/registrationJoinCompanyButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:minHeight="50dp"
+                android:text="@string/settings_registration_join"
+                app:icon="@drawable/ic_settings_rm_contacts"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconTint="@color/calllog_text"
+                app:strokeColor="@color/calllog_border"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/registrationInviteColleagueButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:minHeight="50dp"
+                android:text="@string/settings_registration_invite"
+                app:icon="@drawable/ic_settings_rm_contacts"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconTint="@color/calllog_text"
+                app:strokeColor="@color/calllog_border"
+                app:strokeWidth="1dp" />
         </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
-        <TextView
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/registrationConnectedCompaniesCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        app:cardBackgroundColor="@color/calllog_surface"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/calllog_border"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/settings_registration_description"
-            android:textColor="@color/calllog_muted_text"
-            android:textSize="14sp" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/registrationCompanyAccountButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center_vertical"
-            android:minHeight="50dp"
-            android:text="@string/settings_registration_company_account"
-            app:icon="@drawable/ic_settings_application"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"
-            app:iconTint="@color/calllog_text"
-            app:strokeColor="@color/calllog_border"
-            app:strokeWidth="1dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/registrationJoinCompanyButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:minHeight="50dp"
-            android:text="@string/settings_registration_join"
-            app:icon="@drawable/ic_settings_rm_contacts"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"
-            app:iconTint="@color/calllog_text"
-            app:strokeColor="@color/calllog_border"
-            app:strokeWidth="1dp" />
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="@string/settings_registration_companies_section"
+                    android:src="@drawable/ic_settings_server" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/registrationInviteColleagueButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:minHeight="50dp"
-            android:text="@string/settings_registration_invite"
-            app:icon="@drawable/ic_settings_rm_contacts"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"
-            app:iconTint="@color/calllog_text"
-            app:strokeColor="@color/calllog_border"
-            app:strokeWidth="1dp" />
-    </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/settings_registration_companies_section"
+                    android:textColor="@color/calllog_text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/settings_registration_companies_description"
+                android:textColor="@color/calllog_muted_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/registrationActiveCompanyNameText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/settings_registration_no_company"
+                android:textColor="@color/calllog_text"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/registrationActiveCompanyDetailsText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="@string/settings_registration_no_company_description"
+                android:textColor="@color/calllog_muted_text"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/registrationManageCompaniesButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:minHeight="50dp"
+                android:text="@string/settings_registration_manage_companies"
+                app:icon="@drawable/ic_settings_application"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconTint="@color/calllog_text"
+                app:strokeColor="@color/calllog_border"
+                app:strokeWidth="1dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>
