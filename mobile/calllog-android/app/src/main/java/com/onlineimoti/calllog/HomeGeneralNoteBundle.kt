@@ -46,9 +46,12 @@ internal object HomeGeneralNoteBundle {
         values.forEach { entry ->
             val text = entry.text.trim()
             if (text.isBlank()) return@forEach
-            val key = normalize(text)
-            val current = unique[key]
-            if (current == null || current.fromServer && !entry.fromServer) {
+            // A local note and its server-side counterpart are distinct visible lanes,
+            // even when their text is identical. Only duplicates from the same source
+            // should collapse into one row.
+            val source = if (entry.fromServer) "server" else "local"
+            val key = "$source|${normalize(text)}"
+            if (key !in unique) {
                 unique[key] = HomeGeneralNoteEntry(text, entry.fromServer)
             }
         }
