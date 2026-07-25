@@ -32,9 +32,6 @@ internal object MainSettingsActionBinder {
         binding.settingsRegistrationGroup.registrationJoinCompanyButton.setOnClickListener {
             RegistrationActions.showJoinDialog(activity)
         }
-        binding.settingsRegistrationGroup.registrationInviteColleagueButton.setOnClickListener {
-            RegistrationActions.showInviteDialog(activity)
-        }
         binding.settingsRegistrationGroup.registrationRefreshCompaniesButton.setOnClickListener {
             RegistrationActions.renderCompanySection(activity, binding.settingsRegistrationGroup)
         }
