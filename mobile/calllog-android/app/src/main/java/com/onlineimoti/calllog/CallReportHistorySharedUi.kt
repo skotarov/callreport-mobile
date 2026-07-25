@@ -86,8 +86,8 @@ internal class CallReportHistorySharedUi(
     fun metaView(row: CallReportHistoryRow, muted: Boolean = false): TextView {
         val kindText = when (row.kind) {
             CallReportHistoryRowKind.SMS -> "SMS"
-            CallReportHistoryRowKind.NOTE -> ""
-            CallReportHistoryRowKind.PHONE -> "Телефон"
+            CallReportHistoryRowKind.NOTE,
+            CallReportHistoryRowKind.PHONE -> ""
         }
         return TextView(activity).apply {
             text = listOf(kindText, PhoneCallReader.formatStartedAt(row.timeMs), directionLabel(row.direction))
