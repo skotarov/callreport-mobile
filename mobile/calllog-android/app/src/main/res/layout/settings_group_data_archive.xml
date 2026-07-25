@@ -25,17 +25,42 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_storage_section"
+                android:contentDescription="@string/settings_tree_data_title"
                 android:src="@drawable/ic_settings_data_archive" />
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/settings_storage_section"
+                android:text="@string/settings_tree_data_title"
                 android:textColor="@color/calllog_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/settings_tree_data_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13.5sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_data_storage_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_data_storage_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
 
         <include
             android:id="@+id/storageSettingsSection"
@@ -44,11 +69,19 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="@string/settings_archive_section"
+            android:layout_marginTop="18dp"
+            android:text="@string/settings_tree_data_backup_title"
             android:textColor="@color/calllog_text"
             android:textSize="15sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/settings_tree_data_backup_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
 
         <include
             android:id="@+id/archiveSettingsSection"
