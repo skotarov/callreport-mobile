@@ -14,6 +14,7 @@ import org.json.JSONObject
 internal object HomeNotesSnapshotCache {
     private const val PREFS = "relationship_manager_home_notes_snapshot_v1"
     private const val KEY_SNAPSHOT = "snapshot"
+    private const val KEY_MUTATION_REVISION = "mutation_revision"
     private const val MAX_PHONE_ENTRIES = 1_000
     private const val MAX_CALL_ENTRIES = 2_000
     private val lock = Any()
@@ -52,49 +53,70 @@ internal object HomeNotesSnapshotCache {
         )
     }
 
+    /** Captured before an async Home load so a later deletion can invalidate its write. */
+    fun mutationRevision(context: Context): Long = synchronized(lock) {
+        mutationRevisionLocked(context)
+    }
+
     /** Replaces the current page in the cache while keeping other recently viewed pages. */
     fun store(context: Context, data: HomeRenderData) {
         if (data.calls.isEmpty()) return
-        synchronized(lock) {
-            val current = read(context) ?: Snapshot()
-            val phoneKeys = data.calls
-                .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
-                .filterTo(linkedSetOf()) { it.isNotBlank() }
-            val callKeys = data.calls.mapTo(linkedSetOf(), HomeCallNotesResolver::keyFor)
+        synchronized(lock) { storeLocked(context, data) }
+    }
 
-            val contactNotes = current.contactNotesByNumber.toMutableMap().apply {
-                phoneKeys.forEach(::remove)
-                data.contactNotesByNumber.forEach { (key, value) ->
-                    if (key.isNotBlank() && value.isNotBlank()) put(key, value)
-                }
-            }
-            val contactNames = current.contactNamesByNumber.toMutableMap().apply {
-                phoneKeys.forEach(::remove)
-                data.contactNamesByNumber.forEach { (key, value) ->
-                    if (key.isNotBlank() && value.isNotBlank()) put(key, value)
-                }
-            }
-            val callNotes = current.callNotesByCall.toMutableMap().apply {
-                callKeys.forEach(::remove)
-                data.callNotesByCall.forEach { (key, value) ->
-                    if (key.isNotBlank() && value.text.isNotBlank()) put(key, value)
-                }
-            }
-
-            write(
-                context,
-                Snapshot(
-                    contactNotesByNumber = contactNotes.entries.toList().takeLast(MAX_PHONE_ENTRIES)
-                        .associateTo(linkedMapOf()) { it.key to it.value },
-                    contactNamesByNumber = contactNames.entries.toList().takeLast(MAX_PHONE_ENTRIES)
-                        .associateTo(linkedMapOf()) { it.key to it.value },
-                    callNotesByCall = callNotes.entries
-                        .sortedByDescending { it.value.updatedAtMs }
-                        .take(MAX_CALL_ENTRIES)
-                        .associateTo(linkedMapOf()) { it.key to it.value },
-                ),
-            )
+    /**
+     * Writes only when no note deletion happened since the caller began loading.
+     * The revision check and snapshot write share one lock, so deletion cannot slip
+     * between them and an old async response cannot resurrect a removed note.
+     */
+    fun storeIfRevision(context: Context, data: HomeRenderData, expectedRevision: Long): Boolean {
+        if (data.calls.isEmpty()) return mutationRevision(context) == expectedRevision
+        return synchronized(lock) {
+            if (mutationRevisionLocked(context) != expectedRevision) return@synchronized false
+            storeLocked(context, data)
+            true
         }
+    }
+
+    private fun storeLocked(context: Context, data: HomeRenderData) {
+        val current = read(context) ?: Snapshot()
+        val phoneKeys = data.calls
+            .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
+            .filterTo(linkedSetOf()) { it.isNotBlank() }
+        val callKeys = data.calls.mapTo(linkedSetOf(), HomeCallNotesResolver::keyFor)
+
+        val contactNotes = current.contactNotesByNumber.toMutableMap().apply {
+            phoneKeys.forEach(::remove)
+            data.contactNotesByNumber.forEach { (key, value) ->
+                if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+            }
+        }
+        val contactNames = current.contactNamesByNumber.toMutableMap().apply {
+            phoneKeys.forEach(::remove)
+            data.contactNamesByNumber.forEach { (key, value) ->
+                if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+            }
+        }
+        val callNotes = current.callNotesByCall.toMutableMap().apply {
+            callKeys.forEach(::remove)
+            data.callNotesByCall.forEach { (key, value) ->
+                if (key.isNotBlank() && value.text.isNotBlank()) put(key, value)
+            }
+        }
+
+        write(
+            context,
+            Snapshot(
+                contactNotesByNumber = contactNotes.entries.toList().takeLast(MAX_PHONE_ENTRIES)
+                    .associateTo(linkedMapOf()) { it.key to it.value },
+                contactNamesByNumber = contactNames.entries.toList().takeLast(MAX_PHONE_ENTRIES)
+                    .associateTo(linkedMapOf()) { it.key to it.value },
+                callNotesByCall = callNotes.entries
+                    .sortedByDescending { it.value.updatedAtMs }
+                    .take(MAX_CALL_ENTRIES)
+                    .associateTo(linkedMapOf()) { it.key to it.value },
+            ),
+        )
     }
 
     /**
@@ -113,7 +135,18 @@ internal object HomeNotesSnapshotCache {
         val phoneKey = HomeCallPageLoader.noteKey(phone)
         if (phoneKey.isBlank()) return
         synchronized(lock) {
-            val current = read(context) ?: return
+            val nextRevision = maxOf(
+                mutationRevisionLocked(context) + 1L,
+                System.currentTimeMillis(),
+            )
+            val current = read(context)
+            if (current == null) {
+                context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putLong(KEY_MUTATION_REVISION, nextRevision)
+                    .commit()
+                return@synchronized
+            }
             val updated = if (isGeneralNote) {
                 current.copy(contactNotesByNumber = current.contactNotesByNumber - phoneKey)
             } else {
@@ -127,7 +160,12 @@ internal object HomeNotesSnapshotCache {
                     ),
                 )
             }
-            write(context, updated, synchronous = true)
+            write(
+                context = context,
+                snapshot = updated,
+                synchronous = true,
+                mutationRevision = nextRevision,
+            )
         }
     }
 
@@ -180,7 +218,7 @@ internal object HomeNotesSnapshotCache {
     }
 
     private fun read(context: Context): Snapshot? {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val raw = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_SNAPSHOT, "")
             .orEmpty()
         if (raw.isBlank()) return null
@@ -195,7 +233,16 @@ internal object HomeNotesSnapshotCache {
         }.getOrNull()
     }
 
-    private fun write(context: Context, snapshot: Snapshot, synchronous: Boolean = false) {
+    private fun mutationRevisionLocked(context: Context): Long = context.applicationContext
+        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getLong(KEY_MUTATION_REVISION, 0L)
+
+    private fun write(
+        context: Context,
+        snapshot: Snapshot,
+        synchronous: Boolean = false,
+        mutationRevision: Long? = null,
+    ) {
         val root = JSONObject().apply {
             put("account", accountKey(context))
             put("saved_at_ms", System.currentTimeMillis())
@@ -205,9 +252,10 @@ internal object HomeNotesSnapshotCache {
                 snapshot.callNotesByCall.forEach { (key, note) -> put(key, noteJson(note)) }
             })
         }
-        val edit = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val edit = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_SNAPSHOT, root.toString())
+        mutationRevision?.let { edit.putLong(KEY_MUTATION_REVISION, it) }
         if (synchronous) edit.commit() else edit.apply()
     }
 
