@@ -1,4 +1,6 @@
 <resources>
+    <string name="settings_registration_profile_license">Профил и лиценз</string>
+    <string name="settings_registration_profile_description">Входът е еднократен за профила. Към един профил могат да бъдат включени много фирми с различни роли.</string>
     <string name="settings_registration_companies_section">Включени фирми</string>
     <string name="settings_registration_companies_description">Тук са същите фирми, които се показват при запис на бележка. Ролята и правата идват от сървъра.</string>
     <string name="settings_registration_no_company">Няма включени фирми</string>
