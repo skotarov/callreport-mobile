@@ -23,11 +23,9 @@ class CompanyAccountActivity : AppCompatActivity() {
     private lateinit var descriptionText: TextView
     private lateinit var statusText: TextView
     private lateinit var progress: ProgressBar
-    private lateinit var serverUrlButton: MaterialButton
     private lateinit var submitButton: MaterialButton
     private lateinit var switchModeButton: MaterialButton
     private lateinit var licenseButton: MaterialButton
-    private lateinit var settingsButton: MaterialButton
     private lateinit var nameInput: EditText
     private lateinit var emailInput: EditText
     private lateinit var passwordInput: EditText
@@ -89,12 +87,6 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
         column.addView(descriptionText)
 
-        serverUrlButton = MaterialButton(this).apply {
-            isAllCaps = false
-            setOnClickListener { openServerSettings() }
-        }
-        column.addView(serverUrlButton)
-
         nameInput = editInput("Твоето име", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
         emailInput = editInput("Имейл", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
         passwordInput = editInput("Парола (поне 10 символа)", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
@@ -105,7 +97,7 @@ class CompanyAccountActivity : AppCompatActivity() {
         registrationFields.addView(nameInput, verticalParams())
         registrationFields.addView(organizationInput, verticalParams(8))
         registrationFields.addView(eikInput, verticalParams(8))
-        column.addView(registrationFields, verticalParams(8))
+        column.addView(registrationFields)
         column.addView(emailInput, verticalParams(8))
         column.addView(passwordInput, verticalParams(8))
 
@@ -120,16 +112,6 @@ class CompanyAccountActivity : AppCompatActivity() {
             setOnClickListener { startActivity(Intent(this@CompanyAccountActivity, CompanyLicenseActivity::class.java)) }
         }
         column.addView(licenseButton, verticalParams(8))
-
-        settingsButton = MaterialButton(this).apply {
-            text = "Отвори профил и фирми"
-            setOnClickListener {
-                startActivity(Intent(this@CompanyAccountActivity, MainActivity::class.java).apply {
-                    putExtra(MainActivity.EXTRA_OPEN_REGISTRATION, true)
-                })
-            }
-        }
-        column.addView(settingsButton, verticalParams(8))
 
         progress = ProgressBar(this).apply {
             visibility = View.GONE
@@ -158,11 +140,6 @@ class CompanyAccountActivity : AppCompatActivity() {
         val creatingProfile = mode == MODE_REGISTER
         val viewingProfile = mode == MODE_PROFILE
 
-        serverUrlButton.text = if (hasBaseUrl) {
-            "Промени сървърния адрес"
-        } else {
-            "1. Настрой сървърния адрес"
-        }
         titleText.text = when {
             viewingProfile -> "Профил и фирми"
             creatingProfile -> "Създай профил и първа фирма"
@@ -180,7 +157,7 @@ class CompanyAccountActivity : AppCompatActivity() {
                 "Лицензът е потвърден. Попълни данните, за да създадеш профила и първата фирма към него."
             }
             else -> {
-                "Първо настрой сървърния адрес, после влез еднократно в профила. След вход приложението зарежда всички фирми и ролята във всяка от тях."
+                "Влез еднократно в профила. След вход приложението зарежда всички фирми и ролята във всяка от тях."
             }
         }
 
@@ -199,16 +176,10 @@ class CompanyAccountActivity : AppCompatActivity() {
 
         when {
             viewingProfile -> setStatus("Фирмите и ролите се показват отделно в секцията „Включени фирми“.")
-            !hasBaseUrl -> setStatus("Първо настрой сървърния адрес от бутона по-горе.")
+            !hasBaseUrl -> setStatus("Първо настрой сървърния адрес от Настройки → Профил и фирми.")
             creatingProfile && activation == null -> setStatus("Първо купи или възстанови лиценза от Google Play.")
             else -> setStatus("")
         }
-    }
-
-    private fun openServerSettings() {
-        startActivity(Intent(this, MainActivity::class.java).apply {
-            putExtra(MainActivity.EXTRA_OPEN_SERVER, true)
-        })
     }
 
     private fun switchMode() {
@@ -297,11 +268,9 @@ class CompanyAccountActivity : AppCompatActivity() {
 
     private fun showLoading(show: Boolean) {
         progress.visibility = if (show) View.VISIBLE else View.GONE
-        serverUrlButton.isEnabled = !show
         submitButton.isEnabled = !show
         switchModeButton.isEnabled = !show
         licenseButton.isEnabled = !show
-        settingsButton.isEnabled = !show
     }
 
     private fun setStatus(value: String) {
