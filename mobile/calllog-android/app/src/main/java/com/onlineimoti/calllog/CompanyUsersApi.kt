@@ -40,7 +40,8 @@ internal object CompanyUsersApi {
             company = company,
             users = buildList {
                 for (index in 0 until (users?.length() ?: 0)) {
-                    users?.optJSONObject(index)?.let { parseUser(it) }?.let(::add)
+                    val item = users?.optJSONObject(index) ?: continue
+                    add(parseUser(item))
                 }
             },
         )
