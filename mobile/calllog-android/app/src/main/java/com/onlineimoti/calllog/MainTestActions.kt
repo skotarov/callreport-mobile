@@ -1,12 +1,12 @@
 package com.onlineimoti.calllog
 
-import android.content.Intent
 import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.ActivityMainBinding
 import java.util.concurrent.ExecutorService
 
 internal object MainTestActions {
+    @Suppress("UNUSED_PARAMETER")
     fun testStartPopup(
         activity: AppCompatActivity,
         binding: ActivityMainBinding,
@@ -15,41 +15,38 @@ internal object MainTestActions {
     ) {
         val phone = binding.testsSection.phoneInput.text?.toString().orEmpty().ifBlank { "0877904903" }
         val direction = selectedDirection(binding)
-        executor.execute {
-            val title = ContactGroupFilter.resolveDisplayName(activity, phone).orEmpty()
-                .ifBlank { activity.getString(R.string.test_start_title) }
-            val result = LookupResult(
-                title = title,
-                subtitle = phone,
-                lines = listOf(
-                    activity.getString(R.string.test_start_line),
-                    activity.getString(
-                        R.string.test_direction_line,
-                        PhoneCallReader.directionLabel(direction).ifBlank { direction },
-                    ),
-                    activity.getString(R.string.test_no_real_call),
-                ),
-                openFormUrl = "",
-            )
-            activity.runOnUiThread {
-                LookupPopupPresenter.show(
-                    context = activity,
-                    result = result,
-                    fullscreen = false,
-                    phone = phone,
-                    direction = direction,
-                )
-                val config = ConfigStore.load(activity)
-                val mode = activity.getString(
-                    if (config.useOverlayPopups && config.useCustomStartPopup && Settings.canDrawOverlays(activity)) {
-                        R.string.test_mode_custom_overlay
-                    } else {
-                        R.string.test_mode_system_notification
-                    },
-                )
-                setStatus(activity.getString(R.string.test_start_status, mode, phone))
-            }
-        }
+        val baseConfig = ConfigStore.load(activity)
+        // The Settings button is a visual/functional test, so contact filters must not
+        // suppress it. Everything after that uses the exact real incoming-call flow.
+        val testConfig = baseConfig.copy(
+            notifyKnownContacts = true,
+            notifyUnknownContacts = true,
+            contactGroups = "",
+        )
+        IncomingCallLookupCoordinator(
+            context = activity,
+            config = testConfig,
+            phone = phone,
+            direction = direction,
+            fullscreen = false,
+            onLookupFinished = {
+                activity.runOnUiThread {
+                    if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                    val mode = activity.getString(
+                        if (
+                            baseConfig.useOverlayPopups &&
+                            baseConfig.useCustomStartPopup &&
+                            Settings.canDrawOverlays(activity)
+                        ) {
+                            R.string.test_mode_custom_overlay
+                        } else {
+                            R.string.test_mode_system_notification
+                        },
+                    )
+                    setStatus(activity.getString(R.string.test_start_status, mode, phone))
+                }
+            },
+        ).start()
     }
 
     fun testEndPopup(
