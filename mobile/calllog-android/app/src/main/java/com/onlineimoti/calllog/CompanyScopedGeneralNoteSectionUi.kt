@@ -64,6 +64,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
         val visibleNotes = notes
             .filter { it.note.trim().isNotBlank() || it.pending }
             .sortedByDescending { it.updatedAtMs }
+        val lastVisibleNote = visibleNotes.lastOrNull()
         val hasEditableNote = visibleNotes.any { it.editable }
         val showAdd = if (multiAuthor) !hasEditableNote else visibleNotes.isEmpty()
 
@@ -86,7 +87,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
                 authorName = if (multiAuthor) companyNote.authorBrokerName.trim() else "",
                 editable = companyNote.editable,
             )
-            if (phaseBarForCompany != null && companyNote === visibleNotes.lastOrNull()) {
+            if (phaseBarForCompany != null && companyNote == lastVisibleNote) {
                 (card.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = dp(2)
             }
             section.addView(card)
