@@ -64,6 +64,7 @@ object MainSettingsConfigUi {
         remote.historyLookupPathInput.setText(config.historyLookupPath)
         remote.syncPathInput.setText(config.syncPath)
         remote.syncEditPathInput.setText(config.syncEditPath)
+        remote.contactPhasePathInput.setText(config.contactPhasePath)
         remote.companyPhasePathInput.setText(config.companyPhasePath)
         remote.companyDestinationsPathInput.setText(config.companyDestinationsPath)
         remote.contactsSharedLookupPathInput.setText(config.contactsSharedLookupPath)
@@ -100,6 +101,7 @@ object MainSettingsConfigUi {
             historyLookupPath = remote.historyLookupPathInput.text?.toString().orEmpty(),
             syncPath = remote.syncPathInput.text?.toString().orEmpty(),
             syncEditPath = remote.syncEditPathInput.text?.toString().orEmpty(),
+            contactPhasePath = remote.contactPhasePathInput.text?.toString().orEmpty(),
             companyPhasePath = remote.companyPhasePathInput.text?.toString().orEmpty(),
             companyDestinationsPath = remote.companyDestinationsPathInput.text?.toString().orEmpty(),
             contactsSharedLookupPath = remote.contactsSharedLookupPathInput.text?.toString().orEmpty(),
