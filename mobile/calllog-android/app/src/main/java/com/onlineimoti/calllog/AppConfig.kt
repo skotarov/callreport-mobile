@@ -43,6 +43,7 @@ data class AppConfig(
     val historyLookupPath: String = "/relationship-manager/history_lookup.php",
     val syncPath: String = "/relationship-manager/sync.php",
     val syncEditPath: String = "/relationship-manager/api/sync_edit.php",
+    val contactPhasePath: String = "/broker/callreport/contact_phase.php",
     val companyPhasePath: String = "/relationship-manager/company_phase.php",
     val companyDestinationsPath: String = "/relationship-manager/company_destinations.php",
     val contactsSharedLookupPath: String = "/relationship-manager/contacts_shared_lookup.php",
@@ -68,6 +69,7 @@ object ConfigStore {
     private const val KEY_HISTORY_LOOKUP_PATH = "history_lookup_path"
     private const val KEY_SYNC_PATH = "sync_path"
     private const val KEY_SYNC_EDIT_PATH = "sync_edit_path"
+    private const val KEY_CONTACT_PHASE_PATH = "contact_phase_path"
     private const val KEY_COMPANY_PHASE_PATH = "company_phase_path"
     private const val KEY_COMPANY_DESTINATIONS_PATH = "company_destinations_path"
     private const val KEY_CONTACTS_SHARED_LOOKUP_PATH = "contacts_shared_lookup_path"
@@ -104,6 +106,7 @@ object ConfigStore {
     const val DEFAULT_HISTORY_LOOKUP_PATH = "/relationship-manager/history_lookup.php"
     const val DEFAULT_SYNC_PATH = "/relationship-manager/sync.php"
     const val DEFAULT_SYNC_EDIT_PATH = "/relationship-manager/api/sync_edit.php"
+    const val DEFAULT_CONTACT_PHASE_PATH = "/broker/callreport/contact_phase.php"
     const val DEFAULT_COMPANY_PHASE_PATH = "/relationship-manager/company_phase.php"
     const val DEFAULT_COMPANY_DESTINATIONS_PATH = "/relationship-manager/company_destinations.php"
     const val DEFAULT_CONTACTS_SHARED_LOOKUP_PATH = "/relationship-manager/contacts_shared_lookup.php"
@@ -155,6 +158,7 @@ object ConfigStore {
             historyLookupPath = normalizePath(prefs.getString(KEY_HISTORY_LOOKUP_PATH, DEFAULT_HISTORY_LOOKUP_PATH)!!.trim(), DEFAULT_HISTORY_LOOKUP_PATH),
             syncPath = normalizePath(prefs.getString(KEY_SYNC_PATH, DEFAULT_SYNC_PATH)!!.trim(), DEFAULT_SYNC_PATH),
             syncEditPath = normalizePath(prefs.getString(KEY_SYNC_EDIT_PATH, DEFAULT_SYNC_EDIT_PATH)!!.trim(), DEFAULT_SYNC_EDIT_PATH),
+            contactPhasePath = normalizePath(prefs.getString(KEY_CONTACT_PHASE_PATH, DEFAULT_CONTACT_PHASE_PATH)!!.trim(), DEFAULT_CONTACT_PHASE_PATH),
             companyPhasePath = normalizePath(prefs.getString(KEY_COMPANY_PHASE_PATH, DEFAULT_COMPANY_PHASE_PATH)!!.trim(), DEFAULT_COMPANY_PHASE_PATH),
             companyDestinationsPath = normalizePath(prefs.getString(KEY_COMPANY_DESTINATIONS_PATH, DEFAULT_COMPANY_DESTINATIONS_PATH)!!.trim(), DEFAULT_COMPANY_DESTINATIONS_PATH),
             contactsSharedLookupPath = normalizePath(prefs.getString(KEY_CONTACTS_SHARED_LOOKUP_PATH, DEFAULT_CONTACTS_SHARED_LOOKUP_PATH)!!.trim(), DEFAULT_CONTACTS_SHARED_LOOKUP_PATH),
@@ -207,6 +211,7 @@ object ConfigStore {
             .putString(KEY_HISTORY_LOOKUP_PATH, normalized.historyLookupPath)
             .putString(KEY_SYNC_PATH, normalized.syncPath)
             .putString(KEY_SYNC_EDIT_PATH, normalized.syncEditPath)
+            .putString(KEY_CONTACT_PHASE_PATH, normalized.contactPhasePath)
             .putString(KEY_COMPANY_PHASE_PATH, normalized.companyPhasePath)
             .putString(KEY_COMPANY_DESTINATIONS_PATH, normalized.companyDestinationsPath)
             .putString(KEY_CONTACTS_SHARED_LOOKUP_PATH, normalized.contactsSharedLookupPath)
@@ -259,6 +264,7 @@ object ConfigStore {
         historyLookupPath = normalizePath(config.historyLookupPath, DEFAULT_HISTORY_LOOKUP_PATH),
         syncPath = normalizePath(config.syncPath, DEFAULT_SYNC_PATH),
         syncEditPath = normalizePath(config.syncEditPath, DEFAULT_SYNC_EDIT_PATH),
+        contactPhasePath = normalizePath(config.contactPhasePath, DEFAULT_CONTACT_PHASE_PATH),
         companyPhasePath = normalizePath(config.companyPhasePath, DEFAULT_COMPANY_PHASE_PATH),
         companyDestinationsPath = normalizePath(config.companyDestinationsPath, DEFAULT_COMPANY_DESTINATIONS_PATH),
         contactsSharedLookupPath = normalizePath(config.contactsSharedLookupPath, DEFAULT_CONTACTS_SHARED_LOOKUP_PATH),
