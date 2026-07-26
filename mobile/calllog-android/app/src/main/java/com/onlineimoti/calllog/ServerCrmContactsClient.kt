@@ -44,18 +44,17 @@ internal object ServerCrmContactsClient {
                         val phone = item.optString("phone").trim().ifBlank { item.optString("number").trim() }
                         if (HomeCallPageLoader.noteKey(phone).isBlank()) continue
 
-                        // New servers already apply the requested phase filter. Keep a
-                        // defensive client-side check so a stale/legacy deployment cannot
-                        // leave the Clients phase buttons looking active while returning
-                        // contacts from other phases. Missing legacy phase fields remain
-                        // trusted for backward compatibility.
-                        if (
-                            filterState.phases.isNotEmpty() &&
-                            item.has("phase") &&
-                            !item.isNull("phase") &&
-                            item.optInt("phase", ContactNegotiationPhaseStore.NONE) !in filterState.phases
-                        ) {
-                            continue
+                        // The server is the primary filter. This defensive check keeps the
+                        // Clients list correct if an older deployment ignores the phase
+                        // parameter. Legacy responses without a phase field remain trusted.
+                        if (item.has("phase") && !item.isNull("phase")) {
+                            val returnedPhase = item.optInt("phase", ContactNegotiationPhaseStore.NONE)
+                            val matchesPhase = if (filterState.phases.isEmpty()) {
+                                returnedPhase == ContactNegotiationPhaseStore.NONE
+                            } else {
+                                returnedPhase in filterState.phases
+                            }
+                            if (!matchesPhase) continue
                         }
 
                         val rawSnippet = item.optString("search_match_text").trim()
@@ -92,12 +91,12 @@ internal object ServerCrmContactsClient {
         filterState: HomeCrmFilterState,
         searchQuery: String,
     ): Map<String, String> {
-        // Empty selections mean "no filter" in the UI, therefore all values.
+        // The phase UI intentionally treats no selected button as "unassigned".
         val phase = filterState.phases
             .takeIf { it.isNotEmpty() }
             ?.sorted()
             ?.joinToString(",")
-            ?: "all"
+            ?: "none"
         val companyId = filterState.companyIds
             .takeIf { it.isNotEmpty() }
             ?.sorted()
