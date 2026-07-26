@@ -6,6 +6,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 
 /** Reads personal and shared-company CRM contacts available to the signed-in profile. */
 internal object ServerCrmContactsClient {
@@ -18,6 +19,7 @@ internal object ServerCrmContactsClient {
         context: Context? = null,
     ): List<PhoneCallRecord> {
         if (!CallReportRemoteAccess.isReady(config)) return emptyList()
+        ServerCrmContactsPhaseHints.clear()
         val endpoint = buildEndpoint(config.baseUrl, PATH, queryParameters(config, filterState, searchQuery))
         val connection = runCatching { URL(endpoint).openConnection() as HttpURLConnection }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
@@ -38,25 +40,19 @@ internal object ServerCrmContactsClient {
                 val json = JSONObject(body)
                 if (!json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "Contacts lookup failed"))
                 val contacts = json.optJSONArray("contacts") ?: json.optJSONArray("items")
-                return buildList {
+                val phaseHints = linkedMapOf<String, ServerCrmContactPhaseHint>()
+                val records = buildList {
                     for (index in 0 until (contacts?.length() ?: 0)) {
                         val item = contacts?.optJSONObject(index) ?: continue
                         val phone = item.optString("phone").trim().ifBlank { item.optString("number").trim() }
-                        if (HomeCallPageLoader.noteKey(phone).isBlank()) continue
-
-                        // The server is the primary filter. This defensive check keeps the
-                        // Clients list correct if an older deployment ignores the phase
-                        // parameter. Legacy responses without a phase field remain trusted.
+                        val phoneKey = HomeCallPageLoader.noteKey(phone)
+                        if (phoneKey.isBlank()) continue
                         if (item.has("phase") && !item.isNull("phase")) {
-                            val returnedPhase = item.optInt("phase", ContactNegotiationPhaseStore.NONE)
-                            val matchesPhase = if (filterState.phases.isEmpty()) {
-                                returnedPhase == ContactNegotiationPhaseStore.NONE
-                            } else {
-                                returnedPhase in filterState.phases
-                            }
-                            if (!matchesPhase) continue
+                            phaseHints[phoneKey] = ServerCrmContactPhaseHint(
+                                companyId = item.optString("company_id").trim(),
+                                phase = item.optInt("phase", ContactNegotiationPhaseStore.NONE),
+                            )
                         }
-
                         val rawSnippet = item.optString("search_match_text").trim()
                             .ifBlank { item.optString("search_snippet").trim() }
                             .ifBlank { item.optString("matched_note").trim() }
@@ -77,7 +73,10 @@ internal object ServerCrmContactsClient {
                         )
                     }
                 }.distinctBy { HomeCallPageLoader.noteKey(it.number) }
+                ServerCrmContactsPhaseHints.replace(phaseHints)
+                return records
             } catch (error: Throwable) {
+                ServerCrmContactsPhaseHints.clear()
                 ServerConnectionNotifier.notifyFailure(context, config, error)
                 throw error
             }
@@ -91,12 +90,6 @@ internal object ServerCrmContactsClient {
         filterState: HomeCrmFilterState,
         searchQuery: String,
     ): Map<String, String> {
-        // The phase UI intentionally treats no selected button as "unassigned".
-        val phase = filterState.phases
-            .takeIf { it.isNotEmpty() }
-            ?.sorted()
-            ?.joinToString(",")
-            ?: "none"
         val companyId = filterState.companyIds
             .takeIf { it.isNotEmpty() }
             ?.sorted()
@@ -105,9 +98,12 @@ internal object ServerCrmContactsClient {
         val query = searchQuery.trim()
         return linkedMapOf(
             "access_token" to config.accessToken,
-            "phase" to phase,
-            // Some older server deployments read only the plural alias.
-            "phases" to phase,
+            // The Clients page needs the complete company-scoped candidate set.
+            // Android then combines confirmed server phases with just-edited local
+            // phase state before filtering, so a pending sync cannot produce an
+            // incorrectly empty list.
+            "phase" to "all",
+            "phases" to "all",
             "company_id" to companyId,
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
@@ -117,4 +113,24 @@ internal object ServerCrmContactsClient {
             }
         }
     }
+}
+
+internal data class ServerCrmContactPhaseHint(
+    val companyId: String,
+    val phase: Int,
+)
+
+/** Phase metadata returned together with the current Clients candidate list. */
+internal object ServerCrmContactsPhaseHints {
+    private val values = ConcurrentHashMap<String, ServerCrmContactPhaseHint>()
+
+    fun replace(next: Map<String, ServerCrmContactPhaseHint>) {
+        values.clear()
+        values.putAll(next)
+    }
+
+    fun clear() = values.clear()
+
+    fun forPhone(phone: String): ServerCrmContactPhaseHint? =
+        values[HomeCallPageLoader.noteKey(phone)]
 }

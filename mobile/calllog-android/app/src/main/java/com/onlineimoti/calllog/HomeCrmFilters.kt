@@ -120,7 +120,31 @@ internal object HomeCrmFilterEngine {
             phones = calls.map { it.number },
         )
         return calls.filter { call ->
-            val phasesByCompany = phasesByCompanyByPhone[HomeCallPageLoader.noteKey(call.number)].orEmpty()
+            val phasesByCompany = phasesByCompanyByPhone[HomeCallPageLoader.noteKey(call.number)]
+                .orEmpty()
+                .toMutableMap()
+
+            // contacts_shared_lookup.php also returns a phase for personal records.
+            // company_phase.php intentionally returns only company-scoped phases,
+            // so retain this hint to avoid dropping personal clients from a phase.
+            val serverHint = ServerCrmContactsPhaseHints.forPhone(call.number)
+            if (serverHint != null && serverHint.phase in ContactNegotiationPhaseStore.PHASE_1..ContactNegotiationPhaseStore.PHASE_4) {
+                phasesByCompany.putIfAbsent(serverHint.companyId, serverHint.phase)
+            }
+
+            // A just-edited personal/legacy phase must win until its server round-trip
+            // completes, just like CompanyNegotiationPhaseStore does for firm phases.
+            if (serverHint?.companyId.isNullOrBlank()) {
+                val localPersonal = ContactNegotiationPhaseStore.state(context.applicationContext, call.number)
+                if (localPersonal.updatedAtMs > 0L) {
+                    if (localPersonal.phase in ContactNegotiationPhaseStore.PHASE_1..ContactNegotiationPhaseStore.PHASE_4) {
+                        phasesByCompany[""] = localPersonal.phase
+                    } else {
+                        phasesByCompany.remove("")
+                    }
+                }
+            }
+
             val scopedPhases = if (state.hasCompanyFilter) {
                 phasesByCompany.filterKeys { it in state.companyIds }
             } else {
