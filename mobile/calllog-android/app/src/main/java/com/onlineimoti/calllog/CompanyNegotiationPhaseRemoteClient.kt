@@ -9,14 +9,13 @@ import java.net.URL
 
 /** HTTP client for a negotiation phase scoped to one company and one phone. */
 internal object CompanyNegotiationPhaseRemoteClient {
-    private const val PATH = "/relationship-manager/company_phase.php"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 10_000
 
     fun fetch(config: AppConfig, phone: String, companyId: String): ContactNegotiationPhaseState {
         val endpoint = buildEndpoint(
             config.baseUrl,
-            PATH,
+            config.companyPhasePath,
             linkedMapOf("phone" to phone, "company_id" to companyId),
         )
         return request(config, endpoint, "GET", null)
@@ -28,7 +27,7 @@ internal object CompanyNegotiationPhaseRemoteClient {
         companyId: String,
         state: ContactNegotiationPhaseState,
     ): ContactNegotiationPhaseState {
-        val endpoint = config.baseUrl.trim().trimEnd('/') + PATH
+        val endpoint = config.baseUrl.trim().trimEnd('/') + config.companyPhasePath
         val payload = JSONObject().apply {
             put("phone", phone)
             put("company_id", companyId)
