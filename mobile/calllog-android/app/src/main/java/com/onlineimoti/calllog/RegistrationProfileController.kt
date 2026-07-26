@@ -50,7 +50,9 @@ internal object RegistrationProfileController {
                         visibility = View.VISIBLE
                         text = activity.getString(
                             R.string.settings_registration_profile_load_failed,
-                            error.message.orEmpty().ifBlank { activity.getString(R.string.settings_registration_action_failed, "") },
+                            error.message.orEmpty().ifBlank {
+                                activity.getString(R.string.settings_registration_profile_server_error)
+                            },
                         )
                     }
                     binding.registrationLogoutButton.apply {
