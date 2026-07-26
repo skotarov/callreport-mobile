@@ -1,11 +1,16 @@
 <resources>
     <string name="settings_profile_companies_section">Profile &amp; companies</string>
-    <string name="settings_profile_companies_description">Create or open your profile, join by invitation, and manage the connected companies separately.</string>
+    <string name="settings_profile_companies_description">Create or open your profile with a one-time code, join by invitation, and manage its companies separately.</string>
     <string name="settings_registration_profile_license">Profile</string>
-    <string name="settings_registration_profile_description">A profile is created only with a name, email and password. Companies and their licenses are added separately.</string>
+    <string name="settings_registration_profile_description">A profile has a name, email and phone. Email and phone are verified with one-time codes. No password is required.</string>
     <string name="settings_registration_current_profile">Signed-in profile: %1$s</string>
+    <string name="settings_registration_current_profile_details">Signed-in profile: %1$s\nEmail: %2$s · %3$s\nPhone: %4$s · %5$s</string>
+    <string name="settings_registration_contact_verified">verified</string>
+    <string name="settings_registration_contact_unverified">not verified</string>
+    <string name="settings_registration_missing_email">no email entered</string>
+    <string name="settings_registration_missing_phone">no phone entered</string>
     <string name="settings_registration_logout">Sign out</string>
-    <string name="settings_registration_logged_out">You have signed out.</string>
+    <string name="settings_registration_logged_out">You have signed out. The server connection key was deleted.</string>
     <string name="settings_registration_companies_section">Connected companies</string>
     <string name="settings_registration_companies_description">Companies where you are an owner or administrator have their own Invite colleague button.</string>
     <string name="settings_registration_no_company">No connected companies</string>
