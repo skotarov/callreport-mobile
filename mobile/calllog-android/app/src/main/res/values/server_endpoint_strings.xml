@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="server_history_lookup_path_hint">History data endpoint — history_lookup.php</string>
+    <string name="server_sync_path_hint">Company note sync endpoint — sync.php</string>
+    <string name="server_sync_edit_path_hint">Communication edit sync endpoint — sync_edit.php</string>
+    <string name="server_company_phase_path_hint">Company phase endpoint — company_phase.php</string>
+    <string name="server_company_destinations_path_hint">Company destinations endpoint — company_destinations.php</string>
+    <string name="server_contacts_shared_lookup_path_hint">CRM contacts endpoint — contacts_shared_lookup.php</string>
+    <string name="server_profile_crm_contacts_path_hint">Private CRM markers endpoint — profile_crm_contacts.php</string>
+    <string name="server_company_users_path_hint">Company users endpoint — company_users.php</string>
+    <string name="server_auth_path_hint">Profile authentication endpoint — auth.php</string>
+    <string name="server_invitations_path_hint">Company invitations endpoint — invitations.php</string>
+    <string name="server_billing_path_hint">Company license endpoint — billing.php</string>
+</resources>
