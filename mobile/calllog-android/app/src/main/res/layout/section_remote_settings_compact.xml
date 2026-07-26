@@ -339,6 +339,111 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
+                android:hint="@string/server_config_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/configPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_standalone_lookup_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/standaloneLookupPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_home_notes_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/homeNotesPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_property_search_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/propertySearchPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_standalone_form_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/standaloneFormPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_standalone_history_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/standaloneHistoryPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_submit_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/submitPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:hint="@string/server_backup_code_hint"
                 app:boxBackgroundColor="@android:color/white"
                 app:boxStrokeColor="@color/calllog_border">
