@@ -29,6 +29,7 @@ internal object ServerCrmContactsClient {
                 connection.connectTimeout = 10_000
                 connection.readTimeout = 10_000
                 connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer ${config.accessToken}")
                 connection.setRequestProperty("X-Relationship-Manager-Token", config.accessToken)
                 connection.setRequestProperty("X-Callreport-Token", config.accessToken)
                 val status = connection.responseCode
@@ -43,6 +44,14 @@ internal object ServerCrmContactsClient {
                         val item = contacts?.optJSONObject(index) ?: continue
                         val phone = item.optString("phone").trim().ifBlank { item.optString("number").trim() }
                         if (HomeCallPageLoader.noteKey(phone).isBlank()) continue
+
+                        // The current server is authoritative. The local profile cache
+                        // is a defensive fallback during a rolling server deployment.
+                        if (filterState.crmOnly) {
+                            val serverMarked = item.optBoolean("is_crm", false)
+                            val cachedMarked = context?.let { CrmContactSyncStore.isEnabled(it, phone) } == true
+                            if (!serverMarked && !cachedMarked) continue
+                        }
 
                         // The server is the primary filter. This defensive check keeps the
                         // Clients list correct if an older deployment ignores the phase
@@ -109,6 +118,7 @@ internal object ServerCrmContactsClient {
             // Some older server deployments read only the plural alias.
             "phases" to phase,
             "company_id" to companyId,
+            "crm_only" to if (filterState.crmOnly) "1" else "0",
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
             if (query.isNotBlank()) {
