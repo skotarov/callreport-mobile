@@ -38,6 +38,7 @@ internal class MainSettingsAutoSaveController(
             remote.historyLookupPathInput,
             remote.syncPathInput,
             remote.syncEditPathInput,
+            remote.contactPhasePathInput,
             remote.companyPhasePathInput,
             remote.companyDestinationsPathInput,
             remote.contactsSharedLookupPathInput,
