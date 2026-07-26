@@ -10,7 +10,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="18dp"
-        android:checked="true"
+        android:clickable="false"
+        android:focusable="false"
         android:text="@string/server_enabled" />
 
     <LinearLayout
@@ -31,8 +32,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
-                android:inputType="textUri"
-                android:text="https://onlineimoti.com" />
+                android:inputType="textUri" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -122,8 +122,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@android:color/transparent"
-                    android:inputType="textUri"
-                    android:text="/broker/callreport/lookup.php" />
+                    android:inputType="textUri" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -138,8 +137,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@android:color/transparent"
-                    android:inputType="textUri"
-                    android:text="/broker/callreport/form.php" />
+                    android:inputType="textUri" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -154,8 +152,172 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@android:color/transparent"
-                    android:inputType="textUri"
-                    android:text="/broker/callreport/history.php" />
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_history_lookup_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/historyLookupPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_sync_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/syncPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_sync_edit_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/syncEditPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_company_phase_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/companyPhasePathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_company_destinations_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/companyDestinationsPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_contacts_shared_lookup_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/contactsSharedLookupPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_profile_crm_contacts_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/profileCrmContactsPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_company_users_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/companyUsersPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_auth_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/authPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_invitations_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/invitationsPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/server_billing_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/billingPathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
