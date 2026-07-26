@@ -72,6 +72,16 @@ internal object CompanySessionStore {
         }
     }
 
+    /**
+     * Stable local namespace for profile-owned caches. It intentionally excludes
+     * the rotating access token, so the cache survives a new login token.
+     */
+    fun profileScopeKey(context: Context): String {
+        val snapshot = load(context.applicationContext) ?: return ""
+        return snapshot.userEmail.trim().lowercase()
+            .ifBlank { PhoneNormalizer.key(snapshot.userPhone) }
+    }
+
     fun isCurrent(context: Context, accessToken: String): Boolean {
         if (accessToken.isBlank()) return false
         val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
