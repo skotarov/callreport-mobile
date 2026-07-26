@@ -15,7 +15,7 @@ import com.onlineimoti.calllog.databinding.ActivityHomeBinding
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-/** CRM Home filter controls: phase buttons and in-row company toggles. */
+/** CRM Home filter controls: personal CRM, phase buttons and company toggles. */
 internal class HomeCrmFiltersController(
     private val activity: HomeActivity,
     private val binding: ActivityHomeBinding,
@@ -135,6 +135,11 @@ internal class HomeCrmFiltersController(
         if (cached != companies) companies = cached
     }
 
+    private fun toggleCrmOnly() {
+        if (activeScope != HomeCrmFilterStore.Scope.CLIENTS) return
+        updateState(state.copy(crmOnly = !state.crmOnly))
+    }
+
     private fun togglePhase(phase: Int) {
         val phases = state().phases.toMutableSet()
         if (!phases.add(phase)) phases.remove(phase)
@@ -184,13 +189,44 @@ internal class HomeCrmFiltersController(
     }
 
     private fun renderCompanyButtons() {
+        ensureCurrentScope()
         val available = companies.filter { it.id.isNotBlank() && it.name.isNotBlank() }
             .distinctBy { it.id }
             .sortedBy { it.name.lowercase() }
+        val showPersonalCrm = activeScope == HomeCrmFilterStore.Scope.CLIENTS
         companyButtonsContainer.removeAllViews()
+        if (showPersonalCrm) companyButtonsContainer.addView(crmFilterButton())
         available.forEach { companyButtonsContainer.addView(companyButton(it)) }
-        showCompanyButtons(binding.crmPhaseFilterRow.visibility == View.VISIBLE && available.isNotEmpty())
+        showCompanyButtons(
+            binding.crmPhaseFilterRow.visibility == View.VISIBLE && (showPersonalCrm || available.isNotEmpty()),
+        )
     }
+
+    /** Matches the slightly rectangular CRM action used on the History page. */
+    private fun crmFilterButton(): MaterialButton =
+        MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = "CRM"
+            contentDescription = if (state.crmOnly) "Покажи всички клиенти" else "Покажи само моите CRM клиенти"
+            isAllCaps = false
+            setSingleLine()
+            textSize = 12f
+            minimumHeight = 0
+            minimumWidth = 0
+            insetTop = 0
+            insetBottom = 0
+            cornerRadius = dp(10)
+            strokeWidth = dp(1)
+            setIconResource(R.drawable.ic_cloud_note)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            iconSize = dp(17)
+            iconPadding = dp(4)
+            setPadding(dp(8), 0, dp(9), 0)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply {
+                marginEnd = dp(4)
+            }
+            styleCrmButton(this, state.crmOnly)
+            setOnClickListener { toggleCrmOnly() }
+        }
 
     private fun companyButton(company: CallReportTopicCompany): MaterialButton =
         MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
@@ -232,6 +268,18 @@ internal class HomeCrmFiltersController(
         button.backgroundTintList = ColorStateList.valueOf(color)
         button.strokeColor = ColorStateList.valueOf(color)
         button.setTextColor(if (selected) activeTextColor else COLOR_DARK_TEXT)
+    }
+
+    private fun styleCrmButton(button: MaterialButton, active: Boolean) {
+        val activeColor = activity.getColor(R.color.callreport_icon_background)
+        val fill = if (active) activeColor else Color.WHITE
+        val border = if (active) activeColor else COLOR_INACTIVE
+        val foreground = if (active) Color.WHITE else COLOR_DARK_TEXT
+        button.isSelected = active
+        button.backgroundTintList = ColorStateList.valueOf(fill)
+        button.strokeColor = ColorStateList.valueOf(border)
+        button.iconTint = ColorStateList.valueOf(foreground)
+        button.setTextColor(foreground)
     }
 
     private fun styleCompanyButton(button: MaterialButton, active: Boolean) {
