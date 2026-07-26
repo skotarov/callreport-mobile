@@ -193,12 +193,15 @@ internal object CompanyAccountApi {
 
     fun applySession(context: Context, session: Session) {
         val current = ConfigStore.load(context)
+        val unchangedValidatedToken = current.remoteEnabled &&
+            current.accessToken.trim().isNotBlank() &&
+            current.accessToken.trim() == session.accessToken.trim()
         ConfigStore.save(
             context,
             current.copy(
-                // Login stores the token, but this first manual phase requires the
-                // Settings → Connect check before global server/CRM mode becomes active.
-                remoteEnabled = false,
+                // A new/rotated token must pass Settings → Connect. A normal
+                // profile refresh with the same validated token keeps server mode.
+                remoteEnabled = unchangedValidatedToken,
                 accessToken = session.accessToken,
             ),
         )
