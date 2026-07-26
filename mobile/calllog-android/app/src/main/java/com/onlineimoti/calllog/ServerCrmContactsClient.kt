@@ -7,9 +7,9 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** Reads the authenticated user's CRM contacts from the Relationship Manager server. */
+/** Reads personal and shared-company CRM contacts available to the signed-in profile. */
 internal object ServerCrmContactsClient {
-    private const val PATH = "/relationship-manager/contacts_lookup.php"
+    private const val PATH = "/relationship-manager/contacts_shared_lookup.php"
 
     fun lookup(
         config: AppConfig,
@@ -77,16 +77,17 @@ internal object ServerCrmContactsClient {
         filterState: HomeCrmFilterState,
         searchQuery: String,
     ): Map<String, String> {
-        val phase = if (filterState.phases.isEmpty()) {
-            "none"
-        } else {
-            filterState.phases.sorted().joinToString(",")
-        }
-        val companyId = if (filterState.companyIds.isEmpty()) {
-            "none"
-        } else {
-            filterState.companyIds.sorted().joinToString(",")
-        }
+        // Empty selections mean "no filter" in the UI, therefore all values.
+        val phase = filterState.phases
+            .takeIf { it.isNotEmpty() }
+            ?.sorted()
+            ?.joinToString(",")
+            ?: "all"
+        val companyId = filterState.companyIds
+            .takeIf { it.isNotEmpty() }
+            ?.sorted()
+            ?.joinToString(",")
+            ?: "all"
         val query = searchQuery.trim()
         return linkedMapOf(
             "access_token" to config.accessToken,
