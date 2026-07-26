@@ -15,9 +15,15 @@ internal object ServerConnectionTester {
     )
 
     fun test(config: AppConfig): Result {
-        require(config.baseUrl.isNotBlank()) { "Липсва Server URL." }
-        require(config.accessToken.isNotBlank()) { "Липсва access token." }
-        val endpoint = buildEndpoint(config.baseUrl, config.authPath, emptyMap())
+        val baseUrl = config.baseUrl.trim().trimEnd('/')
+        val token = config.accessToken.trim()
+        require(baseUrl.isNotBlank()) { "Липсва Server URL." }
+        require(
+            baseUrl.startsWith("https://", ignoreCase = true) ||
+                (BuildConfig.DEBUG && baseUrl.startsWith("http://", ignoreCase = true)),
+        ) { "Server URL трябва да започва с https://." }
+        require(token.isNotBlank()) { "Липсва access token." }
+        val endpoint = buildEndpoint(baseUrl, config.authPath, emptyMap())
         val payload = JSONObject().put("action", "me").toString().toByteArray(StandardCharsets.UTF_8)
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -26,9 +32,9 @@ internal object ServerConnectionTester {
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("Authorization", "Bearer ${config.accessToken}")
-            setRequestProperty("X-Relationship-Manager-Token", config.accessToken)
-            setRequestProperty("X-Callreport-Token", config.accessToken)
+            setRequestProperty("Authorization", "Bearer $token")
+            setRequestProperty("X-Relationship-Manager-Token", token)
+            setRequestProperty("X-Callreport-Token", token)
         }
         try {
             connection.outputStream.use { it.write(payload) }
