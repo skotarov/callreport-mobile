@@ -2,6 +2,7 @@ package com.onlineimoti.calllog
 
 import android.app.Activity
 import android.graphics.Color
+import android.graphics.Typeface
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -17,20 +18,31 @@ internal class ContactNotesCards(
         serverConfirmed: Boolean,
         syncStatusText: String,
         onClick: () -> Unit,
+        authorName: String = "",
+        editable: Boolean = true,
     ): LinearLayout {
         val colors = NoteUiStyle.General
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(10), dp(12), dp(10))
             if (!muted) background = roundedRect(colors.background, dp(12), colors.border, dp(1))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { onClick() }
+            isClickable = editable
+            isFocusable = editable
+            if (editable) setOnClickListener { onClick() }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { bottomMargin = dp(8) }
 
+            if (authorName.isNotBlank()) {
+                addView(TextView(activity).apply {
+                    text = authorName
+                    textSize = 12.5f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(activity.getColor(R.color.callreport_icon_background))
+                    setPadding(0, 0, 0, dp(5))
+                })
+            }
             addView(TextView(activity).apply {
                 text = textValue
                 textSize = 14.5f
