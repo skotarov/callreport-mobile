@@ -92,6 +92,10 @@ internal object InvitedAccountApi {
             userName = user?.optString("display_name").orEmpty().trim(),
             organizationName = organization?.optString("name").orEmpty().trim(),
             organizationId = organization?.optString("id").orEmpty().trim(),
+            userEmail = user?.optString("email").orEmpty().trim(),
+            userPhone = user?.optString("phone").orEmpty().trim(),
+            emailVerified = user?.optBoolean("email_verified", false) ?: false,
+            phoneVerified = user?.optBoolean("phone_verified", false) ?: false,
         )
     }
 }
