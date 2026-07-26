@@ -3,6 +3,7 @@
     <string name="server_history_lookup_path_hint">Данни за историята — history_lookup.php</string>
     <string name="server_sync_path_hint">Синхронизация на фирмени бележки — sync.php</string>
     <string name="server_sync_edit_path_hint">Синхронизация и редакция на записи — sync_edit.php</string>
+    <string name="server_contact_phase_path_hint">Стара фаза на контакт — contact_phase.php</string>
     <string name="server_company_phase_path_hint">Фази по фирми — company_phase.php</string>
     <string name="server_company_destinations_path_hint">Достъпни фирми — company_destinations.php</string>
     <string name="server_contacts_shared_lookup_path_hint">CRM контакти — contacts_shared_lookup.php</string>
