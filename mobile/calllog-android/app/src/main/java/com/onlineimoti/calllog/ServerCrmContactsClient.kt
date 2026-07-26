@@ -43,20 +43,6 @@ internal object ServerCrmContactsClient {
                         val item = contacts?.optJSONObject(index) ?: continue
                         val phone = item.optString("phone").trim().ifBlank { item.optString("number").trim() }
                         if (HomeCallPageLoader.noteKey(phone).isBlank()) continue
-
-                        // The server is the primary filter. This defensive check keeps the
-                        // Clients list correct if an older deployment ignores the phase
-                        // parameter. Legacy responses without a phase field remain trusted.
-                        if (item.has("phase") && !item.isNull("phase")) {
-                            val returnedPhase = item.optInt("phase", ContactNegotiationPhaseStore.NONE)
-                            val matchesPhase = if (filterState.phases.isEmpty()) {
-                                returnedPhase == ContactNegotiationPhaseStore.NONE
-                            } else {
-                                returnedPhase in filterState.phases
-                            }
-                            if (!matchesPhase) continue
-                        }
-
                         val rawSnippet = item.optString("search_match_text").trim()
                             .ifBlank { item.optString("search_snippet").trim() }
                             .ifBlank { item.optString("matched_note").trim() }
@@ -91,12 +77,6 @@ internal object ServerCrmContactsClient {
         filterState: HomeCrmFilterState,
         searchQuery: String,
     ): Map<String, String> {
-        // The phase UI intentionally treats no selected button as "unassigned".
-        val phase = filterState.phases
-            .takeIf { it.isNotEmpty() }
-            ?.sorted()
-            ?.joinToString(",")
-            ?: "none"
         val companyId = filterState.companyIds
             .takeIf { it.isNotEmpty() }
             ?.sorted()
@@ -105,9 +85,12 @@ internal object ServerCrmContactsClient {
         val query = searchQuery.trim()
         return linkedMapOf(
             "access_token" to config.accessToken,
-            "phase" to phase,
-            // Some older server deployments read only the plural alias.
-            "phases" to phase,
+            // The Clients page needs the complete company-scoped candidate set.
+            // Android then combines confirmed server phases with just-edited local
+            // phase state before filtering, so a pending sync cannot produce an
+            // incorrectly empty list.
+            "phase" to "all",
+            "phases" to "all",
             "company_id" to companyId,
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
