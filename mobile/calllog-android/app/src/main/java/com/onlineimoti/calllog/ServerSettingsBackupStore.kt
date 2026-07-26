@@ -78,15 +78,27 @@ internal object ServerSettingsBackupStore {
             val settings = JSONObject(plainText.toString(StandardCharsets.UTF_8))
             RestoreResult.Restored(
                 currentConfig.copy(
-                    remoteEnabled = settings.booleanOrCurrent("remote_enabled", currentConfig.remoteEnabled),
+                    // Restored credentials must pass Connect again before CRM/server mode is enabled.
+                    remoteEnabled = false,
                     baseUrl = settings.stringOrCurrent("base_url", currentConfig.baseUrl),
                     accessToken = settings.stringOrCurrent("access_token", currentConfig.accessToken),
                     lookupPath = settings.stringOrCurrent("lookup_path", currentConfig.lookupPath),
                     formPath = settings.stringOrCurrent("form_path", currentConfig.formPath),
                     historyPath = settings.stringOrCurrent("history_path", currentConfig.historyPath),
+                    historyLookupPath = settings.stringOrCurrent("history_lookup_path", currentConfig.historyLookupPath),
+                    syncPath = settings.stringOrCurrent("sync_path", currentConfig.syncPath),
+                    syncEditPath = settings.stringOrCurrent("sync_edit_path", currentConfig.syncEditPath),
+                    companyPhasePath = settings.stringOrCurrent("company_phase_path", currentConfig.companyPhasePath),
+                    companyDestinationsPath = settings.stringOrCurrent("company_destinations_path", currentConfig.companyDestinationsPath),
+                    contactsSharedLookupPath = settings.stringOrCurrent("contacts_shared_lookup_path", currentConfig.contactsSharedLookupPath),
+                    profileCrmContactsPath = settings.stringOrCurrent("profile_crm_contacts_path", currentConfig.profileCrmContactsPath),
+                    companyUsersPath = settings.stringOrCurrent("company_users_path", currentConfig.companyUsersPath),
+                    authPath = settings.stringOrCurrent("auth_path", currentConfig.authPath),
+                    invitationsPath = settings.stringOrCurrent("invitations_path", currentConfig.invitationsPath),
+                    billingPath = settings.stringOrCurrent("billing_path", currentConfig.billingPath),
                 ),
             )
-        }.getOrElse { error ->
+        }.getOrElse {
             RestoreResult.Failed("Грешен PIN или повреден архивен файл.")
         }
     }
@@ -99,6 +111,17 @@ internal object ServerSettingsBackupStore {
             .put("lookup_path", config.lookupPath.trim())
             .put("form_path", config.formPath.trim())
             .put("history_path", config.historyPath.trim())
+            .put("history_lookup_path", config.historyLookupPath.trim())
+            .put("sync_path", config.syncPath.trim())
+            .put("sync_edit_path", config.syncEditPath.trim())
+            .put("company_phase_path", config.companyPhasePath.trim())
+            .put("company_destinations_path", config.companyDestinationsPath.trim())
+            .put("contacts_shared_lookup_path", config.contactsSharedLookupPath.trim())
+            .put("profile_crm_contacts_path", config.profileCrmContactsPath.trim())
+            .put("company_users_path", config.companyUsersPath.trim())
+            .put("auth_path", config.authPath.trim())
+            .put("invitations_path", config.invitationsPath.trim())
+            .put("billing_path", config.billingPath.trim())
     }
 
     private fun derivedKey(pin: String, salt: ByteArray): SecretKeySpec {
@@ -126,9 +149,5 @@ internal object ServerSettingsBackupStore {
     private fun JSONObject.stringOrCurrent(key: String, currentValue: String): String {
         if (!has(key) || isNull(key)) return currentValue
         return optString(key).trim()
-    }
-
-    private fun JSONObject.booleanOrCurrent(key: String, currentValue: Boolean): Boolean {
-        return if (!has(key) || isNull(key)) currentValue else optBoolean(key, currentValue)
     }
 }
