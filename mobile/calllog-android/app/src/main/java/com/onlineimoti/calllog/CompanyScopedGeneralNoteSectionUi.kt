@@ -9,7 +9,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Main-note section with one independent phase row directly below each company note. */
+/** Main-note section with one independent phase row directly below each company. */
 internal class CompanyScopedGeneralNoteSectionUi(
     private val activity: Activity,
     private val headerUi: ContactNotesHeaderUi,
@@ -36,31 +36,62 @@ internal class CompanyScopedGeneralNoteSectionUi(
         addUnscopedServerMainNote(section, unscopedServerMainNote, onEditUnscopedServerMainNote)
         if (!showCompanyNotes || !companyScopeAvailable) return
 
-        companyNotes.forEach { companyNote ->
-            val note = companyNote.note.trim()
-            section.addView(
-                companyHeader(
-                    name = companyNote.companyName,
-                    showCloud = true,
-                    showAdd = note.isBlank(),
-                    onAdd = { onEditCompany(companyNote.companyId) },
-                ),
-            )
-            if (note.isNotBlank() || companyNote.pending) {
-                val card = cards.generalNoteCard(
-                    textValue = note,
-                    muted = note.isBlank(),
-                    serverConfirmed = companyNote.confirmedByServer,
-                    syncStatusText = if (companyNote.pending) activity.getString(R.string.history_pending_server_sync) else "",
-                    onClick = { onEditCompany(companyNote.companyId) },
+        companyNotes
+            .filter { it.companyId.isNotBlank() }
+            .groupBy { it.companyId }
+            .values
+            .sortedBy { notes -> notes.firstOrNull()?.companyName.orEmpty().lowercase() }
+            .forEach { notes ->
+                addCompanyNotes(
+                    section = section,
+                    notes = notes,
+                    onEditCompany = onEditCompany,
+                    phaseBarForCompany = phaseBarForCompany,
                 )
-                if (phaseBarForCompany != null) {
-                    (card.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = dp(2)
-                }
-                section.addView(card)
             }
-            phaseBarForCompany?.invoke(companyNote.companyId)?.let(section::addView)
+    }
+
+    private fun addCompanyNotes(
+        section: LinearLayout,
+        notes: List<CallReportCompanyMainNote>,
+        onEditCompany: (String) -> Unit,
+        phaseBarForCompany: ((String) -> View)?,
+    ) {
+        val first = notes.firstOrNull() ?: return
+        val companyId = first.companyId
+        val companyName = first.companyName.ifBlank { companyId }
+        val multiAuthor = notes.any { it.multiAuthor }
+        val visibleNotes = notes
+            .filter { it.note.trim().isNotBlank() || it.pending }
+            .sortedByDescending { it.updatedAtMs }
+        val hasEditableNote = visibleNotes.any { it.editable }
+        val showAdd = if (multiAuthor) !hasEditableNote else visibleNotes.isEmpty()
+
+        section.addView(
+            companyHeader(
+                name = companyName,
+                showCloud = true,
+                showAdd = showAdd,
+                onAdd = { onEditCompany(companyId) },
+            ),
+        )
+        visibleNotes.forEach { companyNote ->
+            val note = companyNote.note.trim()
+            val card = cards.generalNoteCard(
+                textValue = note,
+                muted = note.isBlank(),
+                serverConfirmed = companyNote.confirmedByServer,
+                syncStatusText = if (companyNote.pending) activity.getString(R.string.history_pending_server_sync) else "",
+                onClick = { onEditCompany(companyId) },
+                authorName = if (multiAuthor) companyNote.authorBrokerName.trim() else "",
+                editable = companyNote.editable,
+            )
+            if (phaseBarForCompany != null && companyNote === visibleNotes.lastOrNull()) {
+                (card.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = dp(2)
+            }
+            section.addView(card)
         }
+        phaseBarForCompany?.invoke(companyId)?.let(section::addView)
     }
 
     private fun addLocalNote(
