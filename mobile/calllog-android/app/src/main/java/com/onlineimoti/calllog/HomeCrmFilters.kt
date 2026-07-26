@@ -10,6 +10,7 @@ import android.content.SharedPreferences
 internal data class HomeCrmFilterState(
     val phases: Set<Int> = emptySet(),
     val companyIds: Set<String> = emptySet(),
+    val crmOnly: Boolean = false,
 ) {
     val hasSelectedPhase: Boolean get() = phases.isNotEmpty()
     val hasPhaseFilter: Boolean get() = true
@@ -32,6 +33,7 @@ internal object HomeCrmFilterStore {
     private const val KEY_COMPANIES = "home_crm_company_filters_v1"
     private const val KEY_CLIENTS_PHASES = "home_crm_clients_phase_filters_v1"
     private const val KEY_CLIENTS_COMPANIES = "home_crm_clients_company_filters_v1"
+    private const val KEY_CLIENTS_CRM_ONLY = "home_crm_clients_personal_only_v1"
     private const val LEGACY_KEY_PHASE = "home_crm_phase_filter"
 
     fun scopeForContactsMode(contactsMode: Boolean): Scope = if (contactsMode) Scope.CLIENTS else Scope.CRM_CALLS
@@ -40,14 +42,37 @@ internal object HomeCrmFilterStore {
 
     fun load(context: Context, scope: Scope): HomeCrmFilterState {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (scope == Scope.CLIENTS && !prefs.contains(KEY_CLIENTS_PHASES) && !prefs.contains(KEY_CLIENTS_COMPANIES)) {
+        if (
+            scope == Scope.CLIENTS &&
+            !prefs.contains(KEY_CLIENTS_PHASES) &&
+            !prefs.contains(KEY_CLIENTS_COMPANIES) &&
+            !prefs.contains(KEY_CLIENTS_CRM_ONLY)
+        ) {
             // First run after this change: keep the user's currently selected filters
             // instead of making the Clients page look reset.
-            return loadFromKeys(prefs, KEY_PHASES, KEY_COMPANIES, readLegacyPhase = true)
+            return loadFromKeys(
+                prefs,
+                KEY_PHASES,
+                KEY_COMPANIES,
+                crmOnlyKey = null,
+                readLegacyPhase = true,
+            )
         }
         return when (scope) {
-            Scope.CRM_CALLS -> loadFromKeys(prefs, KEY_PHASES, KEY_COMPANIES, readLegacyPhase = true)
-            Scope.CLIENTS -> loadFromKeys(prefs, KEY_CLIENTS_PHASES, KEY_CLIENTS_COMPANIES, readLegacyPhase = false)
+            Scope.CRM_CALLS -> loadFromKeys(
+                prefs,
+                KEY_PHASES,
+                KEY_COMPANIES,
+                crmOnlyKey = null,
+                readLegacyPhase = true,
+            )
+            Scope.CLIENTS -> loadFromKeys(
+                prefs,
+                KEY_CLIENTS_PHASES,
+                KEY_CLIENTS_COMPANIES,
+                crmOnlyKey = KEY_CLIENTS_CRM_ONLY,
+                readLegacyPhase = false,
+            )
         }
     }
 
@@ -63,6 +88,7 @@ internal object HomeCrmFilterStore {
             Scope.CLIENTS -> editor
                 .putStringSet(KEY_CLIENTS_PHASES, normalizedPhaseStrings(state))
                 .putStringSet(KEY_CLIENTS_COMPANIES, normalizedCompanyIds(state))
+                .putBoolean(KEY_CLIENTS_CRM_ONLY, state.crmOnly)
         }.apply()
     }
 
@@ -70,6 +96,7 @@ internal object HomeCrmFilterStore {
         prefs: SharedPreferences,
         phaseKey: String,
         companyKey: String,
+        crmOnlyKey: String?,
         readLegacyPhase: Boolean,
     ): HomeCrmFilterState {
         val storedPhases = prefs.getStringSet(phaseKey, null)
@@ -88,6 +115,7 @@ internal object HomeCrmFilterStore {
         return HomeCrmFilterState(
             phases = normalizePhases(storedPhases),
             companyIds = companies,
+            crmOnly = crmOnlyKey?.let { prefs.getBoolean(it, false) } ?: false,
         )
     }
 
@@ -114,12 +142,18 @@ internal object HomeCrmFilterEngine {
         state: HomeCrmFilterState,
     ): List<PhoneCallRecord> {
         if (calls.isEmpty()) return emptyList()
+        val crmFiltered = if (state.crmOnly) {
+            calls.filter { CrmContactSyncStore.isEnabled(context.applicationContext, it.number) }
+        } else {
+            calls
+        }
+        if (crmFiltered.isEmpty()) return emptyList()
         val phasesByCompanyByPhone = HomeCrmPhaseLookup.resolveEffectiveCompanyPhases(
             context = context.applicationContext,
             config = ConfigStore.load(context.applicationContext),
-            phones = calls.map { it.number },
+            phones = crmFiltered.map { it.number },
         )
-        return calls.filter { call ->
+        return crmFiltered.filter { call ->
             val phasesByCompany = phasesByCompanyByPhone[HomeCallPageLoader.noteKey(call.number)].orEmpty()
             val scopedPhases = if (state.hasCompanyFilter) {
                 phasesByCompany.filterKeys { it in state.companyIds }
