@@ -16,14 +16,13 @@ internal data class CallReportTopicCompany(
 
 /** Loads only the real firms where the current user is an active member. */
 internal object CallReportTopicCompaniesClient {
-    private const val PATH = "/relationship-manager/company_destinations.php"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 10_000
 
     fun fetch(config: AppConfig): List<CallReportTopicCompany> {
         if (!CallReportRemoteAccess.isReady(config)) return emptyList()
 
-        val connection = URL(config.baseUrl.trim().trimEnd('/') + PATH).openConnection() as HttpURLConnection
+        val connection = URL(config.baseUrl.trim().trimEnd('/') + config.companyDestinationsPath).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
