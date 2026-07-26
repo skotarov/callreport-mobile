@@ -15,7 +15,6 @@ internal class CallReportSyncException(
 
 /** HTTP client for the standalone Relationship Manager sync endpoint. */
 internal object CallReportSyncClient {
-    private const val SYNC_PATH = "/relationship-manager/api/sync_edit.php"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 10_000
 
@@ -30,7 +29,7 @@ internal object CallReportSyncClient {
                 events.forEach { event -> put(event.toJson()) }
             })
         }
-        val endpoint = config.baseUrl.trim().trimEnd('/') + SYNC_PATH
+        val endpoint = config.baseUrl.trim().trimEnd('/') + config.syncEditPath
         val connection = (URL(endpoint).openConnection() as HttpURLConnection)
         try {
             connection.requestMethod = "POST"
