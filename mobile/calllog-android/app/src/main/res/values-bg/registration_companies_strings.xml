@@ -5,6 +5,10 @@
     <string name="settings_registration_profile_description">Профилът е с име, имейл и телефон. Имейлът и телефонът се потвърждават с еднократни кодове. Парола не е нужна.</string>
     <string name="settings_registration_current_profile">Влязъл профил: %1$s</string>
     <string name="settings_registration_current_profile_details">Влязъл профил: %1$s\nИмейл: %2$s · %3$s\nТелефон: %4$s · %5$s</string>
+    <string name="settings_registration_profile_loading">Проверявам профила от сървъра…</string>
+    <string name="settings_registration_no_active_profile">Няма активен профил за текущия ключ.</string>
+    <string name="settings_registration_profile_load_failed">Профилът не може да бъде потвърден от сървъра: %1$s</string>
+    <string name="settings_registration_profile_server_error">Неуспешна заявка към сървъра.</string>
     <string name="settings_registration_contact_verified">потвърден</string>
     <string name="settings_registration_contact_unverified">непотвърден</string>
     <string name="settings_registration_missing_email">няма въведен имейл</string>
