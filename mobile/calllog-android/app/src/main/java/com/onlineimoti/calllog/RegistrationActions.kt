@@ -27,10 +27,33 @@ internal object RegistrationActions {
             binding.registrationCurrentProfileText.visibility = View.GONE
             binding.registrationLogoutButton.visibility = View.GONE
         } else {
-            val profileName = profile.userName.ifBlank { activity.getString(R.string.settings_registration_profile_license) }
+            val profileName = profile.userName.ifBlank {
+                activity.getString(R.string.settings_registration_profile_license)
+            }
+            val email = profile.userEmail.ifBlank {
+                activity.getString(R.string.settings_registration_missing_email)
+            }
+            val phone = profile.userPhone.ifBlank {
+                activity.getString(R.string.settings_registration_missing_phone)
+            }
+            val emailStatus = activity.getString(
+                if (profile.emailVerified) R.string.settings_registration_contact_verified
+                else R.string.settings_registration_contact_unverified,
+            )
+            val phoneStatus = activity.getString(
+                if (profile.phoneVerified) R.string.settings_registration_contact_verified
+                else R.string.settings_registration_contact_unverified,
+            )
             binding.registrationCurrentProfileText.apply {
                 visibility = View.VISIBLE
-                text = activity.getString(R.string.settings_registration_current_profile, profileName)
+                text = activity.getString(
+                    R.string.settings_registration_current_profile_details,
+                    profileName,
+                    email,
+                    emailStatus,
+                    phone,
+                    phoneStatus,
+                )
             }
             binding.registrationLogoutButton.visibility = View.VISIBLE
             binding.registrationLogoutButton.isEnabled = true
@@ -58,7 +81,7 @@ internal object RegistrationActions {
         if (CompanySessionStore.load(activity) == null) {
             AlertDialog.Builder(activity)
                 .setTitle("Присъедини се по покана")
-                .setMessage("Първо създай профил или влез с имейл и парола. След това ще въведеш само кода от поканата.")
+                .setMessage("Първо създай профил или влез с еднократен код по имейл или SMS. След това ще въведеш само кода от поканата.")
                 .setPositiveButton("Профил") { _, _ -> openCompanyAccount(activity) }
                 .setNegativeButton("Отказ", null)
                 .show()
@@ -93,7 +116,11 @@ internal object RegistrationActions {
                         result.onSuccess { session ->
                             CompanyAccountApi.applySession(activity.applicationContext, session)
                             dialog.dismiss()
-                            Toast.makeText(activity, "Профилът е добавен към ${session.organizationName.ifBlank { "фирмата" }}.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(
+                                activity,
+                                "Профилът е добавен към ${session.organizationName.ifBlank { "фирмата" }}. Издаден е нов ключ за връзка.",
+                                Toast.LENGTH_LONG,
+                            ).show()
                             activity.recreate()
                         }.onFailure { error ->
                             dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
