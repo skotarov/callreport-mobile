@@ -204,6 +204,21 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
+                android:hint="@string/server_contact_phase_path_hint"
+                app:boxBackgroundColor="@android:color/white"
+                app:boxStrokeColor="@color/calllog_border">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/contactPhasePathInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:hint="@string/server_company_phase_path_hint"
                 app:boxBackgroundColor="@android:color/white"
                 app:boxStrokeColor="@color/calllog_border">
