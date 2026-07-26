@@ -52,6 +52,13 @@ data class AppConfig(
     val authPath: String = "/relationship-manager/api/auth.php",
     val invitationsPath: String = "/relationship-manager/api/invitations.php",
     val billingPath: String = "/relationship-manager/api/billing.php",
+    val configPath: String = "/relationship-manager/config.php",
+    val standaloneLookupPath: String = "/relationship-manager/lookup.php",
+    val homeNotesPath: String = "/relationship-manager/home_notes.php",
+    val propertySearchPath: String = "/relationship-manager/property_search.php",
+    val standaloneFormPath: String = "/relationship-manager/form.php",
+    val standaloneHistoryPath: String = "/relationship-manager/history.php",
+    val submitPath: String = "/relationship-manager/submit.php",
 )
 
 object ConfigStore {
@@ -78,6 +85,13 @@ object ConfigStore {
     private const val KEY_AUTH_PATH = "auth_path"
     private const val KEY_INVITATIONS_PATH = "invitations_path"
     private const val KEY_BILLING_PATH = "billing_path"
+    private const val KEY_CONFIG_PATH = "config_path"
+    private const val KEY_STANDALONE_LOOKUP_PATH = "standalone_lookup_path"
+    private const val KEY_HOME_NOTES_PATH = "home_notes_path"
+    private const val KEY_PROPERTY_SEARCH_PATH = "property_search_path"
+    private const val KEY_STANDALONE_FORM_PATH = "standalone_form_path"
+    private const val KEY_STANDALONE_HISTORY_PATH = "standalone_history_path"
+    private const val KEY_SUBMIT_PATH = "submit_path"
     private const val KEY_POST_CALL_TIMEOUT = "post_call_timeout"
     private const val KEY_USE_OVERLAY_POPUPS = "use_overlay_popups"
     private const val KEY_USE_CUSTOM_START_POPUP = "use_custom_start_popup"
@@ -115,6 +129,13 @@ object ConfigStore {
     const val DEFAULT_AUTH_PATH = "/relationship-manager/api/auth.php"
     const val DEFAULT_INVITATIONS_PATH = "/relationship-manager/api/invitations.php"
     const val DEFAULT_BILLING_PATH = "/relationship-manager/api/billing.php"
+    const val DEFAULT_CONFIG_PATH = "/relationship-manager/config.php"
+    const val DEFAULT_STANDALONE_LOOKUP_PATH = "/relationship-manager/lookup.php"
+    const val DEFAULT_HOME_NOTES_PATH = "/relationship-manager/home_notes.php"
+    const val DEFAULT_PROPERTY_SEARCH_PATH = "/relationship-manager/property_search.php"
+    const val DEFAULT_STANDALONE_FORM_PATH = "/relationship-manager/form.php"
+    const val DEFAULT_STANDALONE_HISTORY_PATH = "/relationship-manager/history.php"
+    const val DEFAULT_SUBMIT_PATH = "/relationship-manager/submit.php"
     const val DEFAULT_POST_CALL_TIMEOUT_SECONDS = 10
     const val DEFAULT_HOME_CALL_PAGE_SIZE = 20
     const val MIN_HOME_CALL_PAGE_SIZE = 5
@@ -146,7 +167,6 @@ object ConfigStore {
         val local = AppConfig(
             remoteEnabled = prefs.getBoolean(KEY_REMOTE_ENABLED, false),
             baseUrl = normalizeBaseUrl(prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL).orEmpty()),
-            // Never package a production access token in the APK/AAB.
             accessToken = prefs.getString(KEY_ACCESS_TOKEN, "")!!.trim(),
             contactGroups = prefs.getString(KEY_CONTACT_GROUPS, "")!!.trim(),
             notifyUnknownContacts = prefs.getBoolean(KEY_NOTIFY_UNKNOWN_CONTACTS, true),
@@ -167,6 +187,13 @@ object ConfigStore {
             authPath = normalizePath(prefs.getString(KEY_AUTH_PATH, DEFAULT_AUTH_PATH)!!.trim(), DEFAULT_AUTH_PATH),
             invitationsPath = normalizePath(prefs.getString(KEY_INVITATIONS_PATH, DEFAULT_INVITATIONS_PATH)!!.trim(), DEFAULT_INVITATIONS_PATH),
             billingPath = normalizePath(prefs.getString(KEY_BILLING_PATH, DEFAULT_BILLING_PATH)!!.trim(), DEFAULT_BILLING_PATH),
+            configPath = normalizePath(prefs.getString(KEY_CONFIG_PATH, DEFAULT_CONFIG_PATH)!!.trim(), DEFAULT_CONFIG_PATH),
+            standaloneLookupPath = normalizePath(prefs.getString(KEY_STANDALONE_LOOKUP_PATH, DEFAULT_STANDALONE_LOOKUP_PATH)!!.trim(), DEFAULT_STANDALONE_LOOKUP_PATH),
+            homeNotesPath = normalizePath(prefs.getString(KEY_HOME_NOTES_PATH, DEFAULT_HOME_NOTES_PATH)!!.trim(), DEFAULT_HOME_NOTES_PATH),
+            propertySearchPath = normalizePath(prefs.getString(KEY_PROPERTY_SEARCH_PATH, DEFAULT_PROPERTY_SEARCH_PATH)!!.trim(), DEFAULT_PROPERTY_SEARCH_PATH),
+            standaloneFormPath = normalizePath(prefs.getString(KEY_STANDALONE_FORM_PATH, DEFAULT_STANDALONE_FORM_PATH)!!.trim(), DEFAULT_STANDALONE_FORM_PATH),
+            standaloneHistoryPath = normalizePath(prefs.getString(KEY_STANDALONE_HISTORY_PATH, DEFAULT_STANDALONE_HISTORY_PATH)!!.trim(), DEFAULT_STANDALONE_HISTORY_PATH),
+            submitPath = normalizePath(prefs.getString(KEY_SUBMIT_PATH, DEFAULT_SUBMIT_PATH)!!.trim(), DEFAULT_SUBMIT_PATH),
             postCallPromptTimeoutSeconds = prefs.getInt(KEY_POST_CALL_TIMEOUT, DEFAULT_POST_CALL_TIMEOUT_SECONDS).coerceIn(3, 120),
             useOverlayPopups = prefs.getBoolean(KEY_USE_OVERLAY_POPUPS, false),
             useCustomStartPopup = prefs.getBoolean(KEY_USE_CUSTOM_START_POPUP, true),
@@ -174,12 +201,8 @@ object ConfigStore {
             postCallEndAction = normalizePostCallEndAction(prefs.getString(KEY_POST_CALL_END_ACTION, DEFAULT_POST_CALL_END_ACTION).orEmpty()),
             contactLinkMode = normalizeContactLinkMode(prefs.getString(KEY_CONTACT_LINK_MODE, DEFAULT_CONTACT_LINK_MODE).orEmpty()),
             showCrmActionButtons = prefs.getBoolean(KEY_SHOW_CRM_ACTION_BUTTONS, DEFAULT_SHOW_CRM_ACTION_BUTTONS),
-            showBulkContactSyncNotifications = prefs.getBoolean(
-                KEY_SHOW_BULK_CONTACT_SYNC_NOTIFICATIONS,
-                DEFAULT_SHOW_BULK_CONTACT_SYNC_NOTIFICATIONS,
-            ),
+            showBulkContactSyncNotifications = prefs.getBoolean(KEY_SHOW_BULK_CONTACT_SYNC_NOTIFICATIONS, DEFAULT_SHOW_BULK_CONTACT_SYNC_NOTIFICATIONS),
             appLanguage = normalizeAppLanguage(prefs.getString(KEY_APP_LANGUAGE, DEFAULT_APP_LANGUAGE).orEmpty()),
-            // Shared Documents is selected automatically when Android grants full file access.
             usePublicNotesFolder = false,
             useCallScreening = prefs.getBoolean(KEY_USE_CALL_SCREENING, DEFAULT_USE_CALL_SCREENING),
             showRmDebugBox = prefs.getBoolean(KEY_SHOW_RM_DEBUG_BOX, DEFAULT_SHOW_RM_DEBUG_BOX),
@@ -220,6 +243,13 @@ object ConfigStore {
             .putString(KEY_AUTH_PATH, normalized.authPath)
             .putString(KEY_INVITATIONS_PATH, normalized.invitationsPath)
             .putString(KEY_BILLING_PATH, normalized.billingPath)
+            .putString(KEY_CONFIG_PATH, normalized.configPath)
+            .putString(KEY_STANDALONE_LOOKUP_PATH, normalized.standaloneLookupPath)
+            .putString(KEY_HOME_NOTES_PATH, normalized.homeNotesPath)
+            .putString(KEY_PROPERTY_SEARCH_PATH, normalized.propertySearchPath)
+            .putString(KEY_STANDALONE_FORM_PATH, normalized.standaloneFormPath)
+            .putString(KEY_STANDALONE_HISTORY_PATH, normalized.standaloneHistoryPath)
+            .putString(KEY_SUBMIT_PATH, normalized.submitPath)
             .putInt(KEY_POST_CALL_TIMEOUT, normalized.postCallPromptTimeoutSeconds)
             .putBoolean(KEY_USE_OVERLAY_POPUPS, normalized.useOverlayPopups)
             .putBoolean(KEY_USE_CUSTOM_START_POPUP, normalized.useCustomStartPopup)
@@ -273,6 +303,13 @@ object ConfigStore {
         authPath = normalizePath(config.authPath, DEFAULT_AUTH_PATH),
         invitationsPath = normalizePath(config.invitationsPath, DEFAULT_INVITATIONS_PATH),
         billingPath = normalizePath(config.billingPath, DEFAULT_BILLING_PATH),
+        configPath = normalizePath(config.configPath, DEFAULT_CONFIG_PATH),
+        standaloneLookupPath = normalizePath(config.standaloneLookupPath, DEFAULT_STANDALONE_LOOKUP_PATH),
+        homeNotesPath = normalizePath(config.homeNotesPath, DEFAULT_HOME_NOTES_PATH),
+        propertySearchPath = normalizePath(config.propertySearchPath, DEFAULT_PROPERTY_SEARCH_PATH),
+        standaloneFormPath = normalizePath(config.standaloneFormPath, DEFAULT_STANDALONE_FORM_PATH),
+        standaloneHistoryPath = normalizePath(config.standaloneHistoryPath, DEFAULT_STANDALONE_HISTORY_PATH),
+        submitPath = normalizePath(config.submitPath, DEFAULT_SUBMIT_PATH),
         postCallPromptTimeoutSeconds = config.postCallPromptTimeoutSeconds.coerceIn(3, 120),
         postCallEndAction = normalizePostCallEndAction(config.postCallEndAction),
         contactLinkMode = normalizeContactLinkMode(config.contactLinkMode),
