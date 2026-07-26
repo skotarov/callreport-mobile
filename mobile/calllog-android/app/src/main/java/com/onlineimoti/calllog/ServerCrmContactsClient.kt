@@ -43,6 +43,21 @@ internal object ServerCrmContactsClient {
                         val item = contacts?.optJSONObject(index) ?: continue
                         val phone = item.optString("phone").trim().ifBlank { item.optString("number").trim() }
                         if (HomeCallPageLoader.noteKey(phone).isBlank()) continue
+
+                        // New servers already apply the requested phase filter. Keep a
+                        // defensive client-side check so a stale/legacy deployment cannot
+                        // leave the Clients phase buttons looking active while returning
+                        // contacts from other phases. Missing legacy phase fields remain
+                        // trusted for backward compatibility.
+                        if (
+                            filterState.phases.isNotEmpty() &&
+                            item.has("phase") &&
+                            !item.isNull("phase") &&
+                            item.optInt("phase", ContactNegotiationPhaseStore.NONE) !in filterState.phases
+                        ) {
+                            continue
+                        }
+
                         val rawSnippet = item.optString("search_match_text").trim()
                             .ifBlank { item.optString("search_snippet").trim() }
                             .ifBlank { item.optString("matched_note").trim() }
@@ -92,6 +107,8 @@ internal object ServerCrmContactsClient {
         return linkedMapOf(
             "access_token" to config.accessToken,
             "phase" to phase,
+            // Some older server deployments read only the plural alias.
+            "phases" to phase,
             "company_id" to companyId,
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
