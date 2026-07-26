@@ -16,8 +16,6 @@ internal data class ServerDebugTestResult(
 )
 
 internal object ServerDebugTestActions {
-    private const val API_ROOT = "/relationship-manager"
-
     private data class WriteTestCompany(
         val id: String,
         val name: String,
@@ -52,13 +50,13 @@ internal object ServerDebugTestActions {
     }
 
     fun testConfig(config: AppConfig): ServerDebugTestResult =
-        ServerDebugProbeClient.jsonGet(config, "config.php", "$API_ROOT/config.php")
+        ServerDebugProbeClient.jsonGet(config, "config.php", config.configPath)
 
     fun testLookup(config: AppConfig, phone: String, direction: String): ServerDebugTestResult {
         return ServerDebugProbeClient.jsonGet(
             config = config,
             label = "lookup.php",
-            path = "$API_ROOT/lookup.php",
+            path = config.standaloneLookupPath,
             params = lookupContext(config, phone, direction, "lookup"),
         )
     }
@@ -67,7 +65,7 @@ internal object ServerDebugTestActions {
         return ServerDebugProbeClient.jsonPost(
             config = config,
             label = "home_notes.php",
-            path = "$API_ROOT/home_notes.php",
+            path = config.homeNotesPath,
             body = JSONObject().put("phones", JSONArray().put(phone)),
         )
     }
@@ -76,7 +74,7 @@ internal object ServerDebugTestActions {
         return ServerDebugProbeClient.jsonGet(
             config = config,
             label = "history_lookup.php",
-            path = "$API_ROOT/history_lookup.php",
+            path = config.historyLookupPath,
             params = linkedMapOf("phone" to phone, "direction" to direction),
         )
     }
@@ -85,7 +83,7 @@ internal object ServerDebugTestActions {
         return ServerDebugProbeClient.jsonGet(
             config = config,
             label = "property_search.php",
-            path = "$API_ROOT/property_search.php",
+            path = config.propertySearchPath,
             params = linkedMapOf("q" to query),
         )
     }
@@ -94,7 +92,7 @@ internal object ServerDebugTestActions {
         return ServerDebugProbeClient.htmlGet(
             config = config,
             label = "form.php",
-            path = "$API_ROOT/form.php",
+            path = config.standaloneFormPath,
             params = formContext(phone, direction),
         )
     }
@@ -103,7 +101,7 @@ internal object ServerDebugTestActions {
         return ServerDebugProbeClient.htmlGet(
             config = config,
             label = "history.php",
-            path = "$API_ROOT/history.php",
+            path = config.standaloneHistoryPath,
             params = linkedMapOf("phone" to phone),
         )
     }
@@ -137,7 +135,7 @@ internal object ServerDebugTestActions {
             val response = ServerDebugProbeClient.request(
                 config = config,
                 method = "POST",
-                path = "$API_ROOT/sync.php",
+                path = config.syncPath,
                 jsonBody = JSONObject().apply {
                     put("schema_version", 1)
                     put("events", JSONArray().put(event))
@@ -171,7 +169,7 @@ internal object ServerDebugTestActions {
                 "client_event_id" to clientEventId,
                 "notes" to "[TEST] Запис от Debug › Тест на сървъра. Може да се изтрие.",
             )
-            val response = ServerDebugProbeClient.formRequest(config, "$API_ROOT/submit.php", params)
+            val response = ServerDebugProbeClient.formRequest(config, config.submitPath, params)
             val json = JSONObject(response.body)
             require(json.optBoolean("ok", false)) { json.optString("error", "ok=false") }
             "HTTP ${response.code} · записът е потвърден · ${company.name}"
@@ -182,20 +180,20 @@ internal object ServerDebugTestActions {
         val params = formContext(phone, direction).toMutableMap()
         params["access_token"] = config.accessToken
         params["client_event_id"] = debugEventId(CallReportInstallationId.get(context), "form")
-        return buildEndpoint(config.baseUrl, "$API_ROOT/form.php", params)
+        return buildEndpoint(config.baseUrl, config.standaloneFormPath, params)
     }
 
     fun buildHistoryUrl(config: AppConfig, phone: String): String {
         return buildEndpoint(
             config.baseUrl,
-            "$API_ROOT/history.php",
+            config.standaloneHistoryPath,
             linkedMapOf("phone" to phone, "access_token" to config.accessToken),
         )
     }
 
     private fun validate(config: AppConfig, phone: String): ServerDebugTestResult? {
         return when {
-            !config.remoteEnabled -> ServerDebugTestResult("Сървър", false, "включи „Сървър“ в настройките")
+            !config.remoteEnabled -> ServerDebugTestResult("Сървър", false, "натисни „Свържи“ в настройките")
             config.baseUrl.isBlank() -> ServerDebugTestResult("Сървър", false, "липсва Base URL")
             config.accessToken.isBlank() -> ServerDebugTestResult("Сървър", false, "липсва Access token")
             phone.isBlank() -> ServerDebugTestResult("Сървър", false, "липсва тестов телефон")
@@ -228,7 +226,7 @@ internal object ServerDebugTestActions {
         val response = ServerDebugProbeClient.request(
             config = config,
             method = "GET",
-            path = "$API_ROOT/lookup.php",
+            path = config.standaloneLookupPath,
             params = lookupContext(config, phone, direction, "write-company"),
         )
         val json = JSONObject(response.body)
