@@ -3,6 +3,7 @@
     <string name="server_history_lookup_path_hint">History data endpoint — history_lookup.php</string>
     <string name="server_sync_path_hint">Company note sync endpoint — sync.php</string>
     <string name="server_sync_edit_path_hint">Communication edit sync endpoint — sync_edit.php</string>
+    <string name="server_contact_phase_path_hint">Legacy contact phase endpoint — contact_phase.php</string>
     <string name="server_company_phase_path_hint">Company phase endpoint — company_phase.php</string>
     <string name="server_company_destinations_path_hint">Company destinations endpoint — company_destinations.php</string>
     <string name="server_contacts_shared_lookup_path_hint">CRM contacts endpoint — contacts_shared_lookup.php</string>
