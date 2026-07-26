@@ -29,7 +29,6 @@ internal data class GeneratedCompanyAccessKey(
 )
 
 internal object CompanyUsersApi {
-    private const val PATH = "/relationship-manager/company_users.php"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 20_000
 
@@ -75,7 +74,7 @@ internal object CompanyUsersApi {
 
     private fun request(config: AppConfig, payload: JSONObject): JSONObject {
         if (!CallReportRemoteAccess.isReady(config)) throw IOException("Cloud account is not configured.")
-        val connection = URL(config.baseUrl.trim().trimEnd('/') + PATH).openConnection() as HttpURLConnection
+        val connection = URL(config.baseUrl.trim().trimEnd('/') + config.companyUsersPath).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
