@@ -3,27 +3,52 @@ package com.onlineimoti.calllog
 import android.content.Context
 import java.security.MessageDigest
 
-/** Stores evidence that the configured device credential came from a company login flow. */
+/** Stores the active profile details bound to the current rotating access token. */
 internal object CompanySessionStore {
     private const val PREFS = "relationship_manager_company_session"
     private const val KEY_TOKEN_HASH = "token_hash"
     private const val KEY_USER_NAME = "user_name"
+    private const val KEY_USER_EMAIL = "user_email"
+    private const val KEY_USER_PHONE = "user_phone"
+    private const val KEY_EMAIL_VERIFIED = "email_verified"
+    private const val KEY_PHONE_VERIFIED = "phone_verified"
     private const val KEY_ORGANIZATION_NAME = "organization_name"
     private const val KEY_ORGANIZATION_ID = "organization_id"
 
     data class Snapshot(
         val userName: String,
+        val userEmail: String,
+        val userPhone: String,
+        val emailVerified: Boolean,
+        val phoneVerified: Boolean,
         val organizationName: String,
         val organizationId: String,
-    )
+    ) {
+        val profileReady: Boolean get() = emailVerified && phoneVerified
+    }
 
     fun save(context: Context, session: CompanyAccountApi.Session) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_TOKEN_HASH, hash(session.accessToken))
             .putString(KEY_USER_NAME, session.userName)
+            .putString(KEY_USER_EMAIL, session.userEmail)
+            .putString(KEY_USER_PHONE, session.userPhone)
+            .putBoolean(KEY_EMAIL_VERIFIED, session.emailVerified)
+            .putBoolean(KEY_PHONE_VERIFIED, session.phoneVerified)
             .putString(KEY_ORGANIZATION_NAME, session.organizationName)
             .putString(KEY_ORGANIZATION_ID, session.organizationId)
+            .apply()
+    }
+
+    fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_USER_NAME, user.name)
+            .putString(KEY_USER_EMAIL, user.email)
+            .putString(KEY_USER_PHONE, user.phone)
+            .putBoolean(KEY_EMAIL_VERIFIED, user.emailVerified)
+            .putBoolean(KEY_PHONE_VERIFIED, user.phoneVerified)
             .apply()
     }
 
@@ -34,11 +59,16 @@ internal object CompanySessionStore {
         val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val snapshot = Snapshot(
             userName = prefs.getString(KEY_USER_NAME, "").orEmpty().trim(),
+            userEmail = prefs.getString(KEY_USER_EMAIL, "").orEmpty().trim(),
+            userPhone = prefs.getString(KEY_USER_PHONE, "").orEmpty().trim(),
+            emailVerified = prefs.getBoolean(KEY_EMAIL_VERIFIED, false),
+            phoneVerified = prefs.getBoolean(KEY_PHONE_VERIFIED, false),
             organizationName = prefs.getString(KEY_ORGANIZATION_NAME, "").orEmpty().trim(),
             organizationId = prefs.getString(KEY_ORGANIZATION_ID, "").orEmpty().trim(),
         )
         return snapshot.takeIf {
-            it.userName.isNotBlank() || it.organizationName.isNotBlank() || it.organizationId.isNotBlank()
+            it.userName.isNotBlank() || it.userEmail.isNotBlank() || it.userPhone.isNotBlank()
+                || it.organizationName.isNotBlank() || it.organizationId.isNotBlank()
         }
     }
 
