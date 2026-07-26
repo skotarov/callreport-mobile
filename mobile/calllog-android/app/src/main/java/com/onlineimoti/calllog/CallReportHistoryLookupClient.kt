@@ -44,7 +44,6 @@ internal data class CallReportHistoryLookupResult(
 )
 
 internal object CallReportHistoryLookupClient {
-    private const val PATH = "/relationship-manager/history_lookup.php"
     private const val DEFAULT_LIMIT = 200
     private const val MAX_LIMIT = 200
     private const val MAX_PHONE_VARIANTS = 50
@@ -188,9 +187,9 @@ internal object CallReportHistoryLookupClient {
         val safeLimit = limit.coerceIn(1, MAX_LIMIT)
         val singlePhone = phones.singleOrNull()
         val url = if (singlePhone != null) {
-            buildEndpoint(config.baseUrl, PATH, linkedMapOf("phone" to singlePhone, "limit" to safeLimit.toString()))
+            buildEndpoint(config.baseUrl, config.historyLookupPath, linkedMapOf("phone" to singlePhone, "limit" to safeLimit.toString()))
         } else {
-            buildEndpoint(config.baseUrl, PATH, linkedMapOf("limit" to safeLimit.toString()))
+            buildEndpoint(config.baseUrl, config.historyLookupPath, linkedMapOf("limit" to safeLimit.toString()))
         }
         val connection = runCatching { URL(url).openConnection() as HttpURLConnection }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
