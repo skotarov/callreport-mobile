@@ -51,14 +51,26 @@ internal object ContactNoteScopeTextResolver {
         return if (draft.isGeneralNote) {
             val notes = CallReportCompanyGeneralNotesClient.fetch(appContext, config, draft.phone)
             val notesByCompany = linkedMapOf<String, ContactNoteScopeValue>()
-            notes.forEach { companyNote ->
-                notesByCompany[companyNote.companyId] = ContactNoteScopeValue(companyNote.note)
-                CallReportCompanyGeneralNoteStore.saveOrDelete(
-                    appContext,
-                    draft.phone,
-                    companyNote.companyId,
-                    companyNote.note,
-                )
+            notes.groupBy { it.companyId }.forEach { (companyId, companyNotes) ->
+                val ownNote = companyNotes
+                    .filter { it.editable && !it.placeholder }
+                    .maxByOrNull { it.updatedAtMs }
+                if (ownNote != null) {
+                    notesByCompany[companyId] = ContactNoteScopeValue(
+                        text = ownNote.note,
+                        serverClientEventId = ownNote.clientEventId,
+                    )
+                    CallReportCompanyGeneralNoteStore.saveOrDelete(
+                        appContext,
+                        draft.phone,
+                        companyId,
+                        ownNote.note,
+                    )
+                } else if (companyNotes.any { it.multiAuthor }) {
+                    // The company may contain colleagues' notes, but their text must
+                    // never prefill this profile's editor or become locally editable.
+                    notesByCompany[companyId] = ContactNoteScopeValue()
+                }
             }
             notesByCompany
         } else {
