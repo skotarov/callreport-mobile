@@ -9,7 +9,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 internal object CallReportTopicSyncClient {
-    private const val PATH = "/relationship-manager/sync.php"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 10_000
 
@@ -19,7 +18,7 @@ internal object CallReportTopicSyncClient {
             put("schema_version", 1)
             put("events", JSONArray().apply { events.forEach { put(it.toJson()) } })
         }
-        val connection = URL(config.baseUrl.trim().trimEnd('/') + PATH).openConnection() as HttpURLConnection
+        val connection = URL(config.baseUrl.trim().trimEnd('/') + config.syncPath).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
