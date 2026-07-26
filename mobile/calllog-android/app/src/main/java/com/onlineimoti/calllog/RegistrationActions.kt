@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.text.InputType
+import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -21,7 +22,36 @@ internal object RegistrationActions {
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
+        val profile = CompanySessionStore.load(activity)
+        if (profile == null) {
+            binding.registrationCurrentProfileText.visibility = View.GONE
+            binding.registrationLogoutButton.visibility = View.GONE
+        } else {
+            val profileName = profile.userName.ifBlank { activity.getString(R.string.settings_registration_profile_license) }
+            binding.registrationCurrentProfileText.apply {
+                visibility = View.VISIBLE
+                text = activity.getString(R.string.settings_registration_current_profile, profileName)
+            }
+            binding.registrationLogoutButton.visibility = View.VISIBLE
+            binding.registrationLogoutButton.isEnabled = true
+        }
         RegistrationCompaniesController.refresh(activity, binding)
+    }
+
+    fun logout(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+    ) {
+        binding.registrationLogoutButton.isEnabled = false
+        Thread {
+            CompanyAccountApi.logout(activity.applicationContext)
+            CompanyAccountApi.clearSession(activity.applicationContext)
+            activity.runOnUiThread {
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                Toast.makeText(activity, R.string.settings_registration_logged_out, Toast.LENGTH_SHORT).show()
+                renderCompanySection(activity, binding)
+            }
+        }.start()
     }
 
     fun showJoinDialog(activity: AppCompatActivity) {
