@@ -15,7 +15,6 @@ import com.onlineimoti.calllog.databinding.ActivityHomeBinding
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-/** CRM Home filter controls: personal CRM, phase buttons and company toggles. */
 internal class HomeCrmFiltersController(
     private val activity: HomeActivity,
     private val binding: ActivityHomeBinding,
@@ -197,12 +196,9 @@ internal class HomeCrmFiltersController(
         companyButtonsContainer.removeAllViews()
         if (showPersonalCrm) companyButtonsContainer.addView(crmFilterButton())
         available.forEach { companyButtonsContainer.addView(companyButton(it)) }
-        showCompanyButtons(
-            binding.crmPhaseFilterRow.visibility == View.VISIBLE && (showPersonalCrm || available.isNotEmpty()),
-        )
+        showCompanyButtons(binding.crmPhaseFilterRow.visibility == View.VISIBLE && (showPersonalCrm || available.isNotEmpty()))
     }
 
-    /** Matches the slightly rectangular CRM action used on the History page. */
     private fun crmFilterButton(): MaterialButton =
         MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = "CRM"
@@ -221,9 +217,7 @@ internal class HomeCrmFiltersController(
             iconSize = dp(17)
             iconPadding = dp(4)
             setPadding(dp(8), 0, dp(9), 0)
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply {
-                marginEnd = dp(4)
-            }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply { marginEnd = dp(4) }
             styleCrmButton(this, state.crmOnly)
             setOnClickListener { toggleCrmOnly() }
         }
