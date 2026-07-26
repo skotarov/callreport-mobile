@@ -7,8 +7,6 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 internal object CompanyInvitationApi {
-    private const val INVITATIONS_PATH = "/relationship-manager/api/invitations.php"
-
     data class CreatedInvitation(
         val code: String,
         val email: String,
@@ -33,7 +31,7 @@ internal object CompanyInvitationApi {
             .put("role", role)
             .toString()
             .toByteArray(StandardCharsets.UTF_8)
-        val connection = (URL(buildEndpoint(config.baseUrl, INVITATIONS_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(buildEndpoint(config.baseUrl, config.invitationsPath, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000
