@@ -7,9 +7,6 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 internal object InvitedAccountApi {
-    private const val AUTH_PATH = "/relationship-manager/api/auth.php"
-    private const val INVITATIONS_PATH = "/relationship-manager/api/invitations.php"
-
     fun accept(
         context: Context,
         inviteCode: String,
@@ -23,7 +20,7 @@ internal object InvitedAccountApi {
             .put("device_name", android.os.Build.MODEL.take(120))
             .toString()
             .toByteArray(StandardCharsets.UTF_8)
-        val connection = (URL(buildEndpoint(config.baseUrl, INVITATIONS_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(buildEndpoint(config.baseUrl, config.invitationsPath, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000
@@ -60,7 +57,7 @@ internal object InvitedAccountApi {
             .put("device_name", android.os.Build.MODEL.take(120))
             .toString()
             .toByteArray(StandardCharsets.UTF_8)
-        val connection = (URL(buildEndpoint(config.baseUrl, AUTH_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(buildEndpoint(config.baseUrl, config.authPath, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000
