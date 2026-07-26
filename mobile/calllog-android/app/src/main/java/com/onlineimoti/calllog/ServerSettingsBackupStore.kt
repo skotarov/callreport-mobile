@@ -97,6 +97,13 @@ internal object ServerSettingsBackupStore {
                     authPath = settings.stringOrCurrent("auth_path", currentConfig.authPath),
                     invitationsPath = settings.stringOrCurrent("invitations_path", currentConfig.invitationsPath),
                     billingPath = settings.stringOrCurrent("billing_path", currentConfig.billingPath),
+                    configPath = settings.stringOrCurrent("config_path", currentConfig.configPath),
+                    standaloneLookupPath = settings.stringOrCurrent("standalone_lookup_path", currentConfig.standaloneLookupPath),
+                    homeNotesPath = settings.stringOrCurrent("home_notes_path", currentConfig.homeNotesPath),
+                    propertySearchPath = settings.stringOrCurrent("property_search_path", currentConfig.propertySearchPath),
+                    standaloneFormPath = settings.stringOrCurrent("standalone_form_path", currentConfig.standaloneFormPath),
+                    standaloneHistoryPath = settings.stringOrCurrent("standalone_history_path", currentConfig.standaloneHistoryPath),
+                    submitPath = settings.stringOrCurrent("submit_path", currentConfig.submitPath),
                 ),
             )
         }.getOrElse {
@@ -124,6 +131,13 @@ internal object ServerSettingsBackupStore {
             .put("auth_path", config.authPath.trim())
             .put("invitations_path", config.invitationsPath.trim())
             .put("billing_path", config.billingPath.trim())
+            .put("config_path", config.configPath.trim())
+            .put("standalone_lookup_path", config.standaloneLookupPath.trim())
+            .put("home_notes_path", config.homeNotesPath.trim())
+            .put("property_search_path", config.propertySearchPath.trim())
+            .put("standalone_form_path", config.standaloneFormPath.trim())
+            .put("standalone_history_path", config.standaloneHistoryPath.trim())
+            .put("submit_path", config.submitPath.trim())
     }
 
     private fun derivedKey(pin: String, salt: ByteArray): SecretKeySpec {
