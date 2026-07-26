@@ -17,13 +17,14 @@ import com.google.android.material.button.MaterialButton
 import java.util.concurrent.Executors
 
 /**
- * Displays the authenticated profile and replaces email/phone only after the
- * newly entered destination has been confirmed with its own OTP code.
+ * Displays and edits the authenticated profile. Email and phone are replaced
+ * only after the newly entered destination has been confirmed with its own OTP.
  */
 internal class ProfileEditorActivity : AppCompatActivity() {
     private val executor = Executors.newSingleThreadExecutor()
 
-    private lateinit var nameText: TextView
+    private lateinit var nameInput: EditText
+    private lateinit var nameButton: MaterialButton
     private lateinit var emailInput: EditText
     private lateinit var phoneInput: EditText
     private lateinit var emailStateText: TextView
@@ -71,13 +72,22 @@ internal class ProfileEditorActivity : AppCompatActivity() {
             textSize = 24f
         })
         column.addView(TextView(this).apply {
-            text = "Новият имейл или телефон заменя стария едва след правилния код за потвърждение."
+            text = "Името се записва директно. Новият имейл или телефон заменя стария едва след правилния код за потвърждение."
             textSize = 15f
             setPadding(0, dp(8), 0, dp(16))
         })
 
-        nameText = TextView(this).apply { textSize = 17f }
-        column.addView(nameText)
+        nameInput = EditText(this).apply {
+            hint = "Име"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            setSingleLine(true)
+            addTextChangedListener(profileWatcher)
+        }
+        column.addView(nameInput)
+        nameButton = MaterialButton(this).apply {
+            setOnClickListener { saveName() }
+        }
+        column.addView(nameButton, params(8))
 
         emailInput = EditText(this).apply {
             hint = "Нов имейл"
@@ -152,8 +162,8 @@ internal class ProfileEditorActivity : AppCompatActivity() {
 
     private fun renderProfile(overwriteInputs: Boolean) {
         val current = profile
-        nameText.text = "Име: ${current?.userName?.ifBlank { "Без име" } ?: "Зарежда се…"}"
         if (current != null && overwriteInputs) {
+            nameInput.setText(current.userName)
             emailInput.setText(current.userEmail)
             phoneInput.setText(current.userPhone)
         }
@@ -172,15 +182,39 @@ internal class ProfileEditorActivity : AppCompatActivity() {
 
     private fun renderActions() {
         val current = profile
+        val enteredName = nameInput.text?.toString().orEmpty().trim()
         val enteredEmail = emailInput.text?.toString().orEmpty().trim()
         val enteredPhone = phoneInput.text?.toString().orEmpty().trim()
+        val nameChanged = current != null && enteredName.isNotBlank() && enteredName != current.userName
         val emailChanged = current != null && enteredEmail.isNotBlank() && enteredEmail != current.userEmail
         val phoneChanged = current != null && enteredPhone.isNotBlank() && enteredPhone != current.userPhone
 
+        nameButton.text = if (nameChanged) "Запази името" else "Името не е променено"
         emailButton.text = if (emailChanged) "Потвърди новия имейл" else "Въведи различен имейл"
         phoneButton.text = if (phoneChanged) "Потвърди новия телефон" else "Въведи различен телефон"
+        nameButton.isEnabled = !loading && nameChanged
         emailButton.isEnabled = !loading && emailChanged
         phoneButton.isEnabled = !loading && phoneChanged
+    }
+
+    private fun saveName() {
+        val value = nameInput.text?.toString().orEmpty().trim()
+        if (value.isBlank()) return
+        showLoading(true)
+        executor.execute {
+            val result = ProfileNameApi.update(applicationContext, value)
+            runOnUiThread {
+                showLoading(false)
+                result.onSuccess { user ->
+                    CompanyAccountApi.applyProfileUser(applicationContext, user)
+                    profile = CompanySessionStore.load(this)
+                    renderProfile(overwriteInputs = true)
+                    setStatus("Името е променено.")
+                }.onFailure { error ->
+                    setStatus(error.message ?: "Името не можа да бъде променено.")
+                }
+            }
+        }
     }
 
     private fun requestReplacement(channel: String) {
@@ -264,6 +298,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
     private fun showLoading(show: Boolean) {
         loading = show
         progress.visibility = if (show) View.VISIBLE else View.GONE
+        nameInput.isEnabled = !show
         emailInput.isEnabled = !show
         phoneInput.isEnabled = !show
         renderActions()
