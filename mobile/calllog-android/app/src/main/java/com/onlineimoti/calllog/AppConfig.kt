@@ -40,6 +40,17 @@ data class AppConfig(
     val useLinkedContactIntegration: Boolean = true,
     /** Shows Relationship Manager in Android's Share contact / vCard targets. */
     val useContactShareIntegration: Boolean = true,
+    val historyLookupPath: String = "/relationship-manager/history_lookup.php",
+    val syncPath: String = "/relationship-manager/sync.php",
+    val syncEditPath: String = "/relationship-manager/api/sync_edit.php",
+    val companyPhasePath: String = "/relationship-manager/company_phase.php",
+    val companyDestinationsPath: String = "/relationship-manager/company_destinations.php",
+    val contactsSharedLookupPath: String = "/relationship-manager/contacts_shared_lookup.php",
+    val profileCrmContactsPath: String = "/relationship-manager/profile_crm_contacts.php",
+    val companyUsersPath: String = "/relationship-manager/company_users.php",
+    val authPath: String = "/relationship-manager/api/auth.php",
+    val invitationsPath: String = "/relationship-manager/api/invitations.php",
+    val billingPath: String = "/relationship-manager/api/billing.php",
 )
 
 object ConfigStore {
@@ -54,6 +65,17 @@ object ConfigStore {
     private const val KEY_LOOKUP_PATH = "lookup_path"
     private const val KEY_FORM_PATH = "form_path"
     private const val KEY_HISTORY_PATH = "history_path"
+    private const val KEY_HISTORY_LOOKUP_PATH = "history_lookup_path"
+    private const val KEY_SYNC_PATH = "sync_path"
+    private const val KEY_SYNC_EDIT_PATH = "sync_edit_path"
+    private const val KEY_COMPANY_PHASE_PATH = "company_phase_path"
+    private const val KEY_COMPANY_DESTINATIONS_PATH = "company_destinations_path"
+    private const val KEY_CONTACTS_SHARED_LOOKUP_PATH = "contacts_shared_lookup_path"
+    private const val KEY_PROFILE_CRM_CONTACTS_PATH = "profile_crm_contacts_path"
+    private const val KEY_COMPANY_USERS_PATH = "company_users_path"
+    private const val KEY_AUTH_PATH = "auth_path"
+    private const val KEY_INVITATIONS_PATH = "invitations_path"
+    private const val KEY_BILLING_PATH = "billing_path"
     private const val KEY_POST_CALL_TIMEOUT = "post_call_timeout"
     private const val KEY_USE_OVERLAY_POPUPS = "use_overlay_popups"
     private const val KEY_USE_CUSTOM_START_POPUP = "use_custom_start_popup"
@@ -79,6 +101,17 @@ object ConfigStore {
     const val DEFAULT_LOOKUP_PATH = "/relationship-manager/api/lookup.php"
     const val DEFAULT_FORM_PATH = "/relationship-manager/api/form.php"
     const val DEFAULT_HISTORY_PATH = "/relationship-manager/api/history.php"
+    const val DEFAULT_HISTORY_LOOKUP_PATH = "/relationship-manager/history_lookup.php"
+    const val DEFAULT_SYNC_PATH = "/relationship-manager/sync.php"
+    const val DEFAULT_SYNC_EDIT_PATH = "/relationship-manager/api/sync_edit.php"
+    const val DEFAULT_COMPANY_PHASE_PATH = "/relationship-manager/company_phase.php"
+    const val DEFAULT_COMPANY_DESTINATIONS_PATH = "/relationship-manager/company_destinations.php"
+    const val DEFAULT_CONTACTS_SHARED_LOOKUP_PATH = "/relationship-manager/contacts_shared_lookup.php"
+    const val DEFAULT_PROFILE_CRM_CONTACTS_PATH = "/relationship-manager/profile_crm_contacts.php"
+    const val DEFAULT_COMPANY_USERS_PATH = "/relationship-manager/company_users.php"
+    const val DEFAULT_AUTH_PATH = "/relationship-manager/api/auth.php"
+    const val DEFAULT_INVITATIONS_PATH = "/relationship-manager/api/invitations.php"
+    const val DEFAULT_BILLING_PATH = "/relationship-manager/api/billing.php"
     const val DEFAULT_POST_CALL_TIMEOUT_SECONDS = 10
     const val DEFAULT_HOME_CALL_PAGE_SIZE = 20
     const val MIN_HOME_CALL_PAGE_SIZE = 5
@@ -119,6 +152,17 @@ object ConfigStore {
             lookupPath = normalizePath(prefs.getString(KEY_LOOKUP_PATH, DEFAULT_LOOKUP_PATH)!!.trim(), DEFAULT_LOOKUP_PATH),
             formPath = normalizePath(prefs.getString(KEY_FORM_PATH, DEFAULT_FORM_PATH)!!.trim(), DEFAULT_FORM_PATH),
             historyPath = normalizePath(prefs.getString(KEY_HISTORY_PATH, DEFAULT_HISTORY_PATH)!!.trim(), DEFAULT_HISTORY_PATH),
+            historyLookupPath = normalizePath(prefs.getString(KEY_HISTORY_LOOKUP_PATH, DEFAULT_HISTORY_LOOKUP_PATH)!!.trim(), DEFAULT_HISTORY_LOOKUP_PATH),
+            syncPath = normalizePath(prefs.getString(KEY_SYNC_PATH, DEFAULT_SYNC_PATH)!!.trim(), DEFAULT_SYNC_PATH),
+            syncEditPath = normalizePath(prefs.getString(KEY_SYNC_EDIT_PATH, DEFAULT_SYNC_EDIT_PATH)!!.trim(), DEFAULT_SYNC_EDIT_PATH),
+            companyPhasePath = normalizePath(prefs.getString(KEY_COMPANY_PHASE_PATH, DEFAULT_COMPANY_PHASE_PATH)!!.trim(), DEFAULT_COMPANY_PHASE_PATH),
+            companyDestinationsPath = normalizePath(prefs.getString(KEY_COMPANY_DESTINATIONS_PATH, DEFAULT_COMPANY_DESTINATIONS_PATH)!!.trim(), DEFAULT_COMPANY_DESTINATIONS_PATH),
+            contactsSharedLookupPath = normalizePath(prefs.getString(KEY_CONTACTS_SHARED_LOOKUP_PATH, DEFAULT_CONTACTS_SHARED_LOOKUP_PATH)!!.trim(), DEFAULT_CONTACTS_SHARED_LOOKUP_PATH),
+            profileCrmContactsPath = normalizePath(prefs.getString(KEY_PROFILE_CRM_CONTACTS_PATH, DEFAULT_PROFILE_CRM_CONTACTS_PATH)!!.trim(), DEFAULT_PROFILE_CRM_CONTACTS_PATH),
+            companyUsersPath = normalizePath(prefs.getString(KEY_COMPANY_USERS_PATH, DEFAULT_COMPANY_USERS_PATH)!!.trim(), DEFAULT_COMPANY_USERS_PATH),
+            authPath = normalizePath(prefs.getString(KEY_AUTH_PATH, DEFAULT_AUTH_PATH)!!.trim(), DEFAULT_AUTH_PATH),
+            invitationsPath = normalizePath(prefs.getString(KEY_INVITATIONS_PATH, DEFAULT_INVITATIONS_PATH)!!.trim(), DEFAULT_INVITATIONS_PATH),
+            billingPath = normalizePath(prefs.getString(KEY_BILLING_PATH, DEFAULT_BILLING_PATH)!!.trim(), DEFAULT_BILLING_PATH),
             postCallPromptTimeoutSeconds = prefs.getInt(KEY_POST_CALL_TIMEOUT, DEFAULT_POST_CALL_TIMEOUT_SECONDS).coerceIn(3, 120),
             useOverlayPopups = prefs.getBoolean(KEY_USE_OVERLAY_POPUPS, false),
             useCustomStartPopup = prefs.getBoolean(KEY_USE_CUSTOM_START_POPUP, true),
@@ -160,6 +204,17 @@ object ConfigStore {
             .putString(KEY_LOOKUP_PATH, normalized.lookupPath)
             .putString(KEY_FORM_PATH, normalized.formPath)
             .putString(KEY_HISTORY_PATH, normalized.historyPath)
+            .putString(KEY_HISTORY_LOOKUP_PATH, normalized.historyLookupPath)
+            .putString(KEY_SYNC_PATH, normalized.syncPath)
+            .putString(KEY_SYNC_EDIT_PATH, normalized.syncEditPath)
+            .putString(KEY_COMPANY_PHASE_PATH, normalized.companyPhasePath)
+            .putString(KEY_COMPANY_DESTINATIONS_PATH, normalized.companyDestinationsPath)
+            .putString(KEY_CONTACTS_SHARED_LOOKUP_PATH, normalized.contactsSharedLookupPath)
+            .putString(KEY_PROFILE_CRM_CONTACTS_PATH, normalized.profileCrmContactsPath)
+            .putString(KEY_COMPANY_USERS_PATH, normalized.companyUsersPath)
+            .putString(KEY_AUTH_PATH, normalized.authPath)
+            .putString(KEY_INVITATIONS_PATH, normalized.invitationsPath)
+            .putString(KEY_BILLING_PATH, normalized.billingPath)
             .putInt(KEY_POST_CALL_TIMEOUT, normalized.postCallPromptTimeoutSeconds)
             .putBoolean(KEY_USE_OVERLAY_POPUPS, normalized.useOverlayPopups)
             .putBoolean(KEY_USE_CUSTOM_START_POPUP, normalized.useCustomStartPopup)
@@ -193,7 +248,7 @@ object ConfigStore {
     }
 
     private fun normalize(config: AppConfig): AppConfig = config.copy(
-        remoteEnabled = config.remoteEnabled && normalizeBaseUrl(config.baseUrl).isNotBlank(),
+        remoteEnabled = config.remoteEnabled && normalizeBaseUrl(config.baseUrl).isNotBlank() && config.accessToken.trim().isNotBlank(),
         baseUrl = normalizeBaseUrl(config.baseUrl),
         accessToken = config.accessToken.trim(),
         contactGroups = config.contactGroups.trim(),
@@ -201,6 +256,17 @@ object ConfigStore {
         lookupPath = normalizePath(config.lookupPath, DEFAULT_LOOKUP_PATH),
         formPath = normalizePath(config.formPath, DEFAULT_FORM_PATH),
         historyPath = normalizePath(config.historyPath, DEFAULT_HISTORY_PATH),
+        historyLookupPath = normalizePath(config.historyLookupPath, DEFAULT_HISTORY_LOOKUP_PATH),
+        syncPath = normalizePath(config.syncPath, DEFAULT_SYNC_PATH),
+        syncEditPath = normalizePath(config.syncEditPath, DEFAULT_SYNC_EDIT_PATH),
+        companyPhasePath = normalizePath(config.companyPhasePath, DEFAULT_COMPANY_PHASE_PATH),
+        companyDestinationsPath = normalizePath(config.companyDestinationsPath, DEFAULT_COMPANY_DESTINATIONS_PATH),
+        contactsSharedLookupPath = normalizePath(config.contactsSharedLookupPath, DEFAULT_CONTACTS_SHARED_LOOKUP_PATH),
+        profileCrmContactsPath = normalizePath(config.profileCrmContactsPath, DEFAULT_PROFILE_CRM_CONTACTS_PATH),
+        companyUsersPath = normalizePath(config.companyUsersPath, DEFAULT_COMPANY_USERS_PATH),
+        authPath = normalizePath(config.authPath, DEFAULT_AUTH_PATH),
+        invitationsPath = normalizePath(config.invitationsPath, DEFAULT_INVITATIONS_PATH),
+        billingPath = normalizePath(config.billingPath, DEFAULT_BILLING_PATH),
         postCallPromptTimeoutSeconds = config.postCallPromptTimeoutSeconds.coerceIn(3, 120),
         postCallEndAction = normalizePostCallEndAction(config.postCallEndAction),
         contactLinkMode = normalizeContactLinkMode(config.contactLinkMode),
