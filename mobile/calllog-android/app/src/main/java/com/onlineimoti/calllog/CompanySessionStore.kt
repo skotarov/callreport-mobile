@@ -28,7 +28,8 @@ internal object CompanySessionStore {
     }
 
     fun save(context: Context, session: CompanyAccountApi.Session) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val appContext = context.applicationContext
+        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_TOKEN_HASH, hash(session.accessToken))
             .putString(KEY_USER_NAME, session.userName)
@@ -39,6 +40,7 @@ internal object CompanySessionStore {
             .putString(KEY_ORGANIZATION_NAME, session.organizationName)
             .putString(KEY_ORGANIZATION_ID, session.organizationId)
             .apply()
+        CrmContactSyncStore.refreshAsync(appContext, force = true)
     }
 
     fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
