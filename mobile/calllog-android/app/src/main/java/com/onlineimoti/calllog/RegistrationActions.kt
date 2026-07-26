@@ -11,54 +11,113 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
+import java.util.Collections
 
 /** Shared profile and company-access actions, reachable from Profile and companies. */
 internal object RegistrationActions {
+    private val profileRefreshes = Collections.synchronizedSet(mutableSetOf<Int>())
+
     fun openCompanyAccount(activity: AppCompatActivity) {
-        activity.startActivity(Intent(activity, CompanyAccountActivity::class.java))
+        val target = if (ConfigStore.load(activity).accessToken.isNotBlank()) {
+            ProfileEditorActivity::class.java
+        } else {
+            CompanyAccountActivity::class.java
+        }
+        activity.startActivity(Intent(activity, target))
     }
 
     fun renderCompanySection(
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
+        val config = ConfigStore.load(activity)
         val profile = CompanySessionStore.load(activity)
-        if (profile == null) {
-            binding.registrationCurrentProfileText.visibility = View.GONE
-            binding.registrationLogoutButton.visibility = View.GONE
+        val hasAuthenticatedToken = config.accessToken.isNotBlank()
+
+        binding.registrationCompanyAccountButton.text = if (hasAuthenticatedToken) {
+            "Преглед и редакция на профила"
         } else {
-            val profileName = profile.userName.ifBlank {
-                activity.getString(R.string.settings_registration_profile_license)
+            activity.getString(R.string.settings_registration_profile_license)
+        }
+
+        when {
+            profile != null -> renderProfile(activity, binding, profile)
+            hasAuthenticatedToken -> {
+                binding.registrationCurrentProfileText.apply {
+                    visibility = View.VISIBLE
+                    text = "Зареждам данните на влезлия профил…"
+                }
+                binding.registrationLogoutButton.visibility = View.VISIBLE
+                binding.registrationLogoutButton.isEnabled = true
+                refreshProfileIfNeeded(activity, binding)
             }
-            val email = profile.userEmail.ifBlank {
-                activity.getString(R.string.settings_registration_missing_email)
+            else -> {
+                binding.registrationCurrentProfileText.visibility = View.GONE
+                binding.registrationLogoutButton.visibility = View.GONE
             }
-            val phone = profile.userPhone.ifBlank {
-                activity.getString(R.string.settings_registration_missing_phone)
-            }
-            val emailStatus = activity.getString(
-                if (profile.emailVerified) R.string.settings_registration_contact_verified
-                else R.string.settings_registration_contact_unverified,
-            )
-            val phoneStatus = activity.getString(
-                if (profile.phoneVerified) R.string.settings_registration_contact_verified
-                else R.string.settings_registration_contact_unverified,
-            )
-            binding.registrationCurrentProfileText.apply {
-                visibility = View.VISIBLE
-                text = activity.getString(
-                    R.string.settings_registration_current_profile_details,
-                    profileName,
-                    email,
-                    emailStatus,
-                    phone,
-                    phoneStatus,
-                )
-            }
-            binding.registrationLogoutButton.visibility = View.VISIBLE
-            binding.registrationLogoutButton.isEnabled = true
         }
         RegistrationCompaniesController.refresh(activity, binding)
+    }
+
+    private fun renderProfile(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+        profile: CompanySessionStore.Snapshot,
+    ) {
+        val profileName = profile.userName.ifBlank {
+            activity.getString(R.string.settings_registration_profile_license)
+        }
+        val email = profile.userEmail.ifBlank {
+            activity.getString(R.string.settings_registration_missing_email)
+        }
+        val phone = profile.userPhone.ifBlank {
+            activity.getString(R.string.settings_registration_missing_phone)
+        }
+        val emailStatus = activity.getString(
+            if (profile.emailVerified) R.string.settings_registration_contact_verified
+            else R.string.settings_registration_contact_unverified,
+        )
+        val phoneStatus = activity.getString(
+            if (profile.phoneVerified) R.string.settings_registration_contact_verified
+            else R.string.settings_registration_contact_unverified,
+        )
+        binding.registrationCurrentProfileText.apply {
+            visibility = View.VISIBLE
+            text = activity.getString(
+                R.string.settings_registration_current_profile_details,
+                profileName,
+                email,
+                emailStatus,
+                phone,
+                phoneStatus,
+            )
+        }
+        binding.registrationLogoutButton.visibility = View.VISIBLE
+        binding.registrationLogoutButton.isEnabled = true
+    }
+
+    private fun refreshProfileIfNeeded(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+    ) {
+        val refreshKey = System.identityHashCode(activity)
+        if (!profileRefreshes.add(refreshKey)) return
+        Thread {
+            val result = CompanyAccountApi.refreshProfile(activity.applicationContext)
+            activity.runOnUiThread {
+                profileRefreshes.remove(refreshKey)
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                result.onSuccess { session ->
+                    CompanyAccountApi.applySession(activity.applicationContext, session)
+                    CompanySessionStore.load(activity)?.let { renderProfile(activity, binding, it) }
+                }.onFailure { error ->
+                    binding.registrationCurrentProfileText.apply {
+                        visibility = View.VISIBLE
+                        text = "Профилът не можа да бъде зареден: ${error.message ?: "неизвестна грешка"}"
+                    }
+                }
+            }
+        }.start()
     }
 
     fun logout(
