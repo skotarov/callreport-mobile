@@ -12,4 +12,11 @@
     <string name="server_auth_path_hint">Профил и удостоверяване — auth.php</string>
     <string name="server_invitations_path_hint">Покани към фирми — invitations.php</string>
     <string name="server_billing_path_hint">Фирмен лиценз — billing.php</string>
+    <string name="server_config_path_hint">Тест на сървърната конфигурация — config.php</string>
+    <string name="server_standalone_lookup_path_hint">Самостоятелен тест за номер — lookup.php</string>
+    <string name="server_home_notes_path_hint">Пакетни бележки за началния екран — home_notes.php</string>
+    <string name="server_property_search_path_hint">Тестово търсене на имот — property_search.php</string>
+    <string name="server_standalone_form_path_hint">Самостоятелна тестова форма — form.php</string>
+    <string name="server_standalone_history_path_hint">Самостоятелна тестова история — history.php</string>
+    <string name="server_submit_path_hint">Директен тестов запис на бележка — submit.php</string>
 </resources>
