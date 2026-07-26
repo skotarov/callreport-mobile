@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.charset.StandardCharsets
 
 internal object ServerConnectionTester {
     data class Result(
@@ -15,31 +16,29 @@ internal object ServerConnectionTester {
 
     fun test(config: AppConfig): Result {
         require(config.baseUrl.isNotBlank()) { "Липсва Server URL." }
-        val endpoint = buildEndpoint(
-            config.baseUrl,
-            config.lookupPath,
-            mapOf(
-                "access_token" to config.accessToken,
-                "phone" to "+359000000000",
-                "direction" to "test",
-                "source" to "android_settings_test",
-            ),
-        )
+        require(config.accessToken.isNotBlank()) { "Липсва access token." }
+        val endpoint = buildEndpoint(config.baseUrl, config.authPath, emptyMap())
+        val payload = JSONObject().put("action", "me").toString().toByteArray(StandardCharsets.UTF_8)
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
+            requestMethod = "POST"
             connectTimeout = 8_000
             readTimeout = 12_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
-            if (config.accessToken.isNotBlank()) setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+            setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+            setRequestProperty("X-Relationship-Manager-Token", config.accessToken)
+            setRequestProperty("X-Callreport-Token", config.accessToken)
         }
         try {
+            connection.outputStream.use { it.write(payload) }
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader()?.use { reader -> reader.readText() }.orEmpty().trim()
+            val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty().trim()
             if (code !in 200..299) {
                 return Result(
                     ok = false,
-                    title = "Връзката стигна до сървъра, но той върна грешка.",
+                    title = "Връзката стигна до сървъра, но token-ът не беше приет.",
                     detail = httpErrorText(code, body),
                     endpoint = endpoint,
                     httpCode = code,
@@ -49,7 +48,7 @@ internal object ServerConnectionTester {
                 return Result(
                     ok = false,
                     title = "Сървърът отговори, но отговорът е празен.",
-                    detail = "Провери lookup path: ${config.lookupPath}",
+                    detail = "Провери auth path: ${config.authPath}",
                     endpoint = endpoint,
                     httpCode = code,
                 )
@@ -58,27 +57,40 @@ internal object ServerConnectionTester {
                 ?: return Result(
                     ok = false,
                     title = "Сървърът отговори, но не върна JSON.",
-                    detail = "Вероятно Base URL или lookup path сочат към HTML страница, не към API.",
+                    detail = "Base URL или auth path вероятно сочат към HTML страница, а не към API.",
                     endpoint = endpoint,
                     httpCode = code,
                 )
-            if (json.has("ok") && !json.optBoolean("ok", false)) {
+            if (!json.optBoolean("ok", false)) {
                 return Result(
                     ok = false,
-                    title = "Връзката работи, но настройките не са приети.",
-                    detail = errorMessage(json).ifBlank { "Провери access token и lookup path." },
+                    title = "Връзката работи, но token-ът не е валиден.",
+                    detail = errorMessage(json).ifBlank { "Провери access token и auth path." },
+                    endpoint = endpoint,
+                    httpCode = code,
+                )
+            }
+            val user = json.optJSONObject("user")
+            val profileName = user?.optString("display_name").orEmpty().trim()
+            val profileEmail = user?.optString("email").orEmpty().trim()
+            if (user == null) {
+                return Result(
+                    ok = false,
+                    title = "Token-ът е приет, но сървърът не върна профил.",
+                    detail = "Провери отговора на ${config.authPath} за action=me.",
                     endpoint = endpoint,
                     httpCode = code,
                 )
             }
             return Result(
                 ok = true,
-                title = "Връзката със сървъра е OK.",
-                detail = listOf(
-                    "HTTP $code",
-                    "lookup path: ${config.lookupPath}",
-                    if (config.accessToken.isBlank()) "access token: празен" else "access token: изпратен",
-                ).joinToString("\n"),
+                title = "Връзката със сървъра е активна.",
+                detail = buildString {
+                    append("HTTP ").append(code)
+                    if (profileName.isNotBlank()) append("\nПрофил: ").append(profileName)
+                    if (profileEmail.isNotBlank()) append("\nИмейл: ").append(profileEmail)
+                    append("\nauth path: ").append(config.authPath)
+                },
                 endpoint = endpoint,
                 httpCode = code,
             )
