@@ -88,6 +88,7 @@ internal object ServerSettingsBackupStore {
                     historyLookupPath = settings.stringOrCurrent("history_lookup_path", currentConfig.historyLookupPath),
                     syncPath = settings.stringOrCurrent("sync_path", currentConfig.syncPath),
                     syncEditPath = settings.stringOrCurrent("sync_edit_path", currentConfig.syncEditPath),
+                    contactPhasePath = settings.stringOrCurrent("contact_phase_path", currentConfig.contactPhasePath),
                     companyPhasePath = settings.stringOrCurrent("company_phase_path", currentConfig.companyPhasePath),
                     companyDestinationsPath = settings.stringOrCurrent("company_destinations_path", currentConfig.companyDestinationsPath),
                     contactsSharedLookupPath = settings.stringOrCurrent("contacts_shared_lookup_path", currentConfig.contactsSharedLookupPath),
@@ -114,6 +115,7 @@ internal object ServerSettingsBackupStore {
             .put("history_lookup_path", config.historyLookupPath.trim())
             .put("sync_path", config.syncPath.trim())
             .put("sync_edit_path", config.syncEditPath.trim())
+            .put("contact_phase_path", config.contactPhasePath.trim())
             .put("company_phase_path", config.companyPhasePath.trim())
             .put("company_destinations_path", config.companyDestinationsPath.trim())
             .put("contacts_shared_lookup_path", config.contactsSharedLookupPath.trim())
