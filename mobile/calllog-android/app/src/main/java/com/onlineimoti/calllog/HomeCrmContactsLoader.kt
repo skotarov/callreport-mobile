@@ -7,7 +7,9 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Loads the authenticated user's Clients page from the server. Local Contacts and
  * local notes are used only as display enrichment after the server has selected
- * the broker/profile, phase and company scope.
+ * the broker/profile and company scope. Effective local + server phase state is
+ * applied before pagination so a just-edited phase does not disappear while sync
+ * is still pending.
  */
 internal class HomeCrmContactsLoader(
     private val activity: HomeActivity,
@@ -45,7 +47,8 @@ internal class HomeCrmContactsLoader(
         contactsContent.showLoading()
         executor.execute {
             val data = runCatching {
-                val contacts = HomeCrmContactCandidates.load(appContext, filterState)
+                val candidates = HomeCrmContactCandidates.load(appContext, filterState)
+                val contacts = crmFilters.filterSearchResults(candidates)
                 val page = contacts
                     .map { contact -> enrichWithLocalName(contact) }
                     .sortedWith(contactListOrder)
