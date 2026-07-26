@@ -3,6 +3,9 @@
     <string name="settings_profile_companies_description">Създай или отвори профила си, присъедини се по покана и управлявай отделно фирмите към него.</string>
     <string name="settings_registration_profile_license">Профил</string>
     <string name="settings_registration_profile_description">Профилът се създава само с име, имейл и парола. Фирмите и лицензите им се добавят отделно.</string>
+    <string name="settings_registration_current_profile">Влязъл профил: %1$s</string>
+    <string name="settings_registration_logout">Излез</string>
+    <string name="settings_registration_logged_out">Излязохте от профила.</string>
     <string name="settings_registration_companies_section">Включени фирми</string>
     <string name="settings_registration_companies_description">При фирмите, в които си собственик или администратор, има отделен бутон „Покани колега“.</string>
     <string name="settings_registration_no_company">Няма включени фирми</string>
