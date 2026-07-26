@@ -10,7 +10,7 @@
     <string name="default_sms_manage_button">Управление в Android</string>
     <string name="default_sms_permissions_checked">SMS разрешенията са проверени.</string>
     <string name="default_sms_role_unavailable">Този телефон не показва роля за SMS приложение по подразбиране.</string>
-    <string name="test_server_connection">Тест на връзката</string>
-    <string name="test_server_connection_running">Проверявам връзката със сървъра…</string>
-    <string name="test_server_connection_failed">Тестът на връзката не успя.</string>
+    <string name="test_server_connection">Свържи</string>
+    <string name="test_server_connection_running">Свързвам се със сървъра…</string>
+    <string name="test_server_connection_failed">Връзката със сървъра не успя.</string>
 </resources>
