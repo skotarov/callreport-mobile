@@ -79,6 +79,35 @@ internal object CompanyAccountApi {
             .put("device_name", android.os.Build.MODEL.take(120)),
     )
 
+    fun logout(context: Context): Result<Unit> = runCatching {
+        val config = ConfigStore.load(context)
+        if (config.baseUrl.isBlank() || config.accessToken.isBlank()) return@runCatching
+        val payload = JSONObject()
+            .put("action", "logout")
+            .toString()
+            .toByteArray(StandardCharsets.UTF_8)
+        val connection = (URL(buildEndpoint(config.baseUrl, AUTH_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10_000
+            readTimeout = 15_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+        }
+        try {
+            connection.outputStream.use { it.write(payload) }
+            val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
+            val response = JSONObject(stream?.bufferedReader()?.use { it.readText() }.orEmpty().ifBlank { "{}" })
+            if (connection.responseCode !in 200..299 || !response.optBoolean("ok", false)) {
+                val error = response.optJSONObject("error")
+                throw IllegalStateException(error?.optString("message").orEmpty().ifBlank { "Сървърната сесия не можа да бъде прекратена." })
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     fun applySession(context: Context, session: Session) {
         val current = ConfigStore.load(context)
         ConfigStore.save(
@@ -89,6 +118,18 @@ internal object CompanyAccountApi {
             ),
         )
         CompanySessionStore.save(context, session)
+    }
+
+    fun clearSession(context: Context) {
+        val current = ConfigStore.load(context)
+        ConfigStore.save(
+            context,
+            current.copy(
+                remoteEnabled = false,
+                accessToken = "",
+            ),
+        )
+        CompanySessionStore.clear(context)
     }
 
     private fun post(
