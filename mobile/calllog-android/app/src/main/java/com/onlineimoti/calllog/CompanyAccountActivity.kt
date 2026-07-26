@@ -9,12 +9,13 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/** Profile registration/login and company creation are intentionally separate flows. */
+/** OTP profile registration/login and company creation are intentionally separate flows. */
 class CompanyAccountActivity : AppCompatActivity() {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -23,15 +24,20 @@ class CompanyAccountActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var progress: ProgressBar
     private lateinit var submitButton: MaterialButton
+    private lateinit var smsButton: MaterialButton
     private lateinit var switchModeButton: MaterialButton
     private lateinit var licenseButton: MaterialButton
+    private lateinit var verifyEmailButton: MaterialButton
+    private lateinit var verifyPhoneButton: MaterialButton
+    private lateinit var logoutButton: MaterialButton
     private lateinit var nameInput: EditText
     private lateinit var emailInput: EditText
-    private lateinit var passwordInput: EditText
+    private lateinit var phoneInput: EditText
     private lateinit var organizationInput: EditText
     private lateinit var eikInput: EditText
 
     private var mode: String = MODE_LOGIN
+    private var profileRefreshStarted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppLanguageManager.applyFromConfig(this)
@@ -51,6 +57,7 @@ class CompanyAccountActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         renderMode()
+        refreshProfileFromServer()
     }
 
     override fun onDestroy() {
@@ -88,21 +95,45 @@ class CompanyAccountActivity : AppCompatActivity() {
 
         nameInput = editInput("Твоето име", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
         emailInput = editInput("Имейл", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
-        passwordInput = editInput("Парола (поне 10 символа)", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        phoneInput = editInput("Телефон", InputType.TYPE_CLASS_PHONE)
         organizationInput = editInput("Име на фирма / организация", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
         eikInput = editInput("ЕИК / Булстат (незадължително)", InputType.TYPE_CLASS_NUMBER)
 
         column.addView(nameInput)
         column.addView(emailInput, verticalParams(8))
-        column.addView(passwordInput, verticalParams(8))
+        column.addView(phoneInput, verticalParams(8))
         column.addView(organizationInput, verticalParams(8))
         column.addView(eikInput, verticalParams(8))
 
-        submitButton = MaterialButton(this).apply { setOnClickListener { submit() } }
+        submitButton = MaterialButton(this).apply { setOnClickListener { submitPrimary() } }
         column.addView(submitButton, verticalParams(16))
+
+        smsButton = MaterialButton(this).apply {
+            text = "Изпрати код със SMS"
+            setOnClickListener { submitSms() }
+        }
+        column.addView(smsButton, verticalParams(8))
+
+        verifyEmailButton = MaterialButton(this).apply {
+            text = "Потвърди имейла"
+            setOnClickListener { requestContactVerification("email") }
+        }
+        column.addView(verifyEmailButton, verticalParams(8))
+
+        verifyPhoneButton = MaterialButton(this).apply {
+            text = "Потвърди телефона"
+            setOnClickListener { requestContactVerification("sms") }
+        }
+        column.addView(verifyPhoneButton, verticalParams(8))
 
         switchModeButton = MaterialButton(this).apply { setOnClickListener { switchMode() } }
         column.addView(switchModeButton, verticalParams(8))
+
+        logoutButton = MaterialButton(this).apply {
+            text = "Излез"
+            setOnClickListener { logout() }
+        }
+        column.addView(logoutButton, verticalParams(8))
 
         licenseButton = MaterialButton(this).apply {
             text = "Купи / възстанови лиценз за фирма"
@@ -142,45 +173,70 @@ class CompanyAccountActivity : AppCompatActivity() {
             else -> "Вход в профил"
         }
         descriptionText.text = when {
-            viewingProfile -> {
-                val user = profile?.userName.orEmpty().ifBlank { "текущия профил" }
-                "Влезли сте като $user. Профилът е отделен от фирмите и може да участва в много фирми с различни роли."
-            }
-            creatingProfile -> "Създай личния си профил само с име, имейл и парола. Фирма може да добавиш отделно след вход."
+            viewingProfile -> profileDescription(profile)
+            creatingProfile -> "Профилът е с име, имейл и телефон. Имейлът и телефонът се потвърждават с отделни еднократни кодове."
             creatingCompany && activation == null -> "Фирмата се създава отделно към влезлия профил. За нея е необходим потвърден лиценз."
             creatingCompany -> "Лицензът е потвърден. Въведи данните на новата фирма."
-            else -> "Влез с имейл и парола. След това ще видиш всички фирми, към които профилът има достъп."
+            else -> "Въведи имейла или телефона на профила и избери къде да получиш еднократния код. Парола не е нужна."
         }
 
         nameInput.visibility = if (creatingProfile) View.VISIBLE else View.GONE
-        emailInput.visibility = if (loggingIn || creatingProfile) View.VISIBLE else View.GONE
-        passwordInput.visibility = if (loggingIn || creatingProfile) View.VISIBLE else View.GONE
+        emailInput.visibility = if (loggingIn || creatingProfile || viewingProfile) View.VISIBLE else View.GONE
+        phoneInput.visibility = if (creatingProfile || viewingProfile) View.VISIBLE else View.GONE
         organizationInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
         eikInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
+
+        if (loggingIn) emailInput.hint = "Имейл или телефон" else emailInput.hint = "Имейл"
+        if (viewingProfile && profile != null) {
+            if (!emailInput.hasFocus()) emailInput.setText(profile.userEmail)
+            if (!phoneInput.hasFocus()) phoneInput.setText(profile.userPhone)
+        }
+
         submitButton.visibility = if (viewingProfile) View.GONE else View.VISIBLE
         submitButton.text = when {
-            creatingProfile -> "Създай профил"
+            creatingProfile -> "Изпрати код по имейл"
             creatingCompany -> "Създай фирма"
-            else -> "Вход"
+            else -> "Изпрати код по имейл"
         }
+        smsButton.visibility = if (loggingIn || creatingProfile) View.VISIBLE else View.GONE
+        verifyEmailButton.visibility = if (viewingProfile) View.VISIBLE else View.GONE
+        verifyPhoneButton.visibility = if (viewingProfile) View.VISIBLE else View.GONE
+        verifyEmailButton.text = if (profile?.emailVerified == true) "Имейлът е потвърден" else "Потвърди имейла"
+        verifyPhoneButton.text = if (profile?.phoneVerified == true) "Телефонът е потвърден" else "Потвърди телефона"
+        verifyEmailButton.isEnabled = viewingProfile && profile?.emailVerified != true
+        verifyPhoneButton.isEnabled = viewingProfile && profile?.phoneVerified != true
+
         switchModeButton.text = when {
             viewingProfile -> "Създай фирма"
             creatingCompany -> "Назад към профила"
             creatingProfile -> "Вече имам профил"
             else -> "Създай профил"
         }
+        logoutButton.visibility = if (viewingProfile || creatingCompany) View.VISIBLE else View.GONE
         licenseButton.visibility = if (creatingCompany && activation == null) View.VISIBLE else View.GONE
         submitButton.isEnabled = hasBaseUrl && when {
             creatingCompany -> profile != null && activation != null
             else -> true
         }
+        smsButton.isEnabled = hasBaseUrl
 
         when {
             !hasBaseUrl -> setStatus("Първо настрой сървърния адрес от Настройки → Профил и фирми.")
             creatingCompany && activation == null -> setStatus("Първо купи или възстанови лиценз за новата фирма.")
-            viewingProfile -> setStatus("Фирмите и ролите се показват в секцията „Включени фирми“.")
+            viewingProfile && profile?.profileReady != true -> setStatus("Потвърди и имейла, и телефона, за да е завършен профилът.")
+            viewingProfile -> setStatus("При следващ вход сървърът ще издаде нов ключ и ще анулира предишния.")
             else -> setStatus("")
         }
+    }
+
+    private fun profileDescription(profile: CompanySessionStore.Snapshot?): String {
+        if (profile == null) return "Няма активен профил."
+        val name = profile.userName.ifBlank { "Без име" }
+        val email = profile.userEmail.ifBlank { "Няма въведен имейл" }
+        val phone = profile.userPhone.ifBlank { "Няма въведен телефон" }
+        val emailState = if (profile.emailVerified) "потвърден" else "непотвърден"
+        val phoneState = if (profile.phoneVerified) "потвърден" else "непотвърден"
+        return "Влязъл профил: $name\nИмейл: $email · $emailState\nТелефон: $phone · $phoneState"
     }
 
     private fun switchMode() {
@@ -190,41 +246,171 @@ class CompanyAccountActivity : AppCompatActivity() {
             MODE_REGISTER -> MODE_LOGIN
             else -> MODE_REGISTER
         }
+        if (mode == MODE_LOGIN || mode == MODE_REGISTER) {
+            nameInput.text?.clear()
+            emailInput.text?.clear()
+            phoneInput.text?.clear()
+        }
         renderMode()
     }
 
-    private fun submit() {
+    private fun submitPrimary() {
         when (mode) {
-            MODE_REGISTER -> registerProfile()
+            MODE_REGISTER -> requestRegistrationCode("email")
             MODE_CREATE_COMPANY -> createCompany()
-            else -> login()
+            else -> requestLoginCode("email")
         }
     }
 
-    private fun registerProfile() {
+    private fun submitSms() {
+        when (mode) {
+            MODE_REGISTER -> requestRegistrationCode("sms")
+            MODE_LOGIN -> requestLoginCode("sms")
+        }
+    }
+
+    private fun requestRegistrationCode(channel: String) {
         val name = nameInput.text?.toString().orEmpty().trim()
         val email = emailInput.text?.toString().orEmpty().trim()
-        val password = passwordInput.text?.toString().orEmpty()
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
-            setStatus("Въведи име, имейл и парола.")
+        val phone = phoneInput.text?.toString().orEmpty().trim()
+        if (name.isBlank() || email.isBlank() || phone.isBlank()) {
+            setStatus("Въведи име, имейл и телефон.")
             return
         }
         showLoading(true)
         executor.execute {
-            val result = CompanyAccountApi.registerProfile(applicationContext, email, password, name)
+            val result = CompanyAccountApi.requestRegistrationOtp(applicationContext, email, phone, name, channel)
             runOnUiThread {
-                result.onSuccess { session ->
-                    CompanyAccountApi.applySession(applicationContext, session)
-                    showLoading(false)
-                    mode = MODE_PROFILE
-                    setStatus("Профилът е създаден. Сега можеш да създадеш фирма или да приемеш покана.")
-                    renderMode()
+                showLoading(false)
+                result.onSuccess { challenge ->
+                    showOtpDialog(challenge, "Потвърждение на профила") { code ->
+                        verifyRegistrationCode(challenge, code)
+                    }
+                }.onFailure { error -> setStatus(error.message ?: "Кодът не можа да бъде изпратен.") }
+            }
+        }
+    }
+
+    private fun verifyRegistrationCode(challenge: CompanyAccountApi.OtpChallenge, code: String) {
+        executor.execute {
+            val result = CompanyAccountApi.verifyRegistrationOtp(applicationContext, challenge.id, code)
+            runOnUiThread {
+                result.onSuccess { verified ->
+                    verified.session?.let { session ->
+                        CompanyAccountApi.applySession(applicationContext, session)
+                        mode = MODE_PROFILE
+                        setStatus("Профилът е създаден и двата контакта са потвърдени.")
+                        renderMode()
+                        return@onSuccess
+                    }
+                    val next = if (verified.user.emailVerified) "Имейлът е потвърден. Сега изпрати код със SMS." else "Телефонът е потвърден. Сега изпрати код по имейл."
+                    setStatus(next)
                 }.onFailure { error ->
-                    showLoading(false)
-                    setStatus(error.message ?: "Неуспешно създаване на профил.")
+                    setStatus(error.message ?: "Кодът не е приет.")
                 }
             }
         }
+    }
+
+    private fun requestLoginCode(channel: String) {
+        val identifier = emailInput.text?.toString().orEmpty().trim()
+        if (identifier.isBlank()) {
+            setStatus("Въведи имейл или телефон.")
+            return
+        }
+        showLoading(true)
+        executor.execute {
+            val result = CompanyAccountApi.requestLoginOtp(applicationContext, identifier, channel)
+            runOnUiThread {
+                showLoading(false)
+                result.onSuccess { challenge ->
+                    showOtpDialog(challenge, "Вход в профил") { code -> verifyLoginCode(challenge, code) }
+                }.onFailure { error -> setStatus(error.message ?: "Кодът не можа да бъде изпратен.") }
+            }
+        }
+    }
+
+    private fun verifyLoginCode(challenge: CompanyAccountApi.OtpChallenge, code: String) {
+        executor.execute {
+            val result = CompanyAccountApi.verifyLoginOtp(applicationContext, challenge.id, code)
+            runOnUiThread {
+                result.onSuccess { session ->
+                    CompanyAccountApi.applySession(applicationContext, session)
+                    mode = MODE_PROFILE
+                    setStatus("Успешен вход. Новият ключ замени предишния.")
+                    renderMode()
+                }.onFailure { error ->
+                    setStatus(error.message ?: "Кодът не е приет.")
+                }
+            }
+        }
+    }
+
+    private fun requestContactVerification(channel: String) {
+        val value = if (channel == "email") emailInput.text?.toString().orEmpty().trim() else phoneInput.text?.toString().orEmpty().trim()
+        if (value.isBlank()) {
+            setStatus(if (channel == "email") "Въведи имейл." else "Въведи телефон.")
+            return
+        }
+        showLoading(true)
+        executor.execute {
+            val result = CompanyAccountApi.requestContactOtp(applicationContext, channel, value)
+            runOnUiThread {
+                showLoading(false)
+                result.onSuccess { challenge ->
+                    showOtpDialog(challenge, if (channel == "email") "Потвърди имейла" else "Потвърди телефона") { code ->
+                        verifyContactCode(challenge, code)
+                    }
+                }.onFailure { error -> setStatus(error.message ?: "Кодът не можа да бъде изпратен.") }
+            }
+        }
+    }
+
+    private fun verifyContactCode(challenge: CompanyAccountApi.OtpChallenge, code: String) {
+        executor.execute {
+            val result = CompanyAccountApi.verifyContactOtp(applicationContext, challenge.id, code)
+            runOnUiThread {
+                result.onSuccess { user ->
+                    CompanyAccountApi.applyProfileUser(applicationContext, user)
+                    setStatus("Контактът е потвърден.")
+                    renderMode()
+                }.onFailure { error ->
+                    setStatus(error.message ?: "Кодът не е приет.")
+                }
+            }
+        }
+    }
+
+    private fun showOtpDialog(
+        challenge: CompanyAccountApi.OtpChallenge,
+        title: String,
+        verify: (String) -> Unit,
+    ) {
+        val codeInput = EditText(this).apply {
+            hint = "Шестцифрен код"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            if (challenge.debugCode.isNotBlank()) setText(challenge.debugCode)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("Кодът е изпратен до ${challenge.destinationHint} и е валиден 10 минути.")
+            .setView(codeInput)
+            .setNegativeButton("Отказ", null)
+            .setPositiveButton("Потвърди", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val code = codeInput.text?.toString().orEmpty().trim()
+                if (code.length != 6) {
+                    codeInput.error = "Въведи шестцифрения код"
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                verify(code)
+            }
+        }
+        dialog.show()
     }
 
     private fun createCompany() {
@@ -262,26 +448,32 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun login() {
-        val email = emailInput.text?.toString().orEmpty().trim()
-        val password = passwordInput.text?.toString().orEmpty()
-        if (email.isBlank() || password.isBlank()) {
-            setStatus("Въведи имейл и парола.")
-            return
-        }
+    private fun logout() {
         showLoading(true)
         executor.execute {
-            val result = CompanyAccountApi.login(applicationContext, email, password)
+            CompanyAccountApi.logout(applicationContext)
+            CompanyAccountApi.clearSession(applicationContext)
             runOnUiThread {
-                result.onSuccess { session ->
-                    CompanyAccountApi.applySession(applicationContext, session)
-                    showLoading(false)
-                    mode = MODE_PROFILE
-                    setStatus("Успешен вход в профила.")
+                showLoading(false)
+                profileRefreshStarted = false
+                mode = MODE_LOGIN
+                emailInput.text?.clear()
+                phoneInput.text?.clear()
+                setStatus("Излезе от профила. Ключът за връзка със сървъра е изтрит.")
+                renderMode()
+            }
+        }
+    }
+
+    private fun refreshProfileFromServer() {
+        if (profileRefreshStarted || CompanySessionStore.load(this) == null) return
+        profileRefreshStarted = true
+        executor.execute {
+            val result = CompanyAccountApi.refreshProfile(applicationContext)
+            runOnUiThread {
+                result.onSuccess {
+                    CompanyAccountApi.applySession(applicationContext, it)
                     renderMode()
-                }.onFailure { error ->
-                    showLoading(false)
-                    setStatus(error.message ?: "Неуспешен вход.")
                 }
             }
         }
@@ -290,8 +482,12 @@ class CompanyAccountActivity : AppCompatActivity() {
     private fun showLoading(show: Boolean) {
         progress.visibility = if (show) View.VISIBLE else View.GONE
         submitButton.isEnabled = !show
+        smsButton.isEnabled = !show
         switchModeButton.isEnabled = !show
         licenseButton.isEnabled = !show
+        verifyEmailButton.isEnabled = !show
+        verifyPhoneButton.isEnabled = !show
+        logoutButton.isEnabled = !show
     }
 
     private fun setStatus(value: String) {
