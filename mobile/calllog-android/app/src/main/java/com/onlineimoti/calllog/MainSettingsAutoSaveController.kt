@@ -2,7 +2,6 @@ package com.onlineimoti.calllog
 
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
 import android.widget.CompoundButton
 import com.google.android.material.textfield.TextInputEditText
 import com.onlineimoti.calllog.databinding.ActivityMainBinding
@@ -23,16 +22,29 @@ internal class MainSettingsAutoSaveController(
         val language = binding.settingsGeneralGroup.languageSettingsSection
         val tests = binding.testsSection
 
-        remote.remoteEnabledCheckBox.setOnCheckedChangeListener { _, isChecked ->
-            remote.remoteSettingsGroup.visibility = if (isChecked) View.VISIBLE else View.GONE
-            autoSaveSettings()
-        }
+        remote.remoteEnabledCheckBox.isClickable = false
+        remote.remoteEnabledCheckBox.isFocusable = false
 
         listOf(
             remote.baseUrlInput,
             remote.accessTokenInput,
+            remote.authPathInput,
+        ).forEach { input -> input.autoSaveServerIdentityChanges() }
+
+        listOf(
             remote.lookupPathInput,
+            remote.formPathInput,
             remote.historyPathInput,
+            remote.historyLookupPathInput,
+            remote.syncPathInput,
+            remote.syncEditPathInput,
+            remote.companyPhasePathInput,
+            remote.companyDestinationsPathInput,
+            remote.contactsSharedLookupPathInput,
+            remote.profileCrmContactsPathInput,
+            remote.companyUsersPathInput,
+            remote.invitationsPathInput,
+            remote.billingPathInput,
             popup.postCallTimeoutInput,
             callLog.homeCallPageSizeInput,
             popupFilter.contactGroupsInput,
@@ -75,6 +87,17 @@ internal class MainSettingsAutoSaveController(
             val config = autoSaveSettings()
             applyLanguageIfChanged(config.appLanguage)
         }
+    }
+
+    private fun TextInputEditText.autoSaveServerIdentityChanges() {
+        addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                binding.remoteSettingsSection.remoteEnabledCheckBox.isChecked = false
+                autoSaveSettings()
+            }
+        })
     }
 
     private fun TextInputEditText.autoSaveTextChanges() {
