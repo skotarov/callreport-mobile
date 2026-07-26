@@ -73,6 +73,13 @@ object MainSettingsConfigUi {
         remote.authPathInput.setText(config.authPath)
         remote.invitationsPathInput.setText(config.invitationsPath)
         remote.billingPathInput.setText(config.billingPath)
+        remote.configPathInput.setText(config.configPath)
+        remote.standaloneLookupPathInput.setText(config.standaloneLookupPath)
+        remote.homeNotesPathInput.setText(config.homeNotesPath)
+        remote.propertySearchPathInput.setText(config.propertySearchPath)
+        remote.standaloneFormPathInput.setText(config.standaloneFormPath)
+        remote.standaloneHistoryPathInput.setText(config.standaloneHistoryPath)
+        remote.submitPathInput.setText(config.submitPath)
     }
 
     fun read(binding: ActivityMainBinding): AppConfig {
@@ -110,6 +117,13 @@ object MainSettingsConfigUi {
             authPath = remote.authPathInput.text?.toString().orEmpty(),
             invitationsPath = remote.invitationsPathInput.text?.toString().orEmpty(),
             billingPath = remote.billingPathInput.text?.toString().orEmpty(),
+            configPath = remote.configPathInput.text?.toString().orEmpty(),
+            standaloneLookupPath = remote.standaloneLookupPathInput.text?.toString().orEmpty(),
+            homeNotesPath = remote.homeNotesPathInput.text?.toString().orEmpty(),
+            propertySearchPath = remote.propertySearchPathInput.text?.toString().orEmpty(),
+            standaloneFormPath = remote.standaloneFormPathInput.text?.toString().orEmpty(),
+            standaloneHistoryPath = remote.standaloneHistoryPathInput.text?.toString().orEmpty(),
+            submitPath = remote.submitPathInput.text?.toString().orEmpty(),
             postCallPromptTimeoutSeconds = popup.postCallTimeoutInput.text?.toString()?.toIntOrNull()
                 ?: ConfigStore.DEFAULT_POST_CALL_TIMEOUT_SECONDS,
             useOverlayPopups = currentConfig.useOverlayPopups,
