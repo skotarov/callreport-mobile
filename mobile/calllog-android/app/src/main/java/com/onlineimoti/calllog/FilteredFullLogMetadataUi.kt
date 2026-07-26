@@ -32,7 +32,7 @@ internal class FilteredFullLogMetadataUi(
 
     fun metaView(row: CallReportHistoryRow, remoteEnabled: Boolean): TextView {
         val type = when (row.kind) {
-            CallReportHistoryRowKind.PHONE -> "Телефон"
+            CallReportHistoryRowKind.PHONE -> ""
             CallReportHistoryRowKind.SMS -> "SMS"
             CallReportHistoryRowKind.NOTE -> "Бележка"
         }
