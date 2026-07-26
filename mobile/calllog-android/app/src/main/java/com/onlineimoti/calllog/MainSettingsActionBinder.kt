@@ -29,6 +29,9 @@ internal object MainSettingsActionBinder {
         binding.settingsRegistrationGroup.registrationCompanyAccountButton.setOnClickListener {
             RegistrationActions.openCompanyAccount(activity)
         }
+        binding.settingsRegistrationGroup.registrationLogoutButton.setOnClickListener {
+            RegistrationActions.logout(activity, binding.settingsRegistrationGroup)
+        }
         binding.settingsRegistrationGroup.registrationJoinCompanyButton.setOnClickListener {
             RegistrationActions.showJoinDialog(activity)
         }
