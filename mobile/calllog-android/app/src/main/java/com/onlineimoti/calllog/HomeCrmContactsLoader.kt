@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import android.content.Context
 import android.os.Handler
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -48,7 +49,7 @@ internal class HomeCrmContactsLoader(
             if (filterState.crmOnly) {
                 val provisionalCalls = runCatching {
                     pageContacts(
-                        HomeCrmContactCandidates.loadLocal(appContext),
+                        filteredLocalCrmContacts(appContext, filterState),
                         requestedPage,
                         pageSize,
                     )
@@ -70,14 +71,14 @@ internal class HomeCrmContactsLoader(
             val finalResult = runCatching {
                 val serverContacts = HomeCrmContactCandidates.load(appContext, filterState)
                 val contacts = if (filterState.crmOnly) {
-                    // refreshFromServer() has already reconciled the profile cache.
-                    // Keep only server rows whose effective local record is still
-                    // active, then add locally newer/offline CRM markers that an old
-                    // or temporarily unavailable server endpoint did not return.
+                    // The server result already respects phase/company filters. Local
+                    // winners must pass the same filters before being merged back;
+                    // otherwise every local CRM marker reappears after a phase is chosen.
                     val confirmedServer = serverContacts.filter { contact ->
                         CrmContactSyncStore.isEnabled(appContext, contact.number)
                     }
-                    (confirmedServer + HomeCrmContactCandidates.loadLocal(appContext))
+                    val filteredLocal = filteredLocalCrmContacts(appContext, filterState)
+                    (confirmedServer + filteredLocal)
                         .distinctBy { contact -> HomeCallPageLoader.noteKey(contact.number) }
                 } else {
                     serverContacts
@@ -111,6 +112,26 @@ internal class HomeCrmContactsLoader(
                 onRenderComplete()
             }
         }
+    }
+
+    /** Applies the exact Clients phase/company rules to the local CRM fallback. */
+    private fun filteredLocalCrmContacts(
+        context: Context,
+        filterState: HomeCrmFilterState,
+    ): List<PhoneCallRecord> {
+        val local = HomeCrmContactCandidates.loadLocal(context)
+        val phaseFiltered = HomeCrmFilterEngine.filterLocal(context, local, filterState)
+        if (!filterState.isCompanyFiltered || phaseFiltered.isEmpty()) return phaseFiltered
+        val memberships = HomeCrmCompanyMembershipStore.resolve(
+            context = context.applicationContext,
+            config = ConfigStore.load(context.applicationContext),
+            phones = phaseFiltered.map { it.number },
+        )
+        return HomeCrmFilterEngine.filterByCompany(
+            calls = phaseFiltered,
+            state = filterState,
+            companyIdsByPhoneKey = memberships.companyIdsByPhoneKey,
+        )
     }
 
     private fun pageContacts(
