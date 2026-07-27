@@ -95,7 +95,15 @@ internal object CrmContactSyncStore {
         }
     }
 
-    private fun profileScope(context: Context): String = CompanySessionStore.profileScopeKey(context)
+    private fun profileScope(context: Context): String {
+        val stableProfileScope = CompanySessionStore.profileScopeKey(context)
+        if (stableProfileScope.isNotBlank()) return stableProfileScope
+
+        // The profile snapshot can briefly be unavailable after an access-token change.
+        // Keep the fallback private by scoping it to the current token, never globally.
+        val accessToken = ConfigStore.load(context).accessToken.trim()
+        return if (accessToken.isBlank()) "" else "token:${hash(accessToken)}"
+    }
 
     private fun pendingChanges(context: Context, scope: String): Map<String, Boolean> {
         return pendingPrefs(context, scope).all.mapNotNull { (rawKey, rawValue) ->
