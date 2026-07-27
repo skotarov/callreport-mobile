@@ -34,12 +34,13 @@ internal class ContactNotesHeaderActionsUi(
             else -> Color.BLACK
         }
         val labelColor = if (enabled) Color.WHITE else Color.BLACK
+        val bulgarian = AppLocaleText.isBulgarian()
         val description = when {
-            !available -> "CRM не е достъпен без настроен сървър"
-            busy -> activity.getString(R.string.dynamic_crm_sync_changing)
-            enabled -> activity.getString(R.string.dynamic_crm_sync_enabled)
-            serverBacked -> "Има сървърна история. Включи CRM"
-            else -> activity.getString(R.string.dynamic_crm_sync_enable)
+            !available -> if (bulgarian) "Личният списък не е достъпен без настроен сървър" else "The personal list is unavailable without a configured server"
+            busy -> if (bulgarian) "Променям статуса Мой" else "Changing My status"
+            enabled -> if (bulgarian) "Мой активен клиент. Натисни, за да премахнеш" else "My active client. Tap to remove"
+            serverBacked -> if (bulgarian) "Има сървърна история. Натисни, за да маркираш като Мой" else "Server history exists. Tap to mark as Mine"
+            else -> if (bulgarian) "Маркирай като Мой активен клиент" else "Mark as my active client"
         }
         val cloudIcon = ImageView(activity).apply {
             setImageResource(if (filledCloud) R.drawable.ic_cloud_note_filled else R.drawable.ic_cloud_note)
@@ -49,7 +50,7 @@ internal class ContactNotesHeaderActionsUi(
             layoutParams = LinearLayout.LayoutParams(dp(30), dp(36))
         }
         val crmLabel = TextView(activity).apply {
-            text = "CRM"
+            text = if (bulgarian) "Мой" else "Mine"
             textSize = 11.5f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(labelColor)
