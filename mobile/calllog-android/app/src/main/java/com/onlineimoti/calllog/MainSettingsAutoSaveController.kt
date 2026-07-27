@@ -38,7 +38,7 @@ internal class MainSettingsAutoSaveController(
             popup.postCallTimeoutInput,
             callLog.homeCallPageSizeInput,
             popupFilter.contactGroupsInput,
-        ).forEach { input -> input.watchTextChanges(autoSaveSettings) }
+        ).forEach { input -> input.watchTextChanges { autoSaveSettings() } }
 
         callLog.pageLoadingModeGroup.setOnCheckedChangeListener { _, checkedId ->
             PageLoadingModeStore.save(
