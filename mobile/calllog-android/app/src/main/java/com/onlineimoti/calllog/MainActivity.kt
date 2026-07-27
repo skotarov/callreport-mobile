@@ -190,14 +190,20 @@ class MainActivity : FontScaledAppCompatActivity() {
     }
 
     private fun saveServerSettings() {
-        saveConfig()
+        val config = saveConfig()
+        if (config.baseUrl.isBlank() || config.accessToken.isBlank()) {
+            applyTestedServerMode(config, enabled = false)
+        }
         setStatus(getString(R.string.settings_server_saved))
         refreshPermissionSummary()
         serverSyncQueueStatusController.refresh()
     }
 
     private fun testServerConnection() {
-        val config = saveConfig()
+        val entered = MainSettingsConfigUi.read(binding)
+        ConfigStore.save(this, entered.copy(remoteEnabled = false))
+        HomeCrmModeStore.setEnabled(this, false)
+        val config = ConfigStore.load(this).copy(remoteEnabled = true)
         val remote = binding.remoteSettingsSection
         remote.serverConnectionTestStatusText.visibility = android.view.View.VISIBLE
         remote.serverConnectionTestStatusText.text = getString(R.string.test_server_connection_running)
@@ -208,16 +214,43 @@ class MainActivity : FontScaledAppCompatActivity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 remote.testServerConnectionButton.isEnabled = true
                 result.onSuccess { status ->
+                    applyTestedServerMode(config, enabled = status.ok)
                     remote.serverConnectionTestStatusText.text = buildString {
                         append(if (status.ok) "✅ " else "⚠️ ")
                         append(status.title)
                         if (status.detail.isNotBlank()) append("\n").append(status.detail)
                     }
                     setStatus(status.title)
+                    if (status.ok) refreshProfileAfterConnectionTest()
                 }.onFailure { error ->
+                    applyTestedServerMode(config, enabled = false)
                     val message = error.message.orEmpty().ifBlank { getString(R.string.test_server_connection_failed) }
                     remote.serverConnectionTestStatusText.text = "❌ $message"
                     setStatus(message)
+                }
+            }
+        }
+    }
+
+    private fun applyTestedServerMode(config: AppConfig, enabled: Boolean) {
+        ConfigStore.save(this, config.copy(remoteEnabled = enabled))
+        HomeCrmModeStore.setEnabled(this, enabled)
+        suppressAutoSave = true
+        binding.remoteSettingsSection.remoteEnabledCheckBox.isChecked = enabled
+        suppressAutoSave = false
+        refreshPermissionSummary()
+        serverSyncQueueStatusController.refresh()
+        RegistrationActions.renderCompanySection(this, binding.settingsRegistrationGroup)
+    }
+
+    private fun refreshProfileAfterConnectionTest() {
+        executor.execute {
+            CompanyAccountApi.refreshProfile(applicationContext).onSuccess { session ->
+                CompanyAccountApi.applySession(applicationContext, session)
+            }
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) {
+                    RegistrationActions.renderCompanySection(this, binding.settingsRegistrationGroup)
                 }
             }
         }
