@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import android.view.View
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
@@ -20,7 +21,15 @@ internal object MainSettingsActionBinder {
     ) {
         binding.backToHomeButton.setOnClickListener { openHome() }
         binding.contactLinkSection.registerAllContactsButton.setOnClickListener { syncContacts() }
-        binding.remoteSettingsSection.saveServerSettingsButton.setOnClickListener { saveServerSettings() }
+
+        val remote = binding.remoteSettingsSection
+        remote.saveServerSettingsButton.setOnClickListener { saveServerSettings() }
+        remote.toggleAdvancedServerSettingsButton.setOnClickListener {
+            remote.advancedServerSettingsGroup.visibility = if (
+                remote.advancedServerSettingsGroup.visibility == View.VISIBLE
+            ) View.GONE else View.VISIBLE
+        }
+
         binding.settingsRegistrationGroup.registrationServerAddressButton.setOnClickListener {
             binding.settingsMenuGroup.settingsServerButton.performClick()
         }
