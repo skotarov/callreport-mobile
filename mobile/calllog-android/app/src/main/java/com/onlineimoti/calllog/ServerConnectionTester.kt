@@ -15,6 +15,7 @@ internal object ServerConnectionTester {
 
     fun test(config: AppConfig): Result {
         require(config.baseUrl.isNotBlank()) { "Липсва Server URL." }
+        require(config.accessToken.isNotBlank()) { "Липсва access token." }
         val endpoint = buildEndpoint(
             config.baseUrl,
             config.lookupPath,
@@ -30,7 +31,9 @@ internal object ServerConnectionTester {
             connectTimeout = 8_000
             readTimeout = 12_000
             setRequestProperty("Accept", "application/json")
-            if (config.accessToken.isNotBlank()) setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+            setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+            setRequestProperty("X-Relationship-Manager-Token", config.accessToken)
+            setRequestProperty("X-Callreport-Token", config.accessToken)
         }
         try {
             val code = connection.responseCode
@@ -77,7 +80,7 @@ internal object ServerConnectionTester {
                 detail = listOf(
                     "HTTP $code",
                     "lookup path: ${config.lookupPath}",
-                    if (config.accessToken.isBlank()) "access token: празен" else "access token: изпратен",
+                    "access token: приет",
                 ).joinToString("\n"),
                 endpoint = endpoint,
                 httpCode = code,
