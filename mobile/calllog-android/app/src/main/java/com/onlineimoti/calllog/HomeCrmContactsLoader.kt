@@ -68,7 +68,20 @@ internal class HomeCrmContactsLoader(
             }
 
             val finalResult = runCatching {
-                val contacts = HomeCrmContactCandidates.load(appContext, filterState)
+                val serverContacts = HomeCrmContactCandidates.load(appContext, filterState)
+                val contacts = if (filterState.crmOnly) {
+                    // refreshFromServer() has already reconciled the profile cache.
+                    // Keep only server rows whose effective local record is still
+                    // active, then add locally newer/offline CRM markers that an old
+                    // or temporarily unavailable server endpoint did not return.
+                    val confirmedServer = serverContacts.filter { contact ->
+                        CrmContactSyncStore.isEnabled(appContext, contact.number)
+                    }
+                    (confirmedServer + HomeCrmContactCandidates.loadLocal(appContext))
+                        .distinctBy { contact -> HomeCallPageLoader.noteKey(contact.number) }
+                } else {
+                    serverContacts
+                }
                 val page = pageContacts(contacts, requestedPage, pageSize)
                 val serverNotes = HomeCrmClientServerNotes.snapshot(appContext, page)
                 val contactNotes = HomeCallPageLoader.contactNotes(appContext, page).toMutableMap().apply {
