@@ -1,0 +1,6 @@
+<resources>
+    <string name="server_pending_notes_section_title">Чакащи бележки</string>
+    <string name="server_pending_notes_section_description">Бележките, които чакат изпращане към сървъра, се управляват отделно от настройките за връзка.</string>
+    <string name="server_mode_disabled">Сървърният режим е изключен.</string>
+    <string name="server_connection_recheck_required">Сървърният режим беше изключен, защото URL адресът, токенът или пътят за проверка е променен. Включи го отново, за да се провери връзката.</string>
+</resources>
