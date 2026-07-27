@@ -3,7 +3,6 @@ package com.onlineimoti.calllog
 import android.app.Activity
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -68,7 +67,7 @@ internal object HomeBusyText {
 }
 
 /**
- * Shows one non-blocking black overlay for concurrent background tasks.
+ * Shows one non-blocking status bar for concurrent background tasks.
  * Every screen and background-work type shares this single visual template.
  * Tokens prevent an older completion from hiding a newer operation.
  */
@@ -141,22 +140,19 @@ internal object HomeBusyTooltipUi {
             }
             val content = TextView(activity).apply {
                 this.text = text
-                textSize = 12f
+                textSize = 11f
                 includeFontPadding = false
                 maxLines = 1
                 gravity = Gravity.CENTER
                 setTextColor(Color.WHITE)
+                setBackgroundColor(Color.rgb(15, 23, 42))
                 setPadding(dp(activity, HORIZONTAL_PADDING_DP), 0, dp(activity, HORIZONTAL_PADDING_DP), 0)
-                background = GradientDrawable().apply {
-                    setColor(Color.rgb(15, 23, 42))
-                    cornerRadius = dp(activity, CORNER_RADIUS_DP).toFloat()
-                }
                 contentDescription = text
             }
             label = content
             popup = PopupWindow(
                 content,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 dp(activity, HEIGHT_DP),
                 false,
             ).apply {
@@ -164,14 +160,14 @@ internal object HomeBusyTooltipUi {
                 isTouchable = false
                 isOutsideTouchable = false
                 isClippingEnabled = true
-                elevation = dp(activity, 9).toFloat()
+                elevation = 0f
                 setOnDismissListener {
                     popup = null
                     label = null
                 }
             }
             runCatching {
-                popup?.showAtLocation(anchor, Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 0)
+                popup?.showAtLocation(anchor, Gravity.TOP, 0, 0)
                 shownAtMs = SystemClock.uptimeMillis()
             }.onFailure {
                 popup = null
@@ -189,8 +185,7 @@ internal object HomeBusyTooltipUi {
     private fun dp(activity: Activity, value: Int): Int =
         (value * activity.resources.displayMetrics.density).toInt()
 
-    private const val HEIGHT_DP = 20
-    private const val HORIZONTAL_PADDING_DP = 14
-    private const val CORNER_RADIUS_DP = 10
+    private const val HEIGHT_DP = 18
+    private const val HORIZONTAL_PADDING_DP = 8
     private const val MIN_VISIBLE_MS = 320L
 }
