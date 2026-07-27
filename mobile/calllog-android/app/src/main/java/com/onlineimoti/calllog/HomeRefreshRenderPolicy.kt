@@ -1,17 +1,29 @@
 package com.onlineimoti.calllog
 
-/** One-shot rendering hint used only by the delayed refresh of an already visible Call Log. */
+/** Rendering hints used while refreshing an already visible Call Log. */
 internal object HomeRefreshRenderPolicy {
     private var keepExistingRowsOnce = false
+    private var keepExistingRowsHeld = false
 
     @Synchronized
     fun requestKeepExistingRows() {
         keepExistingRowsOnce = true
     }
 
+    /** Keeps every refresh non-destructive until the matching screen flow is finished. */
+    @Synchronized
+    fun holdExistingRows() {
+        keepExistingRowsHeld = true
+    }
+
+    @Synchronized
+    fun releaseHeldRows() {
+        keepExistingRowsHeld = false
+    }
+
     @Synchronized
     fun consumeKeepExistingRows(): Boolean {
-        val requested = keepExistingRowsOnce
+        val requested = keepExistingRowsOnce || keepExistingRowsHeld
         keepExistingRowsOnce = false
         return requested
     }
@@ -19,5 +31,6 @@ internal object HomeRefreshRenderPolicy {
     @Synchronized
     fun clear() {
         keepExistingRowsOnce = false
+        keepExistingRowsHeld = false
     }
 }
