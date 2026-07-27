@@ -55,15 +55,10 @@ internal object ServerCrmContactsClient {
 
                         // The server is the primary filter. This defensive check keeps the
                         // Clients list correct if an older deployment ignores the phase
-                        // parameter. Legacy responses without a phase field remain trusted.
-                        if (item.has("phase") && !item.isNull("phase")) {
+                        // parameter. With no selected phase there is no phase filter.
+                        if (filterState.hasPhaseFilter && item.has("phase") && !item.isNull("phase")) {
                             val returnedPhase = item.optInt("phase", ContactNegotiationPhaseStore.NONE)
-                            val matchesPhase = if (filterState.phases.isEmpty()) {
-                                returnedPhase == ContactNegotiationPhaseStore.NONE
-                            } else {
-                                returnedPhase in filterState.phases
-                            }
-                            if (!matchesPhase) continue
+                            if (returnedPhase !in filterState.phases) continue
                         }
 
                         val rawSnippet = item.optString("search_match_text").trim()
@@ -100,27 +95,21 @@ internal object ServerCrmContactsClient {
         filterState: HomeCrmFilterState,
         searchQuery: String,
     ): Map<String, String> {
-        // The phase UI intentionally treats no selected button as "unassigned".
-        val phase = filterState.phases
-            .takeIf { it.isNotEmpty() }
-            ?.sorted()
-            ?.joinToString(",")
-            ?: "none"
-        val companyId = filterState.companyIds
-            .takeIf { it.isNotEmpty() }
-            ?.sorted()
-            ?.joinToString(",")
-            ?: "all"
         val query = searchQuery.trim()
         return linkedMapOf(
             "access_token" to config.accessToken,
-            "phase" to phase,
-            // Some older server deployments read only the plural alias.
-            "phases" to phase,
-            "company_id" to companyId,
             "crm_only" to if (filterState.crmOnly) "1" else "0",
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
+            if (filterState.hasPhaseFilter) {
+                val phase = filterState.phases.sorted().joinToString(",")
+                put("phase", phase)
+                // Some older server deployments read only the plural alias.
+                put("phases", phase)
+            }
+            if (filterState.hasCompanyFilter) {
+                put("company_id", filterState.companyIds.sorted().joinToString(","))
+            }
             if (query.isNotBlank()) {
                 put("q", query)
                 put("search", query)
