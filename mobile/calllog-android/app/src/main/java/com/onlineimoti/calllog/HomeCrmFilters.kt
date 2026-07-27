@@ -4,8 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /**
- * CRM Home filters. Selecting one or more phases shows those phases; with no
- * phase button selected, only records without an assigned phase are shown.
+ * CRM Home filters. Selecting one or more phases or companies narrows the list;
+ * an empty selection means that dimension is not filtered.
  */
 internal data class HomeCrmFilterState(
     val phases: Set<Int> = emptySet(),
@@ -13,15 +13,10 @@ internal data class HomeCrmFilterState(
     val crmOnly: Boolean = false,
 ) {
     val hasSelectedPhase: Boolean get() = phases.isNotEmpty()
-    val hasPhaseFilter: Boolean get() = true
+    val hasPhaseFilter: Boolean get() = phases.isNotEmpty()
     val hasCompanyFilter: Boolean get() = companyIds.isNotEmpty()
-    val isActive: Boolean get() = true
-
-    /**
-     * When no phase is selected, the company membership lookup still narrows
-     * unphased records to the selected firm(s).
-     */
-    val isCompanyFiltered: Boolean get() = hasCompanyFilter && !hasSelectedPhase
+    val isActive: Boolean get() = crmOnly || hasPhaseFilter || hasCompanyFilter
+    val isCompanyFiltered: Boolean get() = hasCompanyFilter
 }
 
 /** Keeps the CRM selections after the app is reopened. */
@@ -147,7 +142,7 @@ internal object HomeCrmFilterEngine {
         } else {
             calls
         }
-        if (crmFiltered.isEmpty()) return emptyList()
+        if (crmFiltered.isEmpty() || !state.hasPhaseFilter) return crmFiltered
         val phasesByCompanyByPhone = HomeCrmPhaseLookup.resolveEffectiveCompanyPhases(
             context = context.applicationContext,
             config = ConfigStore.load(context.applicationContext),
@@ -160,17 +155,11 @@ internal object HomeCrmFilterEngine {
             } else {
                 phasesByCompany
             }
-            if (state.hasSelectedPhase) {
-                scopedPhases.values.any { phase -> phase in state.phases }
-            } else {
-                scopedPhases.values.none { phase ->
-                    phase in ContactNegotiationPhaseStore.PHASE_1..ContactNegotiationPhaseStore.PHASE_4
-                }
-            }
+            scopedPhases.values.any { phase -> phase in state.phases }
         }
     }
 
-    /** Applies a firm-only filter from the durable relationship-history cache. */
+    /** Applies the selected firm filter from the durable relationship-history cache. */
     fun filterByCompany(
         calls: List<PhoneCallRecord>,
         state: HomeCrmFilterState,
