@@ -13,7 +13,6 @@ internal object MainSettingsActionBinder {
         openHome: () -> Unit,
         syncContacts: () -> Unit,
         saveServerSettings: () -> Unit,
-        testServerConnection: () -> Unit,
         createArchive: () -> Unit,
         restoreArchive: () -> Unit,
         testStart: (() -> Unit)?,
@@ -22,7 +21,6 @@ internal object MainSettingsActionBinder {
         binding.backToHomeButton.setOnClickListener { openHome() }
         binding.contactLinkSection.registerAllContactsButton.setOnClickListener { syncContacts() }
         binding.remoteSettingsSection.saveServerSettingsButton.setOnClickListener { saveServerSettings() }
-        binding.remoteSettingsSection.testServerConnectionButton.setOnClickListener { testServerConnection() }
         binding.settingsRegistrationGroup.registrationServerAddressButton.setOnClickListener {
             binding.settingsMenuGroup.settingsServerButton.performClick()
         }
