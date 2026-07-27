@@ -46,14 +46,12 @@ internal class HomeCrmContactsLoader(
 
         executor.execute {
             var provisionalAvailable = false
+            var filteredLocal = emptyList<PhoneCallRecord>()
             if (filterState.crmOnly) {
-                val provisionalCalls = runCatching {
-                    pageContacts(
-                        filteredLocalCrmContacts(appContext, filterState),
-                        requestedPage,
-                        pageSize,
-                    )
+                filteredLocal = runCatching {
+                    filteredLocalCrmContacts(appContext, filterState)
                 }.getOrDefault(emptyList())
+                val provisionalCalls = pageContacts(filteredLocal, requestedPage, pageSize)
                 if (provisionalCalls.isNotEmpty()) {
                     provisionalAvailable = true
                     val provisionalData = provisionalData(provisionalCalls)
@@ -77,8 +75,17 @@ internal class HomeCrmContactsLoader(
                     val confirmedServer = serverContacts.filter { contact ->
                         CrmContactSyncStore.isEnabled(appContext, contact.number)
                     }
-                    val filteredLocal = filteredLocalCrmContacts(appContext, filterState)
-                    (confirmedServer + filteredLocal)
+                    // Synchronization can change the effective CRM marker set. Re-read
+                    // only when that set changed; phase lookups remain cached.
+                    val currentKeys = CrmContactSyncStore.enabledPhoneKeys(appContext)
+                    val filteredKeys = filteredLocal
+                        .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
+                    val localAfterSync = if (currentKeys == filteredKeys || currentKeys.isEmpty()) {
+                        filteredLocal
+                    } else {
+                        filteredLocalCrmContacts(appContext, filterState)
+                    }
+                    (confirmedServer + localAfterSync)
                         .distinctBy { contact -> HomeCallPageLoader.noteKey(contact.number) }
                 } else {
                     serverContacts
