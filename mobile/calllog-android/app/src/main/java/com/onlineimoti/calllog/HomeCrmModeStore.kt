@@ -21,6 +21,10 @@ internal object HomeCrmModeStore {
     }
 
     fun setEnabled(context: Context, enabled: Boolean): Boolean {
+        // This flag controls only the visible Home filter "CRM calls". Settings may
+        // make CRM features available by enabling the server, but must never switch
+        // the user's current Home timeline into the filtered CRM-calls view.
+        if (enabled && context !is HomeActivity) return false
         if (enabled && !isAvailable(context)) return false
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
