@@ -15,6 +15,7 @@ internal class CallReportMergedHistoryLoader(
     private val handler = Handler(Looper.getMainLooper())
     private val loadExecutor = Executors.newFixedThreadPool(2)
     private val prepareExecutor = Executors.newSingleThreadExecutor()
+    private val busy = HistoryBusyTokens(activity)
 
     private var localLoading = false
     private var serverLoading = false
@@ -22,9 +23,6 @@ internal class CallReportMergedHistoryLoader(
     private var localGeneration = 0
     private var serverGeneration = 0
     private var prepareGeneration = 0
-    private var localBusyToken = 0L
-    private var serverBusyToken = 0L
-    private val prepareBusyTokens = linkedSetOf<Long>()
 
     fun loadOnce(phone: String) {
         if (phone.isBlank()) return
@@ -61,14 +59,12 @@ internal class CallReportMergedHistoryLoader(
         invalidatePrepareForNewData()
         serverLoading = true
         val generation = ++serverGeneration
-        val token = HomeBusyTooltipUi.begin(activity, HomeBusyWork.HISTORY_SERVER)
-        finishServerBusy()
-        serverBusyToken = token
+        val token = busy.beginServer()
         val requestedPhone = phone
         loadExecutor.execute {
             val result = runCatching { CallReportHistoryLookupClient.lookup(config, requestedPhone) }
             handler.post {
-                finishServerBusy(token)
+                busy.finishServer(token)
                 if (activity.isFinishing || activity.isDestroyed ||
                     generation != serverGeneration || requestedPhone != state.activePhone
                 ) return@post
@@ -82,9 +78,7 @@ internal class CallReportMergedHistoryLoader(
                     state.serverHistory = history
                     state.serverLoaded = true
                     state.loadError = ""
-                }.onFailure { error ->
-                    state.loadError = HistoryServerErrorText.from(error)
-                }
+                }.onFailure { error -> state.loadError = HistoryServerErrorText.from(error) }
                 prepareWhenDataReady(requestedPhone)
             }
         }
@@ -97,15 +91,13 @@ internal class CallReportMergedHistoryLoader(
         invalidatePrepareForNewData()
         localLoading = true
         val generation = ++localGeneration
-        val token = HomeBusyTooltipUi.begin(activity, HomeBusyWork.HISTORY_LOCAL)
-        finishLocalBusy()
-        localBusyToken = token
+        val token = busy.beginLocal()
         val requestedPhone = phone
         val appContext = activity.applicationContext
         loadExecutor.execute {
             val result = runCatching { HistoryBackgroundLoader.loadLocal(appContext, requestedPhone) }
             handler.post {
-                finishLocalBusy(token)
+                busy.finishLocal(token)
                 if (activity.isFinishing || activity.isDestroyed ||
                     generation != localGeneration || requestedPhone != state.activePhone
                 ) return@post
@@ -147,9 +139,7 @@ internal class CallReportMergedHistoryLoader(
         localGeneration += 1
         serverGeneration += 1
         prepareGeneration += 1
-        finishLocalBusy()
-        finishServerBusy()
-        finishAllPrepareBusy()
+        busy.finishAll()
         loadExecutor.shutdownNow()
         prepareExecutor.shutdownNow()
         handler.removeCallbacksAndMessages(null)
@@ -169,8 +159,7 @@ internal class CallReportMergedHistoryLoader(
         if (phone.isBlank() || phone != state.activePhone) return
         prepareLoading = true
         val generation = ++prepareGeneration
-        val token = HomeBusyTooltipUi.begin(activity, HomeBusyWork.HISTORY_PREPARE)
-        prepareBusyTokens += token
+        val token = busy.beginPrepare()
         val appContext = activity.applicationContext
         val requestedPhone = phone
         val requestedSignature = state.remoteSignature
@@ -194,7 +183,7 @@ internal class CallReportMergedHistoryLoader(
                 )
             }
             handler.post {
-                finishPrepareBusy(token)
+                busy.finishPrepare(token)
                 if (activity.isFinishing || activity.isDestroyed ||
                     generation != prepareGeneration || requestedPhone != state.activePhone
                 ) return@post
@@ -228,10 +217,10 @@ internal class CallReportMergedHistoryLoader(
     }
 
     private fun invalidatePrepareForNewData() {
-        if (!prepareLoading && prepareBusyTokens.isEmpty()) return
+        if (!prepareLoading && !busy.hasPrepare()) return
         prepareGeneration += 1
         prepareLoading = false
-        finishAllPrepareBusy()
+        busy.finishAllPrepare()
     }
 
     private fun selectPhone(phone: String) {
@@ -239,9 +228,7 @@ internal class CallReportMergedHistoryLoader(
         localGeneration += 1
         serverGeneration += 1
         prepareGeneration += 1
-        finishLocalBusy()
-        finishServerBusy()
-        finishAllPrepareBusy()
+        busy.finishAll()
         localLoading = false
         serverLoading = false
         prepareLoading = false
@@ -284,27 +271,5 @@ internal class CallReportMergedHistoryLoader(
         if (state.activePhone.isBlank()) return
         if (state.serverDataDirty || state.localDataDirty) prepareWhenDataReady(state.activePhone)
         else if (errorChanged) publishIfNeeded()
-    }
-
-    private fun finishLocalBusy(token: Long = localBusyToken) {
-        if (token <= 0L) return
-        if (localBusyToken == token) localBusyToken = 0L
-        HomeBusyTooltipUi.end(activity, token)
-    }
-
-    private fun finishServerBusy(token: Long = serverBusyToken) {
-        if (token <= 0L) return
-        if (serverBusyToken == token) serverBusyToken = 0L
-        HomeBusyTooltipUi.end(activity, token)
-    }
-
-    private fun finishPrepareBusy(token: Long) {
-        if (token <= 0L) return
-        prepareBusyTokens.remove(token)
-        HomeBusyTooltipUi.end(activity, token)
-    }
-
-    private fun finishAllPrepareBusy() {
-        prepareBusyTokens.toList().forEach(::finishPrepareBusy)
     }
 }
