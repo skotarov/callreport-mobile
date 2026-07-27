@@ -201,8 +201,12 @@ internal class HomeCrmFiltersController(
 
     private fun crmFilterButton(): MaterialButton =
         MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = "CRM"
-            contentDescription = if (state.crmOnly) "Покажи всички клиенти" else "Покажи само моите CRM клиенти"
+            text = if (AppLocaleText.isBulgarian()) "Мои" else "My"
+            contentDescription = if (state.crmOnly) {
+                if (AppLocaleText.isBulgarian()) "Покажи всички клиенти" else "Show all clients"
+            } else {
+                if (AppLocaleText.isBulgarian()) "Покажи само моите активни клиенти" else "Show only my active clients"
+            }
             isAllCaps = false
             setSingleLine()
             textSize = 12f
