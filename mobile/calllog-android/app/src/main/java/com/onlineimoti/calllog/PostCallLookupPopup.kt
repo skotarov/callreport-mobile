@@ -9,6 +9,7 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.concurrent.ArrayBlockingQueue
@@ -122,9 +123,9 @@ internal class PostCallLookupPopup(
         }
         contentColumn.addView(headerView)
 
-        val callsRow = progressiveRow("Обаждания:")
-        val localNotesRow = progressiveRow("Локални бележки:")
-        val serverNotesRow = progressiveRow("Сървърни бележки:")
+        val callsRow = progressiveRow(R.drawable.ic_system_call_log, "Обаждания")
+        val localNotesRow = progressiveRow(R.drawable.ic_chat_note, "Локални бележки")
+        val serverNotesRow = progressiveRow(R.drawable.ic_cloud_note_filled, "Сървърни бележки")
         contentColumn.addView(callsRow.root)
         contentColumn.addView(localNotesRow.root)
         contentColumn.addView(serverNotesRow.root)
@@ -154,7 +155,7 @@ internal class PostCallLookupPopup(
         }
     }
 
-    private fun progressiveRow(label: String): ProgressRow {
+    private fun progressiveRow(iconRes: Int, contentDescription: String): ProgressRow {
         val value = TextView(service).apply {
             textSize = 13.5f
             maxLines = 2
@@ -165,12 +166,13 @@ internal class PostCallLookupPopup(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
             setPadding(0, ui.dp(7), 0, 0)
-            addView(TextView(service).apply {
-                text = label
-                textSize = 13.5f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(55, 65, 81))
-                setPadding(0, 0, ui.dp(6), 0)
+            addView(ImageView(service).apply {
+                setImageResource(iconRes)
+                this.contentDescription = contentDescription
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                layoutParams = LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)).apply {
+                    marginEnd = ui.dp(7)
+                }
             })
             addView(value)
         }
