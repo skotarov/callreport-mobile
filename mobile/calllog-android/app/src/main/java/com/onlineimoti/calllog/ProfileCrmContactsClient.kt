@@ -133,7 +133,10 @@ internal object ProfileCrmContactsClient {
 
     private fun parseSnapshot(json: JSONObject): Snapshot {
         val result = linkedMapOf<String, Record>()
-        val items = json.optJSONArray("contacts") ?: json.optJSONArray("items")
+        // v2 keeps the old active-only fields intact and exposes active plus
+        // inactive tombstones through a separate records array.
+        val records = json.optJSONArray("records")
+        val items = records ?: json.optJSONArray("contacts") ?: json.optJSONArray("items")
         for (index in 0 until (items?.length() ?: 0)) {
             val item = items?.optJSONObject(index) ?: continue
             val phone = item.optString("normalized_phone").ifBlank { item.optString("phone") }
@@ -158,8 +161,9 @@ internal object ProfileCrmContactsClient {
             result[key] = Record(phone = phone.ifBlank { key }, active = true, updatedAtMs = 0L)
         }
 
-        val includesInactive = json.optBoolean("includes_inactive", false) ||
-            json.optInt("sync_version", 1) >= 2
+        val includesInactive = records != null && (
+            json.optBoolean("includes_inactive", false) || json.optInt("sync_version", 1) >= 2
+        )
         return Snapshot(result, includesInactive)
     }
 }
