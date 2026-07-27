@@ -3,7 +3,7 @@ package com.onlineimoti.calllog
 import android.content.Context
 import java.security.MessageDigest
 
-/** Stores the active profile details bound to the current rotating access token. */
+/** Stores the last profile details and binds authenticated actions to the current access token. */
 internal object CompanySessionStore {
     private const val PREFS = "relationship_manager_company_session"
     private const val KEY_TOKEN_HASH = "token_hash"
@@ -54,11 +54,17 @@ internal object CompanySessionStore {
             .apply()
     }
 
+    /** Returns a profile only when the saved access token still owns the session. */
     fun load(context: Context): Snapshot? {
         val appContext = context.applicationContext
         val config = ConfigStore.load(appContext)
         if (!isCurrent(appContext, config.accessToken)) return null
-        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return loadStored(appContext)
+    }
+
+    /** Returns the last locally remembered profile even after the server token changes or fails. */
+    fun loadStored(context: Context): Snapshot? {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val snapshot = Snapshot(
             userName = prefs.getString(KEY_USER_NAME, "").orEmpty().trim(),
             userEmail = prefs.getString(KEY_USER_EMAIL, "").orEmpty().trim(),
