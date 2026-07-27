@@ -53,7 +53,7 @@ object MainSettingsConfigUi {
     fun hydrateServerSettings(binding: ActivityMainBinding, config: AppConfig) {
         val remote = binding.remoteSettingsSection
         remote.remoteEnabledCheckBox.isChecked = config.remoteEnabled
-        remote.remoteSettingsGroup.visibility = if (config.remoteEnabled) View.VISIBLE else View.GONE
+        remote.remoteSettingsGroup.visibility = View.VISIBLE
         remote.baseUrlInput.setText(config.baseUrl)
         remote.accessTokenInput.setText(config.accessToken)
         remote.lookupPathInput.setText(config.lookupPath)
