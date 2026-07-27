@@ -29,6 +29,7 @@ class CompanyAccountActivity : AppCompatActivity() {
     private lateinit var licenseButton: MaterialButton
     private lateinit var verifyEmailButton: MaterialButton
     private lateinit var verifyPhoneButton: MaterialButton
+    private lateinit var reloadButton: MaterialButton
     private lateinit var logoutButton: MaterialButton
     private lateinit var nameInput: EditText
     private lateinit var emailInput: EditText
@@ -37,7 +38,8 @@ class CompanyAccountActivity : AppCompatActivity() {
     private lateinit var eikInput: EditText
 
     private var mode: String = MODE_LOGIN
-    private var profileRefreshStarted = false
+    private var profileRefreshInFlight = false
+    private var profileAutoRefreshAttempted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppLanguageManager.applyFromConfig(this)
@@ -126,6 +128,12 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
         column.addView(verifyPhoneButton, verticalParams(8))
 
+        reloadButton = MaterialButton(this).apply {
+            text = "Презареди"
+            setOnClickListener { refreshProfileFromServer(manual = true) }
+        }
+        column.addView(reloadButton, verticalParams(8))
+
         switchModeButton = MaterialButton(this).apply { setOnClickListener { switchMode() } }
         column.addView(switchModeButton, verticalParams(8))
 
@@ -156,7 +164,9 @@ class CompanyAccountActivity : AppCompatActivity() {
     }
 
     private fun renderMode() {
-        val hasBaseUrl = ConfigStore.load(this).baseUrl.isNotBlank()
+        val config = ConfigStore.load(this)
+        val hasBaseUrl = config.baseUrl.isNotBlank()
+        val hasAccessToken = config.accessToken.isNotBlank()
         val activation = CompanyLicenseStore.loadValid(this)
         val profile = CompanySessionStore.load(this)
         if ((mode == MODE_PROFILE || mode == MODE_CREATE_COMPANY) && profile == null) mode = MODE_LOGIN
@@ -206,6 +216,8 @@ class CompanyAccountActivity : AppCompatActivity() {
         verifyEmailButton.isEnabled = viewingProfile && profile?.emailVerified != true
         verifyPhoneButton.isEnabled = viewingProfile && profile?.phoneVerified != true
 
+        reloadButton.visibility = if (hasBaseUrl && hasAccessToken && (viewingProfile || loggingIn)) View.VISIBLE else View.GONE
+        reloadButton.isEnabled = !profileRefreshInFlight
         switchModeButton.text = when {
             viewingProfile -> "Създай фирма"
             creatingCompany -> "Назад към профила"
@@ -455,7 +467,8 @@ class CompanyAccountActivity : AppCompatActivity() {
             CompanyAccountApi.clearSession(applicationContext)
             runOnUiThread {
                 showLoading(false)
-                profileRefreshStarted = false
+                profileRefreshInFlight = false
+                profileAutoRefreshAttempted = false
                 mode = MODE_LOGIN
                 emailInput.text?.clear()
                 phoneInput.text?.clear()
@@ -465,15 +478,30 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshProfileFromServer() {
-        if (profileRefreshStarted || CompanySessionStore.load(this) == null) return
-        profileRefreshStarted = true
+    private fun refreshProfileFromServer(manual: Boolean = false) {
+        val config = ConfigStore.load(this)
+        if (profileRefreshInFlight || config.baseUrl.isBlank() || config.accessToken.isBlank()) return
+        if (!manual && profileAutoRefreshAttempted) return
+        if (!manual) profileAutoRefreshAttempted = true
+
+        profileRefreshInFlight = true
+        if (manual) {
+            showLoading(true)
+            setStatus("Презареждам профила и фирмите от сървъра…")
+        }
         executor.execute {
             val result = CompanyAccountApi.refreshProfile(applicationContext)
             runOnUiThread {
-                result.onSuccess {
-                    CompanyAccountApi.applySession(applicationContext, it)
+                profileRefreshInFlight = false
+                if (manual) showLoading(false)
+                result.onSuccess { session ->
+                    CompanyAccountApi.applySession(applicationContext, session)
+                    mode = MODE_PROFILE
                     renderMode()
+                    if (manual) setStatus("Профилът и фирмите са презаредени от сървъра.")
+                }.onFailure { error ->
+                    renderMode()
+                    if (manual) setStatus(error.message ?: "Профилът и фирмите не можаха да бъдат презаредени.")
                 }
             }
         }
@@ -487,6 +515,7 @@ class CompanyAccountActivity : AppCompatActivity() {
         licenseButton.isEnabled = !show
         verifyEmailButton.isEnabled = !show
         verifyPhoneButton.isEnabled = !show
+        reloadButton.isEnabled = !show
         logoutButton.isEnabled = !show
     }
 
