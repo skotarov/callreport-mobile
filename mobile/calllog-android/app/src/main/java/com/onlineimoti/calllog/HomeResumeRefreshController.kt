@@ -32,10 +32,18 @@ internal class HomeResumeRefreshController private constructor(
         // This is a recheck of an already visible page, not a first load. Keep the
         // existing rows on screen while the fresh snapshot is prepared.
         HomeRefreshRenderPolicy.requestKeepExistingRows()
-        activity.sendBroadcast(
-            Intent(HomeActivity.ACTION_CONTACT_NOTE_SAVED)
-                .setPackage(activity.packageName),
-        )
+        requestAuthoritativeRefresh()
+    }
+
+    private val reloadAfterSettingsRunnable = Runnable {
+        if (activity.isFinishing || activity.isDestroyed || !activity.hasWindowFocus()) return@Runnable
+        if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0) return@Runnable
+
+        // A settings-side refresh may have been cancelled while Home was paused.
+        // Remove stale overlays, show a real spinner and start one fresh read.
+        HomeBusyTooltipUi.clear(activity)
+        HomeLoadingFooterUi.show(binding.homeCallsContainer)
+        requestAuthoritativeRefresh()
     }
 
     private val dataChangedReceiver = object : BroadcastReceiver() {
@@ -64,6 +72,9 @@ internal class HomeResumeRefreshController private constructor(
     override fun onActivityResumed(resumedActivity: Activity) {
         if (resumedActivity is MainActivity) {
             settingsWasOpened = true
+            // Several settings may save in succession. Keep every intermediate
+            // refresh from clearing the already visible Call Log.
+            HomeRefreshRenderPolicy.holdExistingRows()
             return
         }
         if (resumedActivity !== activity) return
@@ -72,12 +83,16 @@ internal class HomeResumeRefreshController private constructor(
             firstResume = false
             return
         }
-        // Settings does not change the Android call records themselves. Reusing the
-        // already rendered page avoids an unnecessary refresh cycle and prevents the
-        // visible Call Log from being replaced by an empty loading container.
         if (settingsWasOpened) {
             settingsWasOpened = false
-            HomeRefreshRenderPolicy.clear()
+            HomeRefreshRenderPolicy.releaseHeldRows()
+            if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0) {
+                HomeRefreshRenderPolicy.clear()
+            } else {
+                // Do not leave Home on an empty container with a permanent
+                // “loading calls” state after returning from Settings.
+                handler.post(reloadAfterSettingsRunnable)
+            }
             return
         }
         if (canRefreshLoadedPage()) handler.postDelayed(refreshRunnable, RESUME_REFRESH_DELAY_MS)
@@ -101,15 +116,23 @@ internal class HomeResumeRefreshController private constructor(
         return !activity.isFinishing &&
             !activity.isDestroyed &&
             HomePageReadyState.isReady() &&
-            binding.homeCallsContainer.childCount > 0 &&
+            HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0 &&
             !binding.homeCallsRefreshLayout.isRefreshing &&
             binding.searchRow.visibility != View.VISIBLE &&
             !HomeCrmTimelineModeToggle.isContactsMode() &&
             !HomeCrmModeStore.isEnabled(activity)
     }
 
+    private fun requestAuthoritativeRefresh() {
+        activity.sendBroadcast(
+            Intent(HomeActivity.ACTION_CONTACT_NOTE_SAVED)
+                .setPackage(activity.packageName),
+        )
+    }
+
     private fun cancelPending() {
         handler.removeCallbacks(refreshRunnable)
+        handler.removeCallbacks(reloadAfterSettingsRunnable)
     }
 
     private fun release() {
