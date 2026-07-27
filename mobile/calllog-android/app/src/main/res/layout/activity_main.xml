@@ -46,6 +46,20 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_settings_info"
+                android:paddingStart="12dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="10dp"
+                android:textColor="@color/calllog_text"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/settingsDescriptionText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -117,15 +131,6 @@
             <include
                 android:id="@+id/settingsDebugGroup"
                 layout="@layout/settings_group_debug" />
-
-            <TextView
-                android:id="@+id/statusText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textColor="@color/calllog_muted_text"
-                android:textSize="14sp"
-                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 
