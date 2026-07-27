@@ -252,7 +252,13 @@ internal object CompanyAccountApi {
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
-            if (authenticated) setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+            if (authenticated) {
+                // Some Apache/FastCGI configurations do not forward Authorization to PHP.
+                // Send the same token headers used by the app's other working endpoints.
+                setRequestProperty("Authorization", "Bearer ${config.accessToken}")
+                setRequestProperty("X-Relationship-Manager-Token", config.accessToken)
+                setRequestProperty("X-Callreport-Token", config.accessToken)
+            }
         }
         try {
             val body = payload.toString().toByteArray(StandardCharsets.UTF_8)
