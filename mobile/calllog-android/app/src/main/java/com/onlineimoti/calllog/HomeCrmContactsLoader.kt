@@ -105,8 +105,8 @@ internal class HomeCrmContactsLoader(
                     if (data.calls.isEmpty()) contactsContent.renderEmpty(pageSize)
                     else contactsContent.render(data, pageSize)
                 }.onFailure {
-                    // Offline or temporary server failure must not erase the fast
-                    // local CRM list that is already usable on screen.
+                    // Offline or temporary server failure must not erase the fast,
+                    // already phase-filtered local CRM list shown on screen.
                     if (!provisionalAvailable) contactsContent.renderEmpty(pageSize)
                 }
                 onRenderComplete()
