@@ -114,7 +114,9 @@ internal class HomeCallRowRenderer(
         background = null
         setBackgroundColor(Color.TRANSPARENT)
         scaleType = ImageView.ScaleType.FIT_CENTER
-        setPadding(dp(7), dp(7), dp(7), dp(7))
+        // Keep the 32x36dp touch target but render the 22dp vector at its natural size,
+        // matching the same phone-and-direction icon in History > Calls.
+        setPadding(dp(5), dp(7), dp(5), dp(7))
         layoutParams = LinearLayout.LayoutParams(dp(32), dp(36)).apply { marginEnd = dp(6) }
         setOnClickListener { openDialer(call.number) }
     }
