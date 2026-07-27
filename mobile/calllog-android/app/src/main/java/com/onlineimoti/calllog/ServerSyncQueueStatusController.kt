@@ -8,11 +8,11 @@ internal class ServerSyncQueueStatusController(
     private val saveConfig: () -> AppConfig,
     private val setStatus: (String) -> Unit,
 ) {
-    private val remote
-        get() = binding.remoteSettingsSection
+    private val serverGroup
+        get() = binding.settingsServerGroup
 
     fun wire() {
-        remote.retryPendingTopicNotesButton.setOnClickListener {
+        serverGroup.retryPendingTopicNotesButton.setOnClickListener {
             val config = saveConfig()
             val count = CallReportTopicNoteOutbox.pendingCount(activity)
             if (count == 0) {
@@ -38,7 +38,7 @@ internal class ServerSyncQueueStatusController(
         val failure = CallReportTopicNoteOutbox.lastFailure(activity)
         val ready = CallReportRemoteAccess.isReady(ConfigStore.load(activity))
 
-        remote.pendingTopicNotesStatusText.text = when {
+        serverGroup.pendingTopicNotesStatusText.text = when {
             pending == 0 && deferred == 0 -> activity.getString(R.string.server_pending_notes_none)
             pending > 0 && !ready -> activity.getString(R.string.server_pending_notes_settings_required, pending)
             pending > 0 && failure.isNotBlank() -> activity.getString(R.string.server_pending_notes_failure, pending, failure)
@@ -46,6 +46,6 @@ internal class ServerSyncQueueStatusController(
             pending > 0 -> activity.getString(R.string.server_pending_notes_status, pending)
             else -> activity.getString(R.string.server_pending_notes_deferred_only, deferred)
         }
-        remote.retryPendingTopicNotesButton.isEnabled = pending > 0 && ready
+        serverGroup.retryPendingTopicNotesButton.isEnabled = pending > 0 && ready
     }
 }
