@@ -1,44 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="16dp"
-    app:cardBackgroundColor="@color/calllog_surface"
-    app:cardCornerRadius="18dp"
-    app:cardElevation="1dp"
-    app:strokeColor="@color/calllog_border"
-    app:strokeWidth="1dp">
+    android:orientation="vertical">
 
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_marginTop="16dp"
+        app:cardBackgroundColor="@color/calllog_surface"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/calllog_border"
+        app:strokeWidth="1dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginEnd="10dp"
-                android:contentDescription="@string/settings_server_section"
-                android:src="@drawable/ic_cloud_sync" />
-            <TextView
-                android:layout_width="0dp"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/settings_server_section"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="@string/settings_server_section"
+                    android:src="@drawable/ic_cloud_sync" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/settings_server_section"
+                    android:textColor="@color/calllog_text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/remoteSettingsSection"
+                layout="@layout/section_remote_settings_compact" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        app:cardBackgroundColor="@color/calllog_surface"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/calllog_border"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/server_pending_notes_section_title"
                 android:textColor="@color/calllog_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
-        </LinearLayout>
 
-        <include
-            android:id="@+id/remoteSettingsSection"
-            layout="@layout/section_remote_settings_compact" />
-    </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/server_pending_notes_section_description"
+                android:textColor="@color/calllog_muted_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/pendingTopicNotesStatusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_settings_info"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="9dp"
+                android:textColor="@color/calllog_text"
+                android:textSize="13sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retryPendingTopicNotesButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/server_retry_pending_notes"
+                app:strokeColor="@color/calllog_border"
+                app:strokeWidth="1dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>
