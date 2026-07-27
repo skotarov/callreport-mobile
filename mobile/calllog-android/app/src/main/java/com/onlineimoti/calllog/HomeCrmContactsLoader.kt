@@ -5,9 +5,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Loads the authenticated user's Clients page from the server. Local Contacts and
- * local notes are used only as display enrichment after the server has selected
- * the broker/profile, phase and company scope.
+ * Loads the authenticated user's Clients page. CRM-only rows are rendered from
+ * the local profile cache first, then reconciled with the server in background.
  */
 internal class HomeCrmContactsLoader(
     private val activity: HomeActivity,
@@ -17,7 +16,7 @@ internal class HomeCrmContactsLoader(
     private val activePhoneFilter: () -> String,
     private val activeSearchQuery: () -> String,
     private val pageIndex: () -> Int,
-    private val isCrmModeEnabled: () -> Boolean,
+    @Suppress("UNUSED_PARAMETER") private val isCrmModeEnabled: () -> Boolean,
     private val isCrmContactsMode: () -> Boolean,
     private val onRenderComplete: () -> Unit,
 ) {
@@ -43,14 +42,34 @@ internal class HomeCrmContactsLoader(
         val busyToken = HomeBusyTooltipUi.begin(activity, HomeBusyWork.CLIENTS)
         busyTokens += busyToken
         contactsContent.showLoading()
+
         executor.execute {
-            val data = runCatching {
+            var provisionalAvailable = false
+            if (filterState.crmOnly) {
+                val provisionalCalls = runCatching {
+                    pageContacts(
+                        HomeCrmContactCandidates.loadLocal(appContext),
+                        requestedPage,
+                        pageSize,
+                    )
+                }.getOrDefault(emptyList())
+                if (provisionalCalls.isNotEmpty()) {
+                    provisionalAvailable = true
+                    val provisionalData = provisionalData(provisionalCalls)
+                    handler.post {
+                        if (!isCurrent(expectedGeneration, requestedPage, filterState)) return@post
+                        contactsContent.render(
+                            data = provisionalData,
+                            pageSize = pageSize,
+                            refreshCompanyLabels = false,
+                        )
+                    }
+                }
+            }
+
+            val finalResult = runCatching {
                 val contacts = HomeCrmContactCandidates.load(appContext, filterState)
-                val page = contacts
-                    .map { contact -> enrichWithLocalName(contact) }
-                    .sortedWith(contactListOrder)
-                    .drop(requestedPage * pageSize)
-                    .take(pageSize)
+                val page = pageContacts(contacts, requestedPage, pageSize)
                 val serverNotes = HomeCrmClientServerNotes.snapshot(appContext, page)
                 val contactNotes = HomeCallPageLoader.contactNotes(appContext, page).toMutableMap().apply {
                     putAll(serverNotes.contactNotesByNumber)
@@ -63,28 +82,55 @@ internal class HomeCrmContactsLoader(
                     },
                     callNotesByCall = serverNotes.callNotesByCall,
                 )
-            }.getOrDefault(HomeRenderData(emptyList(), emptyMap(), emptyMap()))
+            }
+
             handler.post {
                 finishBusy(busyToken)
-                val current = expectedGeneration == generation.get() &&
-                    !activity.isFinishing &&
-                    !activity.isDestroyed &&
-                    // The Clients page is server-backed and does not depend on the
-                    // old local CRM call-log mode. Requiring isCrmModeEnabled() here
-                    // left the screen stuck on "Loading customers" after opening
-                    // Clients directly from the toolbar/overflow.
-                    isCrmContactsMode() &&
-                    activePhoneFilter().isBlank() &&
-                    activeSearchQuery().isBlank() &&
-                    pageIndex() == requestedPage &&
-                    crmFilters.state() == filterState
-                if (!current) return@post
-                if (data.calls.isEmpty()) contactsContent.renderEmpty(pageSize)
-                else contactsContent.render(data, pageSize)
+                if (!isCurrent(expectedGeneration, requestedPage, filterState)) return@post
+                finalResult.onSuccess { data ->
+                    if (data.calls.isEmpty()) contactsContent.renderEmpty(pageSize)
+                    else contactsContent.render(data, pageSize)
+                }.onFailure {
+                    // Offline or temporary server failure must not erase the fast
+                    // local CRM list that is already usable on screen.
+                    if (!provisionalAvailable) contactsContent.renderEmpty(pageSize)
+                }
                 onRenderComplete()
             }
         }
     }
+
+    private fun pageContacts(
+        contacts: List<PhoneCallRecord>,
+        requestedPage: Int,
+        pageSize: Int,
+    ): List<PhoneCallRecord> = contacts
+        .map { contact -> enrichWithLocalName(contact) }
+        .sortedWith(contactListOrder)
+        .drop(requestedPage * pageSize)
+        .take(pageSize)
+
+    private fun provisionalData(page: List<PhoneCallRecord>): HomeRenderData = HomeRenderData(
+        calls = page,
+        contactNotesByNumber = emptyMap(),
+        contactNamesByNumber = page.associate { call ->
+            HomeCallPageLoader.noteKey(call.number) to call.displayName
+        },
+        callNotesByCall = emptyMap(),
+    )
+
+    private fun isCurrent(
+        expectedGeneration: Int,
+        requestedPage: Int,
+        filterState: HomeCrmFilterState,
+    ): Boolean = expectedGeneration == generation.get() &&
+        !activity.isFinishing &&
+        !activity.isDestroyed &&
+        isCrmContactsMode() &&
+        activePhoneFilter().isBlank() &&
+        activeSearchQuery().isBlank() &&
+        pageIndex() == requestedPage &&
+        crmFilters.state() == filterState
 
     private fun finishBusy(token: Long) {
         busyTokens.remove(token)
