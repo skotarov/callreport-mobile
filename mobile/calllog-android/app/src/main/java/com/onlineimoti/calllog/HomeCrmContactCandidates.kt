@@ -4,12 +4,9 @@ import android.content.Context
 import android.provider.CallLog
 
 /**
- * Contacts mode is sourced from the authenticated Relationship Manager server
- * account. The access token identifies the broker/profile on the server and the
- * server returns that broker's clients even when they are not present in this
- * phone's call log or local Contacts database.
- *
- * The old local call-log helper remains below only for backward-compatible code paths.
+ * Contacts mode ultimately comes from the authenticated Relationship Manager
+ * profile. While the server is synchronizing, the CRM-only filter can render
+ * the profile's local marker cache immediately.
  */
 internal object HomeCrmContactCandidates {
     private const val UNKNOWN_CRM_LOOKBACK_MS = 14L * 24L * 60L * 60L * 1_000L
@@ -22,6 +19,42 @@ internal object HomeCrmContactCandidates {
     ): List<PhoneCallRecord> {
         val appContext = context.applicationContext
         return HomeCrmContactCandidatesServer.load(appContext, filterState, searchQuery)
+    }
+
+    /** Fast local snapshot used only as a provisional CRM-only Clients render. */
+    fun loadLocal(context: Context, nowMs: Long = System.currentTimeMillis()): List<PhoneCallRecord> {
+        val appContext = context.applicationContext
+        val markers = CrmContactSyncStore.activeRecords(appContext)
+        if (markers.isEmpty()) return emptyList()
+
+        val knownByKey = ContactSearchProvider.crmEnabledContacts(appContext)
+            .associateBy { PhoneNormalizer.key(it.phone) }
+        val recentUnknownByKey = recentUnknownCrmCalls(appContext, nowMs)
+            .associateBy { HomeCallPageLoader.noteKey(it.number) }
+
+        return markers.mapNotNull { marker ->
+            val key = PhoneNormalizer.key(marker.phone)
+            if (key.isBlank()) return@mapNotNull null
+            val known = knownByKey[key]
+            val recent = recentUnknownByKey[key]
+            when {
+                known != null -> PhoneCallRecord(
+                    number = known.phone,
+                    name = known.name,
+                    direction = "",
+                    startedAt = marker.updatedAtMs,
+                    durationSeconds = 0L,
+                )
+                recent != null -> recent.copy(startedAt = maxOf(recent.startedAt, marker.updatedAtMs))
+                else -> PhoneCallRecord(
+                    number = marker.phone.ifBlank { key },
+                    name = "",
+                    direction = "",
+                    startedAt = marker.updatedAtMs,
+                    durationSeconds = 0L,
+                )
+            }
+        }.distinctBy { HomeCallPageLoader.noteKey(it.number) }
     }
 
     private fun recentUnknownCrmCalls(context: Context, nowMs: Long): List<PhoneCallRecord> {
