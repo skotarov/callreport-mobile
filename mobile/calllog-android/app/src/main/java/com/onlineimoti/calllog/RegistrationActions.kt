@@ -18,13 +18,26 @@ internal object RegistrationActions {
         activity.startActivity(Intent(activity, CompanyAccountActivity::class.java))
     }
 
+    fun openProfileEditor(activity: AppCompatActivity) {
+        val mode = if (CompanySessionStore.load(activity) != null) {
+            CompanyAccountActivity.MODE_PROFILE
+        } else {
+            CompanyAccountActivity.MODE_LOGIN
+        }
+        activity.startActivity(Intent(activity, CompanyAccountActivity::class.java).apply {
+            putExtra(CompanyAccountActivity.EXTRA_MODE, mode)
+        })
+    }
+
     fun renderCompanySection(
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
-        val profile = CompanySessionStore.load(activity)
+        val activeProfile = CompanySessionStore.load(activity)
+        val profile = activeProfile ?: CompanySessionStore.loadStored(activity)
         if (profile == null) {
             binding.registrationCurrentProfileText.visibility = View.GONE
+            binding.registrationEditProfileButton.visibility = View.GONE
             binding.registrationLogoutButton.visibility = View.GONE
         } else {
             val profileName = profile.userName.ifBlank {
@@ -54,6 +67,11 @@ internal object RegistrationActions {
                     phone,
                     phoneStatus,
                 )
+                alpha = if (activeProfile == null) 0.82f else 1f
+            }
+            binding.registrationEditProfileButton.apply {
+                visibility = View.VISIBLE
+                isEnabled = true
             }
             binding.registrationLogoutButton.visibility = View.VISIBLE
             binding.registrationLogoutButton.isEnabled = true
