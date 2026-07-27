@@ -189,8 +189,8 @@ internal object HomeBusyTooltipUi {
     private fun dp(activity: Activity, value: Int): Int =
         (value * activity.resources.displayMetrics.density).toInt()
 
-    private const val HEIGHT_DP = 22
+    private const val HEIGHT_DP = 20
     private const val HORIZONTAL_PADDING_DP = 14
-    private const val CORNER_RADIUS_DP = 11
+    private const val CORNER_RADIUS_DP = 10
     private const val MIN_VISIBLE_MS = 320L
 }
