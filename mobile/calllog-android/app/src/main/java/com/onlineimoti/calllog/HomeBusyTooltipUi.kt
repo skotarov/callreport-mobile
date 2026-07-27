@@ -69,6 +69,7 @@ internal object HomeBusyText {
 
 /**
  * Shows one non-blocking black overlay for concurrent background tasks.
+ * Every screen and background-work type shares this single visual template.
  * Tokens prevent an older completion from hiding a newer operation.
  */
 internal object HomeBusyTooltipUi {
@@ -145,10 +146,10 @@ internal object HomeBusyTooltipUi {
                 maxLines = 1
                 gravity = Gravity.CENTER
                 setTextColor(Color.WHITE)
-                setPadding(dp(activity, 14), 0, dp(activity, 14), 0)
+                setPadding(dp(activity, HORIZONTAL_PADDING_DP), 0, dp(activity, HORIZONTAL_PADDING_DP), 0)
                 background = GradientDrawable().apply {
                     setColor(Color.rgb(15, 23, 42))
-                    cornerRadius = dp(activity, 13).toFloat()
+                    cornerRadius = dp(activity, CORNER_RADIUS_DP).toFloat()
                 }
                 contentDescription = text
             }
@@ -156,7 +157,7 @@ internal object HomeBusyTooltipUi {
             popup = PopupWindow(
                 content,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                dp(activity, 26),
+                dp(activity, HEIGHT_DP),
                 false,
             ).apply {
                 setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -188,5 +189,8 @@ internal object HomeBusyTooltipUi {
     private fun dp(activity: Activity, value: Int): Int =
         (value * activity.resources.displayMetrics.density).toInt()
 
+    private const val HEIGHT_DP = 22
+    private const val HORIZONTAL_PADDING_DP = 14
+    private const val CORNER_RADIUS_DP = 11
     private const val MIN_VISIBLE_MS = 320L
 }
