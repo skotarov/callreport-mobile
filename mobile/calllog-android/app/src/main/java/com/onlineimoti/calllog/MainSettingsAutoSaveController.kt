@@ -2,7 +2,6 @@ package com.onlineimoti.calllog
 
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
 import android.widget.CompoundButton
 import com.google.android.material.textfield.TextInputEditText
 import com.onlineimoti.calllog.databinding.ActivityMainBinding
@@ -10,6 +9,8 @@ import com.onlineimoti.calllog.databinding.ActivityMainBinding
 internal class MainSettingsAutoSaveController(
     private val binding: ActivityMainBinding,
     private val autoSaveSettings: () -> AppConfig,
+    private val requestRemoteEnabledChange: (Boolean) -> Unit,
+    private val notifyRemoteConnectionInputChanged: () -> Unit,
     private val applyLanguageIfChanged: (String) -> Unit,
     private val applyFontScaleIfChanged: (Float) -> Unit,
 ) {
@@ -24,19 +25,20 @@ internal class MainSettingsAutoSaveController(
         val tests = binding.testsSection
 
         remote.remoteEnabledCheckBox.setOnCheckedChangeListener { _, isChecked ->
-            remote.remoteSettingsGroup.visibility = if (isChecked) View.VISIBLE else View.GONE
-            autoSaveSettings()
+            requestRemoteEnabledChange(isChecked)
         }
-
         listOf(
             remote.baseUrlInput,
             remote.accessTokenInput,
             remote.lookupPathInput,
+        ).forEach { input -> input.watchTextChanges(notifyRemoteConnectionInputChanged) }
+        listOf(
+            remote.formPathInput,
             remote.historyPathInput,
             popup.postCallTimeoutInput,
             callLog.homeCallPageSizeInput,
             popupFilter.contactGroupsInput,
-        ).forEach { input -> input.autoSaveTextChanges() }
+        ).forEach { input -> input.watchTextChanges(autoSaveSettings) }
 
         callLog.pageLoadingModeGroup.setOnCheckedChangeListener { _, checkedId ->
             PageLoadingModeStore.save(
@@ -77,13 +79,11 @@ internal class MainSettingsAutoSaveController(
         }
     }
 
-    private fun TextInputEditText.autoSaveTextChanges() {
+    private fun TextInputEditText.watchTextChanges(action: () -> Unit) {
         addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                autoSaveSettings()
-            }
+            override fun afterTextChanged(s: Editable?) = action()
         })
     }
 
