@@ -3,7 +3,6 @@ package com.onlineimoti.calllog
 import android.app.Activity
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.animation.Animation
@@ -13,7 +12,6 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
-import android.widget.TextView
 
 internal class ContactNotesHeaderActionsUi(
     private val activity: Activity,
@@ -33,7 +31,7 @@ internal class ContactNotesHeaderActionsUi(
             filledCloud -> activeColor
             else -> Color.BLACK
         }
-        val labelColor = if (enabled) Color.WHITE else Color.BLACK
+        val careColor = if (enabled) Color.WHITE else Color.BLACK
         val bulgarian = AppLocaleText.isBulgarian()
         val description = when {
             !available -> if (bulgarian) "Активният списък не е достъпен без настроен сървър" else "The active-client list is unavailable without a configured server"
@@ -49,20 +47,12 @@ internal class ContactNotesHeaderActionsUi(
             setPadding(dp(3), dp(5), dp(3), dp(5))
             layoutParams = LinearLayout.LayoutParams(dp(30), dp(36))
         }
-        val crmLabel = TextView(activity).apply {
-            text = if (bulgarian) "Активен" else "Active"
-            textSize = 11.5f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(labelColor)
-            gravity = Gravity.CENTER_VERTICAL
-            maxLines = 1
-            isSingleLine = true
-            includeFontPadding = false
-            setPadding(0, 0, dp(6), 0)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-            )
+        val clientCareIcon = ImageView(activity).apply {
+            setImageResource(R.drawable.ic_client_care)
+            imageTintList = ColorStateList.valueOf(careColor)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(2), dp(5), dp(5), dp(5))
+            layoutParams = LinearLayout.LayoutParams(dp(30), dp(36))
         }
         return LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -83,7 +73,7 @@ internal class ContactNotesHeaderActionsUi(
                 dp(36),
             )
             addView(cloudIcon)
-            addView(crmLabel)
+            addView(clientCareIcon)
             setOnClickListener { action() }
             if (busy) cloudIcon.startAnimation(cloudSpinAnimation())
         }
