@@ -156,7 +156,7 @@ internal class UnifiedNoteEditorContentUi(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             background = if (selected) {
-                roundedRect(Color.WHITE, dp(9), Color.TRANSPARENT, 0)
+                activeTabBackground(Color.WHITE, dp(9))
             } else {
                 null
             }
@@ -290,6 +290,18 @@ internal class UnifiedNoteEditorContentUi(
         setPadding(dp(horizontalPaddingDp), dp(10), dp(horizontalPaddingDp), dp(10))
         setOnClickListener { action() }
     }
+
+    private fun activeTabBackground(color: Int, topRadius: Int): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadii = floatArrayOf(
+                topRadius.toFloat(), topRadius.toFloat(),
+                topRadius.toFloat(), topRadius.toFloat(),
+                0f, 0f,
+                0f, 0f,
+            )
+            setColor(color)
+        }
 
     private fun roundedRect(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int): GradientDrawable =
         GradientDrawable().apply {
