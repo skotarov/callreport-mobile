@@ -9,6 +9,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import com.google.android.material.button.MaterialButton
 import com.onlineimoti.calllog.databinding.ActivityHomeBinding
@@ -199,32 +200,50 @@ internal class HomeCrmFiltersController(
         showCompanyButtons(binding.crmPhaseFilterRow.visibility == View.VISIBLE && (showPersonalCrm || available.isNotEmpty()))
     }
 
-    private fun crmFilterButton(): MaterialButton =
-        MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = if (AppLocaleText.isBulgarian()) "Мои" else "My"
-            contentDescription = if (state.crmOnly) {
-                if (AppLocaleText.isBulgarian()) "Покажи всички клиенти" else "Show all clients"
-            } else {
-                if (AppLocaleText.isBulgarian()) "Покажи само моите активни клиенти" else "Show only my active clients"
+    private fun crmFilterButton(): LinearLayout {
+        val active = state.crmOnly
+        val activeColor = activity.getColor(R.color.callreport_icon_background)
+        val fill = if (active) activeColor else Color.WHITE
+        val border = if (active) activeColor else COLOR_INACTIVE
+        val foreground = if (active) Color.WHITE else COLOR_DARK_TEXT
+        val description = if (active) {
+            if (AppLocaleText.isBulgarian()) "Покажи всички клиенти" else "Show all clients"
+        } else {
+            if (AppLocaleText.isBulgarian()) "Покажи само моите активни клиенти" else "Show only my active clients"
+        }
+        return LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            contentDescription = description
+            isClickable = true
+            isFocusable = true
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(10).toFloat()
+                setColor(fill)
+                setStroke(dp(1), border)
             }
-            isAllCaps = false
-            setSingleLine()
-            textSize = 12f
-            minimumHeight = 0
-            minimumWidth = 0
-            insetTop = 0
-            insetBottom = 0
-            cornerRadius = dp(10)
-            strokeWidth = dp(1)
-            setIconResource(R.drawable.ic_cloud_note)
-            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-            iconSize = dp(17)
-            iconPadding = dp(4)
-            setPadding(dp(8), 0, dp(9), 0)
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply { marginEnd = dp(4) }
-            styleCrmButton(this, state.crmOnly)
+            setPadding(dp(7), 0, dp(7), 0)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply {
+                marginEnd = dp(4)
+            }
+            addView(ImageView(activity).apply {
+                setImageResource(R.drawable.ic_cloud_note)
+                imageTintList = ColorStateList.valueOf(foreground)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
+            })
+            addView(ImageView(activity).apply {
+                setImageResource(R.drawable.ic_client_care)
+                imageTintList = ColorStateList.valueOf(foreground)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                layoutParams = LinearLayout.LayoutParams(dp(22), dp(22)).apply {
+                    marginStart = dp(4)
+                }
+            })
             setOnClickListener { toggleCrmOnly() }
         }
+    }
 
     private fun companyButton(company: CallReportTopicCompany): MaterialButton =
         MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
@@ -266,18 +285,6 @@ internal class HomeCrmFiltersController(
         button.backgroundTintList = ColorStateList.valueOf(color)
         button.strokeColor = ColorStateList.valueOf(color)
         button.setTextColor(if (selected) activeTextColor else COLOR_DARK_TEXT)
-    }
-
-    private fun styleCrmButton(button: MaterialButton, active: Boolean) {
-        val activeColor = activity.getColor(R.color.callreport_icon_background)
-        val fill = if (active) activeColor else Color.WHITE
-        val border = if (active) activeColor else COLOR_INACTIVE
-        val foreground = if (active) Color.WHITE else COLOR_DARK_TEXT
-        button.isSelected = active
-        button.backgroundTintList = ColorStateList.valueOf(fill)
-        button.strokeColor = ColorStateList.valueOf(border)
-        button.iconTint = ColorStateList.valueOf(foreground)
-        button.setTextColor(foreground)
     }
 
     private fun styleCompanyButton(button: MaterialButton, active: Boolean) {
