@@ -9,8 +9,6 @@ import java.net.URL
 
 /** Reads personal and shared-company CRM contacts available to the signed-in profile. */
 internal object ServerCrmContactsClient {
-    private const val PATH = "/relationship-manager/contacts_shared_lookup.php"
-
     fun lookup(
         config: AppConfig,
         filterState: HomeCrmFilterState = HomeCrmFilterState(),
@@ -18,7 +16,7 @@ internal object ServerCrmContactsClient {
         context: Context? = null,
     ): List<PhoneCallRecord> {
         if (!CallReportRemoteAccess.isReady(config)) return emptyList()
-        val endpoint = buildEndpoint(config.baseUrl, PATH, queryParameters(config, filterState, searchQuery))
+        val endpoint = buildEndpoint(config.baseUrl, config.contactsSharedLookupPath, queryParameters(config, filterState, searchQuery))
         val connection = runCatching { URL(endpoint).openConnection() as HttpURLConnection }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
             throw error

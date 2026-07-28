@@ -197,28 +197,39 @@ class MainActivity : FontScaledAppCompatActivity() {
     }
 
     private fun testServerConnection() {
-        val config = saveConfig()
         val remote = binding.remoteSettingsSection
+        val candidate = MainSettingsConfigUi.read(binding).copy(remoteEnabled = false)
+        remote.remoteEnabledCheckBox.isChecked = false
+        ConfigStore.save(this, candidate)
         remote.serverConnectionTestStatusText.visibility = android.view.View.VISIBLE
         remote.serverConnectionTestStatusText.text = getString(R.string.test_server_connection_running)
         remote.testServerConnectionButton.isEnabled = false
         executor.execute {
-            val result = runCatching { ServerConnectionTester.test(config) }
+            val result = runCatching { ServerConnectionTester.test(candidate) }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 remote.testServerConnectionButton.isEnabled = true
                 result.onSuccess { status ->
+                    val connected = status.ok
+                    ConfigStore.save(this, candidate.copy(remoteEnabled = connected))
+                    remote.remoteEnabledCheckBox.isChecked = connected
                     remote.serverConnectionTestStatusText.text = buildString {
-                        append(if (status.ok) "✅ " else "⚠️ ")
+                        append(if (connected) "✅ " else "❌ ")
                         append(status.title)
                         if (status.detail.isNotBlank()) append("\n").append(status.detail)
                     }
                     setStatus(status.title)
                 }.onFailure { error ->
+                    ConfigStore.save(this, candidate.copy(remoteEnabled = false))
+                    remote.remoteEnabledCheckBox.isChecked = false
                     val message = error.message.orEmpty().ifBlank { getString(R.string.test_server_connection_failed) }
                     remote.serverConnectionTestStatusText.text = "❌ $message"
                     setStatus(message)
                 }
+                refreshPermissionSummary()
+                serverSyncQueueStatusController.refresh()
+                callScreeningIntegrationSettingsController.refresh()
+                contactsCleanupController.refreshFromCurrentTask()
             }
         }
     }

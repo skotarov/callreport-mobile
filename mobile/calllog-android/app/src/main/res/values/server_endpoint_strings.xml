@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="server_history_lookup_path_hint">History data endpoint — history_lookup.php</string>
+    <string name="server_sync_path_hint">Company note sync endpoint — sync.php</string>
+    <string name="server_sync_edit_path_hint">Communication edit sync endpoint — sync_edit.php</string>
+    <string name="server_contact_phase_path_hint">Legacy contact phase endpoint — contact_phase.php</string>
+    <string name="server_company_phase_path_hint">Company phase endpoint — company_phase.php</string>
+    <string name="server_company_destinations_path_hint">Company destinations endpoint — company_destinations.php</string>
+    <string name="server_contacts_shared_lookup_path_hint">CRM contacts endpoint — contacts_shared_lookup.php</string>
+    <string name="server_profile_crm_contacts_path_hint">Private CRM markers endpoint — profile_crm_contacts.php</string>
+    <string name="server_company_users_path_hint">Company users endpoint — company_users.php</string>
+    <string name="server_auth_path_hint">Profile authentication endpoint — auth.php</string>
+    <string name="server_invitations_path_hint">Company invitations endpoint — invitations.php</string>
+    <string name="server_billing_path_hint">Company license endpoint — billing.php</string>
+    <string name="server_config_path_hint">Debug server configuration — config.php</string>
+    <string name="server_standalone_lookup_path_hint">Standalone lookup test — lookup.php</string>
+    <string name="server_home_notes_path_hint">Batch home notes test — home_notes.php</string>
+    <string name="server_property_search_path_hint">Property search test — property_search.php</string>
+    <string name="server_standalone_form_path_hint">Standalone form test — form.php</string>
+    <string name="server_standalone_history_path_hint">Standalone history test — history.php</string>
+    <string name="server_submit_path_hint">Direct note submit test — submit.php</string>
+</resources>

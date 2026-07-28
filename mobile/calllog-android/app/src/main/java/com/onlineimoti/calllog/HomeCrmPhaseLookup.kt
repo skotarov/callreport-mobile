@@ -120,8 +120,6 @@ internal object HomeCrmPhaseLookup {
 }
 
 internal object CompanyNegotiationPhaseBatchRemoteClient {
-    private const val PATH = "/relationship-manager/company_phase.php"
-
     fun fetch(config: AppConfig, phones: List<String>, context: Context? = null): Map<String, Map<String, Int>> {
         val requested = linkedMapOf<String, String>()
         phones.forEach { phone ->
@@ -129,7 +127,7 @@ internal object CompanyNegotiationPhaseBatchRemoteClient {
         }
         if (requested.isEmpty()) return emptyMap()
         val connection = runCatching {
-            URL(config.baseUrl.trim().trimEnd('/') + PATH).openConnection() as HttpURLConnection
+            URL(config.baseUrl.trim().trimEnd('/') + config.companyPhasePath).openConnection() as HttpURLConnection
         }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
             throw error

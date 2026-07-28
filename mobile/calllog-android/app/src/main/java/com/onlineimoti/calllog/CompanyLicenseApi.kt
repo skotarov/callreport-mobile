@@ -8,8 +8,6 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 internal object CompanyLicenseApi {
-    private const val BILLING_PATH = "/relationship-manager/api/billing.php"
-
     data class ActivationResult(
         val activationToken: String,
         val expiresAtMs: Long,
@@ -124,7 +122,7 @@ internal object CompanyLicenseApi {
         if (config.accessToken.isNotBlank()) payload.put("access_token", config.accessToken)
 
         val request = payload.toString().toByteArray(StandardCharsets.UTF_8)
-        val connection = (URL(buildEndpoint(config.baseUrl, BILLING_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(buildEndpoint(config.baseUrl, config.billingPath, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000

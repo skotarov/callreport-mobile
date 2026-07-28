@@ -8,8 +8,6 @@ import java.nio.charset.StandardCharsets
 
 /** Mobile client for OTP profile authentication and separate company creation. */
 internal object CompanyAccountApi {
-    private const val AUTH_PATH = "/relationship-manager/api/auth.php"
-
     data class ProfileUser(
         val name: String = "",
         val email: String = "",
@@ -195,10 +193,15 @@ internal object CompanyAccountApi {
 
     fun applySession(context: Context, session: Session) {
         val current = ConfigStore.load(context)
+        val unchangedValidatedToken = current.remoteEnabled &&
+            current.accessToken.trim().isNotBlank() &&
+            current.accessToken.trim() == session.accessToken.trim()
         ConfigStore.save(
             context,
             current.copy(
-                remoteEnabled = true,
+                // A new/rotated token must pass Settings → Connect. A normal
+                // profile refresh with the same validated token keeps server mode.
+                remoteEnabled = unchangedValidatedToken,
                 accessToken = session.accessToken,
             ),
         )
@@ -245,7 +248,7 @@ internal object CompanyAccountApi {
         val config = ConfigStore.load(context)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
         if (authenticated) require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
-        val connection = (URL(buildEndpoint(config.baseUrl, AUTH_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(buildEndpoint(config.baseUrl, config.authPath, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000

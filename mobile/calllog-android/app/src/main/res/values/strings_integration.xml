@@ -9,7 +9,7 @@
     <string name="default_sms_permissions_button">Check SMS permissions</string>
     <string name="default_sms_manage_button">Manage in Android</string>
     <string name="default_sms_permissions_checked">SMS permissions checked.</string>
-    <string name="test_server_connection">Test connection</string>
-    <string name="test_server_connection_running">Testing server connection…</string>
-    <string name="test_server_connection_failed">Server connection test failed.</string>
+    <string name="test_server_connection">Connect</string>
+    <string name="test_server_connection_running">Connecting to server…</string>
+    <string name="test_server_connection_failed">Server connection failed.</string>
 </resources>

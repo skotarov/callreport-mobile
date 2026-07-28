@@ -9,8 +9,6 @@ import java.nio.charset.StandardCharsets
 
 /** Reads and updates only the signed-in profile's private CRM contact markers. */
 internal object ProfileCrmContactsClient {
-    private const val PATH = "/relationship-manager/profile_crm_contacts.php"
-
     data class Change(val phone: String, val active: Boolean)
 
     fun fetch(context: Context, config: AppConfig = ConfigStore.load(context)): Set<String> {
@@ -51,7 +49,7 @@ internal object ProfileCrmContactsClient {
         payload: JSONObject?,
     ): Set<String> {
         require(CallReportRemoteAccess.isReady(config)) { "Първо влез в профила." }
-        val endpoint = buildEndpoint(config.baseUrl, PATH, emptyMap())
+        val endpoint = buildEndpoint(config.baseUrl, config.profileCrmContactsPath, emptyMap())
         val connection = runCatching { URL(endpoint).openConnection() as HttpURLConnection }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
             throw error

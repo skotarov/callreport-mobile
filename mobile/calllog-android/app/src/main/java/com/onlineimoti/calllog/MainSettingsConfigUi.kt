@@ -53,12 +53,33 @@ object MainSettingsConfigUi {
     fun hydrateServerSettings(binding: ActivityMainBinding, config: AppConfig) {
         val remote = binding.remoteSettingsSection
         remote.remoteEnabledCheckBox.isChecked = config.remoteEnabled
-        remote.remoteSettingsGroup.visibility = if (config.remoteEnabled) View.VISIBLE else View.GONE
+        remote.remoteEnabledCheckBox.isClickable = false
+        remote.remoteEnabledCheckBox.isFocusable = false
+        remote.remoteSettingsGroup.visibility = View.VISIBLE
         remote.baseUrlInput.setText(config.baseUrl)
         remote.accessTokenInput.setText(config.accessToken)
         remote.lookupPathInput.setText(config.lookupPath)
         remote.formPathInput.setText(config.formPath)
         remote.historyPathInput.setText(config.historyPath)
+        remote.historyLookupPathInput.setText(config.historyLookupPath)
+        remote.syncPathInput.setText(config.syncPath)
+        remote.syncEditPathInput.setText(config.syncEditPath)
+        remote.contactPhasePathInput.setText(config.contactPhasePath)
+        remote.companyPhasePathInput.setText(config.companyPhasePath)
+        remote.companyDestinationsPathInput.setText(config.companyDestinationsPath)
+        remote.contactsSharedLookupPathInput.setText(config.contactsSharedLookupPath)
+        remote.profileCrmContactsPathInput.setText(config.profileCrmContactsPath)
+        remote.companyUsersPathInput.setText(config.companyUsersPath)
+        remote.authPathInput.setText(config.authPath)
+        remote.invitationsPathInput.setText(config.invitationsPath)
+        remote.billingPathInput.setText(config.billingPath)
+        remote.configPathInput.setText(config.configPath)
+        remote.standaloneLookupPathInput.setText(config.standaloneLookupPath)
+        remote.homeNotesPathInput.setText(config.homeNotesPath)
+        remote.propertySearchPathInput.setText(config.propertySearchPath)
+        remote.standaloneFormPathInput.setText(config.standaloneFormPath)
+        remote.standaloneHistoryPathInput.setText(config.standaloneHistoryPath)
+        remote.submitPathInput.setText(config.submitPath)
     }
 
     fun read(binding: ActivityMainBinding): AppConfig {
@@ -84,6 +105,25 @@ object MainSettingsConfigUi {
             lookupPath = remote.lookupPathInput.text?.toString().orEmpty(),
             formPath = remote.formPathInput.text?.toString().orEmpty(),
             historyPath = remote.historyPathInput.text?.toString().orEmpty(),
+            historyLookupPath = remote.historyLookupPathInput.text?.toString().orEmpty(),
+            syncPath = remote.syncPathInput.text?.toString().orEmpty(),
+            syncEditPath = remote.syncEditPathInput.text?.toString().orEmpty(),
+            contactPhasePath = remote.contactPhasePathInput.text?.toString().orEmpty(),
+            companyPhasePath = remote.companyPhasePathInput.text?.toString().orEmpty(),
+            companyDestinationsPath = remote.companyDestinationsPathInput.text?.toString().orEmpty(),
+            contactsSharedLookupPath = remote.contactsSharedLookupPathInput.text?.toString().orEmpty(),
+            profileCrmContactsPath = remote.profileCrmContactsPathInput.text?.toString().orEmpty(),
+            companyUsersPath = remote.companyUsersPathInput.text?.toString().orEmpty(),
+            authPath = remote.authPathInput.text?.toString().orEmpty(),
+            invitationsPath = remote.invitationsPathInput.text?.toString().orEmpty(),
+            billingPath = remote.billingPathInput.text?.toString().orEmpty(),
+            configPath = remote.configPathInput.text?.toString().orEmpty(),
+            standaloneLookupPath = remote.standaloneLookupPathInput.text?.toString().orEmpty(),
+            homeNotesPath = remote.homeNotesPathInput.text?.toString().orEmpty(),
+            propertySearchPath = remote.propertySearchPathInput.text?.toString().orEmpty(),
+            standaloneFormPath = remote.standaloneFormPathInput.text?.toString().orEmpty(),
+            standaloneHistoryPath = remote.standaloneHistoryPathInput.text?.toString().orEmpty(),
+            submitPath = remote.submitPathInput.text?.toString().orEmpty(),
             postCallPromptTimeoutSeconds = popup.postCallTimeoutInput.text?.toString()?.toIntOrNull()
                 ?: ConfigStore.DEFAULT_POST_CALL_TIMEOUT_SECONDS,
             useOverlayPopups = currentConfig.useOverlayPopups,
