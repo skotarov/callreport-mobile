@@ -11,7 +11,7 @@ import android.view.animation.RotateAnimation
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.PopupMenu
+import androidx.appcompat.widget.PopupMenu
 
 internal class ContactNotesHeaderActionsUi(
     private val activity: Activity,
@@ -120,6 +120,34 @@ internal class ContactNotesHeaderActionsUi(
         return button
     }
 
+    fun historyOverflowButton(
+        openRmContact: () -> Unit,
+        openChatSettings: () -> Unit,
+    ): ImageButton {
+        val button = iconButton(
+            R.drawable.ic_more_vertical,
+            activity.getString(R.string.history_more_actions),
+        ) {}
+        button.setOnClickListener {
+            PopupMenu(activity, button).apply {
+                menu.add(0, MENU_EDIT_RM, 0, activity.getString(R.string.history_edit_crm))
+                    .setIcon(R.drawable.ic_edit_pencil)
+                menu.add(0, MENU_CHAT_SETTINGS, 1, activity.getString(R.string.history_chat_settings))
+                    .setIcon(R.drawable.ic_settings_chats)
+                setForceShowIcon(true)
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        MENU_EDIT_RM -> openRmContact()
+                        MENU_CHAT_SETTINGS -> openChatSettings()
+                    }
+                    true
+                }
+                show()
+            }
+        }
+        return button
+    }
+
     fun iconButton(drawableRes: Int, description: String, action: () -> Unit): ImageButton {
         val iconRes = if (drawableRes == R.drawable.ic_settings_rm_contacts) {
             R.drawable.ic_edit_pencil
@@ -165,5 +193,7 @@ internal class ContactNotesHeaderActionsUi(
         const val MENU_PHONE_CONTACT = 1
         const val MENU_RM_CONTACT = 2
         const val MENU_CLEAN_CALL_LIST = 3
+        const val MENU_EDIT_RM = 4
+        const val MENU_CHAT_SETTINGS = 5
     }
 }
