@@ -113,6 +113,10 @@
                 layout="@layout/settings_group_rm_contacts" />
 
             <include
+                android:id="@+id/settingsChatsGroup"
+                layout="@layout/settings_group_chats" />
+
+            <include
                 android:id="@+id/settingsServerGroup"
                 layout="@layout/settings_group_server" />
 
