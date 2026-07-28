@@ -181,12 +181,10 @@ internal class UnifiedNoteEditorContentUi(
         return EditText(context).apply {
             setText(state.noteText)
             setSelection(text?.length ?: 0)
-            hint = if (state.kind.isGeneral) "Основна бележка към контакта/номера" else "Бележка към това обаждане"
             minLines = if (state.kind.isGeneral) 4 else 3
             maxLines = 8
             textSize = 16f
             setTextColor(colors.text)
-            setHintTextColor(colors.mutedText)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             setSingleLine(false)
             gravity = Gravity.TOP or Gravity.START
