@@ -27,6 +27,24 @@
         android:name="android.hardware.telephony"
         android:required="false" />
 
+    <!-- Package visibility is needed only to show the installed apps' own launcher icons. -->
+    <queries>
+        <package android:name="com.viber.voip" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="com.facebook.orca" />
+        <package android:name="org.thoughtcrime.securesms" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.google.android.apps.messaging" />
+        <package android:name="com.snapchat.android" />
+        <package android:name="com.discord" />
+        <package android:name="com.tencent.mm" />
+        <package android:name="jp.naver.line.android" />
+        <package android:name="com.kakao.talk" />
+        <package android:name="com.tencent.mobileqq" />
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
