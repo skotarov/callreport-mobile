@@ -39,6 +39,14 @@ internal class MainSettingsNavigationController(
         binding.settingsMenuGroup.settingsDataArchiveButton.setOnClickListener { showSection(SettingsSection.DATA_AND_BACKUP) }
         binding.settingsMenuGroup.settingsGeneralButton.setOnClickListener { showSection(SettingsSection.LANGUAGE) }
         chatSettingsController.wire()
+        if (activity.intent?.getBooleanExtra(EXTRA_OPEN_CHATS, false) == true) {
+            activity.intent?.removeExtra(EXTRA_OPEN_CHATS)
+            binding.settingsMenuGroup.settingsChatsButton.post {
+                if (!activity.isFinishing && !activity.isDestroyed) {
+                    binding.settingsMenuGroup.settingsChatsButton.performClick()
+                }
+            }
+        }
         if (BuildConfig.DEBUG) {
             binding.settingsMenuGroup.settingsDebugButton.setOnClickListener { showSection(SettingsSection.DEBUG) }
         } else {
@@ -170,5 +178,9 @@ internal class MainSettingsNavigationController(
                 DEBUG -> binding.settingsDebugGroup.root
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_CHATS = "open_chats_settings"
     }
 }
