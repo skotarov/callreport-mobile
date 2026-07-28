@@ -34,7 +34,7 @@ internal class HomeCrmContactsContentView(
     fun showLoading() {
         prepareCustomersHeader()
         timelineToggle.prepare(visible = true, contactsMode = true)
-        removeServerLoadingStatus()
+        removeStatusRows()
         val retainingRows = retainRowsDuringEdgePaging()
         if (!retainingRows) {
             currentData = null
@@ -60,7 +60,7 @@ internal class HomeCrmContactsContentView(
 
     fun render(data: HomeRenderData, pageSize: Int, refreshCompanyLabels: Boolean = true) {
         prepareCustomersHeader()
-        removeServerLoadingStatus()
+        removeStatusRows()
         val previousData = lastRenderedData
         val previousLabels = currentCompanyLabelsByNumber
         val previousCrmKeys = currentCrmPhoneKeys
@@ -99,7 +99,7 @@ internal class HomeCrmContactsContentView(
 
     fun renderEmpty(pageSize: Int) {
         prepareCustomersHeader()
-        removeServerLoadingStatus()
+        removeStatusRows()
         if (retainRowsDuringEdgePaging() && pageIndex() > 0) {
             currentData = null
             lastRenderedData = null
@@ -121,12 +121,15 @@ internal class HomeCrmContactsContentView(
         binding.fullLogProgress.visibility = View.GONE
         binding.homeStatusText.text = ""
         binding.homeStatusText.visibility = View.GONE
-        addStatusRow(when {
-            hasActiveCrmFilters() && AppLocaleText.isBulgarian() -> "Няма клиенти за избраните филтри."
-            hasActiveCrmFilters() -> "No customers match the selected filters."
-            AppLocaleText.isBulgarian() -> "Няма клиенти в RM."
-            else -> "No customers in RM."
-        })
+        addStatusRow(
+            text = when {
+                hasActiveCrmFilters() && AppLocaleText.isBulgarian() -> "Няма клиенти за избраните филтри."
+                hasActiveCrmFilters() -> "No customers match the selected filters."
+                AppLocaleText.isBulgarian() -> "Няма клиенти в RM."
+                else -> "No customers in RM."
+            },
+            tagValue = EMPTY_STATUS_TAG,
+        )
         HomeLoadingFooterUi.hide(binding.homeCallsContainer)
         timelineToggle.showEmpty(contactsMode = true)
         PaginationButtonAppearance.apply(binding.previousCallsButton, pageIndex() > 0)
@@ -286,10 +289,12 @@ internal class HomeCrmContactsContentView(
         })
     }
 
-    private fun removeServerLoadingStatus() {
+    private fun removeStatusRows() {
         for (index in binding.homeCallsContainer.childCount - 1 downTo 0) {
             val child = binding.homeCallsContainer.getChildAt(index)
-            if (child.tag == SERVER_LOADING_STATUS_TAG) binding.homeCallsContainer.removeViewAt(index)
+            if (child.tag == SERVER_LOADING_STATUS_TAG || child.tag == EMPTY_STATUS_TAG) {
+                binding.homeCallsContainer.removeViewAt(index)
+            }
         }
     }
 
@@ -303,6 +308,7 @@ internal class HomeCrmContactsContentView(
 
     private companion object {
         const val SERVER_LOADING_STATUS_TAG = "relationship_manager_clients_server_loading"
+        const val EMPTY_STATUS_TAG = "relationship_manager_clients_empty"
         const val CLIENT_ROW_TAG_PREFIX = "relationship_manager_client_row:"
     }
 }
