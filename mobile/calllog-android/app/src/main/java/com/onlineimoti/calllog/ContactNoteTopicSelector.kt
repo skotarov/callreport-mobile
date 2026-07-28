@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 
 internal data class ContactNoteTopicState(
     val visible: Boolean,
@@ -70,10 +71,18 @@ internal object ContactNoteTopicSelector {
                 setTextColor(Color.rgb(51, 65, 85))
                 buttonTintList = radioTint()
                 minHeight = dp(context, 42)
-                setPadding(0, dp(context, 2), 0, dp(context, 2))
+                setPadding(0, dp(context, 2), dp(context, 4), dp(context, 2))
                 isEnabled = interactionEnabled
+                if (option.serverBacked) {
+                    ContextCompat.getDrawable(context, R.drawable.ic_cloud_note_filled)?.mutate()?.let { cloud ->
+                        cloud.setTint(context.getColor(R.color.callreport_icon_background))
+                        cloud.setBounds(0, 0, dp(context, 17), dp(context, 17))
+                        setCompoundDrawablesRelative(cloud, null, null, null)
+                        compoundDrawablePadding = dp(context, 4)
+                    }
+                }
                 layoutParams = RadioGroup.LayoutParams(
-                    RadioGroup.LayoutParams.MATCH_PARENT,
+                    RadioGroup.LayoutParams.WRAP_CONTENT,
                     RadioGroup.LayoutParams.WRAP_CONTENT,
                 )
             })
@@ -113,9 +122,15 @@ internal object ContactNoteTopicSelector {
     }
 
     private fun selectableOptions(context: Context, state: ContactNoteTopicState): List<TopicOption> {
-        val serverOptions = state.companies.map { TopicOption(it.id, it.name) }
+        val serverOptions = state.companies.map { TopicOption(it.id, it.name, serverBacked = true) }
         return if (state.includeLocalOption || state.localOnly) {
-            listOf(TopicOption(ContactNoteTopicState.LOCAL_COMPANY_ID, context.getString(R.string.note_local_company))) + serverOptions
+            listOf(
+                TopicOption(
+                    ContactNoteTopicState.LOCAL_COMPANY_ID,
+                    context.getString(R.string.note_local_company),
+                    serverBacked = false,
+                ),
+            ) + serverOptions
         } else {
             serverOptions
         }
@@ -184,5 +199,6 @@ internal object ContactNoteTopicSelector {
     private data class TopicOption(
         val id: String,
         val label: String,
+        val serverBacked: Boolean,
     )
 }
