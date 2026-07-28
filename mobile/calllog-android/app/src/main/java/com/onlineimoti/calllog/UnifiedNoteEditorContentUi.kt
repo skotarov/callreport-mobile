@@ -122,9 +122,18 @@ internal class UnifiedNoteEditorContentUi(
     ): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
-        setPadding(0, dp(12), 0, 0)
+        setPadding(dp(3), dp(3), dp(3), 0)
+        background = roundedRect(
+            Color.rgb(248, 250, 252),
+            dp(12),
+            Color.rgb(226, 232, 240),
+            dp(1),
+        )
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = dp(12) }
         addView(modeButton(UnifiedNoteKind.GENERAL, state.kind, input, callbacks))
-        addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
         addView(modeButton(UnifiedNoteKind.CALL, state.kind, input, callbacks))
     }
 
@@ -133,35 +142,52 @@ internal class UnifiedNoteEditorContentUi(
         selectedKind: UnifiedNoteKind,
         input: EditText,
         callbacks: UnifiedNoteEditorCallbacks,
-    ): TextView {
+    ): LinearLayout {
         val selected = kind == selectedKind
         val colors = if (kind.isGeneral) NoteUiStyle.General else NoteUiStyle.Call
-        val border = if (kind.isGeneral) Color.rgb(245, 158, 11) else colors.border
+        val indicatorColor = if (kind.isGeneral) Color.rgb(245, 158, 11) else colors.border
         val label = when {
             AppLocaleText.isBulgarian() && kind.isGeneral -> "Основна"
             AppLocaleText.isBulgarian() -> "Разговор"
             kind.isGeneral -> "Main"
             else -> "Call"
         }
-        return TextView(context).apply {
-            text = label
-            textSize = 14f
-            typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setTextColor(if (selected) colors.text else Color.rgb(71, 85, 105))
-            background = roundedRect(
-                if (selected) colors.background else Color.rgb(243, 244, 246),
-                dp(12),
-                if (selected) border else Color.TRANSPARENT,
-                if (selected) dp(1) else 0,
-            )
-            setPadding(dp(14), dp(9), dp(14), dp(9))
+            background = if (selected) {
+                roundedRect(Color.WHITE, dp(9), Color.TRANSPARENT, 0)
+            } else {
+                null
+            }
             isClickable = !selected
             isFocusable = !selected
             setOnClickListener {
                 if (!selected) callbacks.switchMode(kind, input.text?.toString().orEmpty())
             }
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            addView(TextView(context).apply {
+                text = label
+                textSize = 14f
+                typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                gravity = Gravity.CENTER
+                setTextColor(if (selected) colors.text else Color.rgb(71, 85, 105))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f,
+                )
+            })
+            addView(View(context).apply {
+                setBackgroundColor(if (selected) indicatorColor else Color.TRANSPARENT)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(3),
+                ).apply {
+                    marginStart = dp(14)
+                    marginEnd = dp(14)
+                }
+            })
+            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f)
         }
     }
 
@@ -233,7 +259,11 @@ internal class UnifiedNoteEditorContentUi(
         }
 
     private fun primaryButton(textValue: String, action: () -> Unit): TextView = textButton(
-        textValue, Color.WHITE, Color.rgb(55, 65, 81), action,
+        textValue,
+        Color.WHITE,
+        Color.rgb(55, 65, 81),
+        action,
+        horizontalPaddingDp = 20,
     )
 
     private fun secondaryButton(textValue: String, action: () -> Unit): TextView = textButton(
@@ -244,17 +274,22 @@ internal class UnifiedNoteEditorContentUi(
         context.getString(R.string.dynamic_note_delete), Color.rgb(185, 28, 28), Color.rgb(254, 242, 242), action,
     )
 
-    private fun textButton(textValue: String, textColor: Int, backgroundColor: Int, action: () -> Unit): TextView =
-        TextView(context).apply {
-            text = textValue
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setTextColor(textColor)
-            background = roundedRect(backgroundColor, dp(12), Color.TRANSPARENT, 0)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setOnClickListener { action() }
-        }
+    private fun textButton(
+        textValue: String,
+        textColor: Int,
+        backgroundColor: Int,
+        action: () -> Unit,
+        horizontalPaddingDp: Int = 12,
+    ): TextView = TextView(context).apply {
+        text = textValue
+        textSize = 14f
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = Gravity.CENTER
+        setTextColor(textColor)
+        background = roundedRect(backgroundColor, dp(12), Color.TRANSPARENT, 0)
+        setPadding(dp(horizontalPaddingDp), dp(10), dp(horizontalPaddingDp), dp(10))
+        setOnClickListener { action() }
+    }
 
     private fun roundedRect(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int): GradientDrawable =
         GradientDrawable().apply {
