@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import android.app.Activity
 import android.app.Dialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
@@ -217,6 +218,9 @@ internal class SmsComposeDialog(
         textSize = 16f
         typeface = android.graphics.Typeface.DEFAULT_BOLD
         setTextColor(Color.WHITE)
+        setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_sms_send, 0, 0, 0)
+        compoundDrawableTintList = ColorStateList.valueOf(Color.WHITE)
+        compoundDrawablePadding = dp(8)
         background = roundedRect(Color.rgb(15, 23, 42), dp(13), Color.TRANSPARENT, 0)
     }
 
