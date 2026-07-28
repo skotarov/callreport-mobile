@@ -83,8 +83,7 @@ internal class ChatAppLauncher(
         ChatApp.VIBER,
         ChatApp.WHATSAPP,
         ChatApp.TELEGRAM,
-        ChatApp.MESSAGES,
-        -> true
+        ChatApp.MESSAGES -> true
         else -> false
     }
 
