@@ -99,17 +99,30 @@ internal class HomeCompanyScopeChipsUi(
     }
 
     private fun appendCrmPrefix(builder: SpannableStringBuilder) {
-        val crmStart = builder.length
-        builder.append("CRM")
+        val start = builder.length
+        val drawable = ContextCompat.getDrawable(activity, R.drawable.ic_client_care)?.mutate()
+        if (drawable == null) {
+            builder.append("CRM")
+            builder.setSpan(
+                ForegroundColorSpan(activity.getColor(R.color.callreport_icon_background)),
+                start,
+                builder.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            builder.setSpan(
+                StyleSpan(Typeface.BOLD),
+                start,
+                builder.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            return
+        }
+        drawable.setTint(activity.getColor(R.color.callreport_icon_background))
+        drawable.setBounds(0, 0, dp(20), dp(20))
+        builder.append("\uFFFC")
         builder.setSpan(
-            ForegroundColorSpan(activity.getColor(R.color.callreport_icon_background)),
-            crmStart,
-            builder.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-        )
-        builder.setSpan(
-            StyleSpan(Typeface.BOLD),
-            crmStart,
+            ImageSpan(drawable, ImageSpan.ALIGN_BOTTOM),
+            start,
             builder.length,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
         )
