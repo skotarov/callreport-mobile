@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.text.InputType
-import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -22,42 +21,7 @@ internal object RegistrationActions {
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
-        val profile = CompanySessionStore.load(activity)
-        if (profile == null) {
-            binding.registrationCurrentProfileText.visibility = View.GONE
-            binding.registrationLogoutButton.visibility = View.GONE
-        } else {
-            val profileName = profile.userName.ifBlank {
-                activity.getString(R.string.settings_registration_profile_license)
-            }
-            val email = profile.userEmail.ifBlank {
-                activity.getString(R.string.settings_registration_missing_email)
-            }
-            val phone = profile.userPhone.ifBlank {
-                activity.getString(R.string.settings_registration_missing_phone)
-            }
-            val emailStatus = activity.getString(
-                if (profile.emailVerified) R.string.settings_registration_contact_verified
-                else R.string.settings_registration_contact_unverified,
-            )
-            val phoneStatus = activity.getString(
-                if (profile.phoneVerified) R.string.settings_registration_contact_verified
-                else R.string.settings_registration_contact_unverified,
-            )
-            binding.registrationCurrentProfileText.apply {
-                visibility = View.VISIBLE
-                text = activity.getString(
-                    R.string.settings_registration_current_profile_details,
-                    profileName,
-                    email,
-                    emailStatus,
-                    phone,
-                    phoneStatus,
-                )
-            }
-            binding.registrationLogoutButton.visibility = View.VISIBLE
-            binding.registrationLogoutButton.isEnabled = true
-        }
+        RegistrationProfileController.refresh(activity, binding)
         RegistrationCompaniesController.refresh(activity, binding)
     }
 
