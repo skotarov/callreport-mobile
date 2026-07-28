@@ -110,6 +110,8 @@ internal object HomeCrmContactsSnapshotCache {
         }
         return MessageDigest.getInstance("SHA-256")
             .digest(descriptor.toByteArray(Charsets.UTF_8))
-            .joinToString(separator = "") { byte -> "%02x".format(byte) }
+            .joinToString(separator = "") { byte ->
+                (byte.toInt() and 0xff).toString(16).padStart(2, '0')
+            }
     }
 }
