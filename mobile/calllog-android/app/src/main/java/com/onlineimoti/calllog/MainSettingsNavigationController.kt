@@ -12,6 +12,7 @@ internal class MainSettingsNavigationController(
 ) {
     private var selectedSection: SettingsSection? = null
     private var serverReturnsToRegistration = false
+    private val chatSettingsController by lazy { MainChatSettingsController(activity, binding) }
 
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
@@ -28,6 +29,7 @@ internal class MainSettingsNavigationController(
         binding.settingsMenuGroup.settingsApplicationButton.setOnClickListener { showSection(SettingsSection.STATUS) }
         binding.settingsMenuGroup.settingsPopupButton.setOnClickListener { showSection(SettingsSection.CALLS) }
         binding.settingsMenuGroup.settingsRmContactsButton.setOnClickListener { showSection(SettingsSection.INTEGRATIONS) }
+        binding.settingsMenuGroup.settingsChatsButton.setOnClickListener { showSection(SettingsSection.CHATS) }
         binding.settingsMenuGroup.settingsServerButton.setOnClickListener {
             val returnToRegistration = activity.intent?.getBooleanExtra(MainActivity.EXTRA_OPEN_SERVER, false) == true
             activity.intent?.removeExtra(MainActivity.EXTRA_OPEN_SERVER)
@@ -36,6 +38,11 @@ internal class MainSettingsNavigationController(
         binding.settingsMenuGroup.settingsRegistrationButton.setOnClickListener { showSection(SettingsSection.REGISTRATION) }
         binding.settingsMenuGroup.settingsDataArchiveButton.setOnClickListener { showSection(SettingsSection.DATA_AND_BACKUP) }
         binding.settingsMenuGroup.settingsGeneralButton.setOnClickListener { showSection(SettingsSection.LANGUAGE) }
+        chatSettingsController.wire()
+        if (DistributionCapabilities.isPlayBusinessBuild) {
+            binding.settingsMenuGroup.settingsChatsButton.visibility = View.GONE
+            binding.settingsChatsGroup.root.visibility = View.GONE
+        }
         if (BuildConfig.DEBUG) {
             binding.settingsMenuGroup.settingsDebugButton.setOnClickListener { showSection(SettingsSection.DEBUG) }
         } else {
@@ -147,6 +154,7 @@ internal class MainSettingsNavigationController(
         STATUS(R.string.settings_application_section),
         CALLS(R.string.settings_popup_section),
         INTEGRATIONS(R.string.settings_integrations_section),
+        CHATS(R.string.settings_chats_section),
         SERVER(R.string.settings_server_section),
         REGISTRATION(R.string.settings_profile_companies_section),
         DATA_AND_BACKUP(R.string.settings_storage_section),
@@ -158,6 +166,7 @@ internal class MainSettingsNavigationController(
                 STATUS -> binding.settingsApplicationGroup.root
                 CALLS -> binding.settingsPopupGroup.root
                 INTEGRATIONS -> binding.settingsRmContactsGroup.root
+                CHATS -> binding.settingsChatsGroup.root
                 SERVER -> binding.settingsServerGroup.root
                 REGISTRATION -> binding.settingsRegistrationGroup.root
                 DATA_AND_BACKUP -> binding.settingsDataArchiveGroup.root
