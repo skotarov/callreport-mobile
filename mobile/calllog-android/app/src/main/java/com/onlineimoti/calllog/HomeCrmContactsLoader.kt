@@ -6,8 +6,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Loads the authenticated user's Clients page. CRM-only rows are rendered from
- * the local profile cache first, then reconciled with the server in background.
+ * Loads the authenticated user's Clients page. A profile/filter/page-scoped
+ * snapshot is rendered first, then reconciled with the authoritative server
+ * result in background. CRM-only mode keeps its local fallback when no snapshot
+ * exists yet.
  */
 internal class HomeCrmContactsLoader(
     private val activity: HomeActivity,
@@ -40,13 +42,31 @@ internal class HomeCrmContactsLoader(
         val filterState = crmFilters.state()
         val requestedPage = pageIndex()
         val appContext = activity.applicationContext
+        val config = ConfigStore.load(appContext)
+        val cachedData = runCatching {
+            HomeCrmContactsSnapshotCache.read(
+                context = appContext,
+                config = config,
+                filterState = filterState,
+                pageIndex = requestedPage,
+                pageSize = pageSize,
+            )
+        }.getOrNull()
         val busyToken = HomeBusyTooltipUi.begin(activity, HomeBusyWork.CLIENTS)
         busyTokens += busyToken
-        contactsContent.showLoading()
+        when {
+            cachedData == null -> contactsContent.showLoading()
+            cachedData.calls.isEmpty() -> contactsContent.renderEmpty(pageSize)
+            else -> contactsContent.render(
+                data = cachedData,
+                pageSize = pageSize,
+                refreshCompanyLabels = false,
+            )
+        }
 
         executor.execute {
-            var provisionalAvailable = false
-            if (filterState.crmOnly) {
+            var provisionalAvailable = cachedData != null
+            if (!provisionalAvailable && filterState.crmOnly) {
                 val provisionalCalls = runCatching {
                     pageContacts(
                         filteredLocalCrmContacts(appContext, filterState),
@@ -97,6 +117,18 @@ internal class HomeCrmContactsLoader(
                     callNotesByCall = serverNotes.callNotesByCall,
                 )
             }
+            finalResult.getOrNull()?.let { data ->
+                runCatching {
+                    HomeCrmContactsSnapshotCache.write(
+                        context = appContext,
+                        config = config,
+                        filterState = filterState,
+                        pageIndex = requestedPage,
+                        pageSize = pageSize,
+                        data = data,
+                    )
+                }
+            }
 
             handler.post {
                 finishBusy(busyToken)
@@ -105,8 +137,8 @@ internal class HomeCrmContactsLoader(
                     if (data.calls.isEmpty()) contactsContent.renderEmpty(pageSize)
                     else contactsContent.render(data, pageSize)
                 }.onFailure {
-                    // Offline or temporary server failure must not erase the fast,
-                    // already phase-filtered local CRM list shown on screen.
+                    // Offline or temporary server failure must not erase either the
+                    // cached page or the phase-filtered local CRM fallback already shown.
                     if (!provisionalAvailable) contactsContent.renderEmpty(pageSize)
                 }
                 onRenderComplete()
