@@ -80,7 +80,7 @@ internal class HomeServerCallNotesController(
         } ?: 0L
         if (busyToken > 0L) busyTokens += busyToken
         executor.execute {
-            val history = runCatching { historyForPage(config, phones) }.getOrNull()
+            val history = runCatching { historyForPage(config, cachedData.calls, phones) }.getOrNull()
             if (history == null) {
                 storeIfCurrent(cachedData, expectedGeneration, expectedMutationRevision)
                 handler.post {
@@ -155,10 +155,13 @@ internal class HomeServerCallNotesController(
     /**
      * Home first requests server notes for the immediately visible rows, then asks
      * again after local notes arrive. Reuse the same fresh response for that second
-     * merge instead of issuing an identical HTTP request.
+     * merge instead of issuing an identical HTTP request. The concrete call identities
+     * are part of the signature so a newly inserted call to an already visible phone
+     * still receives a real server check.
      */
     private fun historyForPage(
         config: AppConfig,
+        calls: List<PhoneCallRecord>,
         phones: List<String>,
     ): CallReportHistoryLookupResult? {
         val signature = buildString {
@@ -173,6 +176,14 @@ internal class HomeServerCallNotesController(
                     append(it)
                     append('|')
                 }
+            append('#')
+            calls.filterNot { it.isSms }
+                .map(::historyCallKey)
+                .sorted()
+                .forEach {
+                    append(it)
+                    append('|')
+                }
         }
         val now = System.currentTimeMillis()
         cachedHistory?.takeIf {
@@ -182,6 +193,15 @@ internal class HomeServerCallNotesController(
         val loaded = CallReportHistoryLookupClient.lookupManyOrNull(config, phones, appContext) ?: return null
         cachedHistory = CachedHistory(signature, now, loaded)
         return loaded
+    }
+
+    private fun historyCallKey(call: PhoneCallRecord): String {
+        val providerIdentity = call.providerId.trim()
+        return if (providerIdentity.isNotBlank()) {
+            "${if (call.isSms) "sms" else "call"}:$providerIdentity"
+        } else {
+            HomeCallNotesResolver.keyFor(call)
+        }
     }
 
     private fun finishBusy(token: Long) {
