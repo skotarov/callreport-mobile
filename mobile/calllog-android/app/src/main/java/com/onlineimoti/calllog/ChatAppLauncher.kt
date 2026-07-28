@@ -68,6 +68,13 @@ internal class ChatAppLauncher(
     }
 
     private fun openInstalledApp(packages: List<String>): Boolean {
+        packages.forEach { packageName ->
+            val launchIntent = runCatching {
+                activity.packageManager.getLaunchIntentForPackage(packageName)
+            }.getOrNull()
+            if (launchIntent != null && start(launchIntent)) return true
+        }
+
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         return startForPackages(launcherIntent, packages)
     }
