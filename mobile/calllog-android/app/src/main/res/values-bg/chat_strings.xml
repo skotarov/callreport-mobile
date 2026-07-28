@@ -7,4 +7,17 @@
     <string name="history_more_actions">Още действия</string>
     <string name="history_edit_crm">Редакция CRM</string>
     <string name="history_chat_settings">Настройки на чатовете</string>
+    <string name="chat_viber">Viber</string>
+    <string name="chat_whatsapp">WhatsApp</string>
+    <string name="chat_telegram">Telegram</string>
+    <string name="chat_messenger">Messenger</string>
+    <string name="chat_signal">Signal</string>
+    <string name="chat_instagram">Instagram</string>
+    <string name="chat_messages">Google Messages / RCS</string>
+    <string name="chat_snapchat">Snapchat</string>
+    <string name="chat_discord">Discord</string>
+    <string name="chat_wechat">WeChat</string>
+    <string name="chat_line">LINE</string>
+    <string name="chat_kakaotalk">KakaoTalk</string>
+    <string name="chat_qq">QQ</string>
 </resources>
