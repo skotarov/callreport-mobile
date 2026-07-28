@@ -89,7 +89,21 @@ internal class HomeCrmContactsLoader(
             }
 
             val finalResult = runCatching {
-                val serverContacts = HomeCrmContactCandidates.load(appContext, filterState)
+                val filteredServerContacts = HomeCrmContactCandidates.load(appContext, filterState)
+                val serverContacts = HomeCrmContactsPhaseFallback.resolve(
+                    state = filterState,
+                    filteredContacts = filteredServerContacts,
+                    loadWithoutPhase = {
+                        ServerCrmContactsClient.lookup(
+                            config = config,
+                            filterState = filterState.copy(phases = emptySet()),
+                            context = appContext,
+                        )
+                    },
+                    applyPhaseFilter = { unfilteredContacts ->
+                        HomeCrmFilterEngine.filterLocal(appContext, unfilteredContacts, filterState)
+                    },
+                )
                 val contacts = if (filterState.crmOnly) {
                     // The server result already respects phase/company filters. Local
                     // winners must pass the same filters before being merged back;
