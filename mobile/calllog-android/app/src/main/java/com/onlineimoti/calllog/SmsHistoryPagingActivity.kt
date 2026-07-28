@@ -122,7 +122,7 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         addView(ImageButton(this@SmsHistoryActivity).apply {
-            setImageResource(R.drawable.ic_chat_note)
+            setImageResource(R.drawable.ic_sms_send)
             contentDescription = "Нов SMS"
             background = null
             setColorFilter(getColor(R.color.calllog_text))
