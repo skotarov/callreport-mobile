@@ -39,10 +39,6 @@ internal class MainSettingsNavigationController(
         binding.settingsMenuGroup.settingsDataArchiveButton.setOnClickListener { showSection(SettingsSection.DATA_AND_BACKUP) }
         binding.settingsMenuGroup.settingsGeneralButton.setOnClickListener { showSection(SettingsSection.LANGUAGE) }
         chatSettingsController.wire()
-        if (DistributionCapabilities.isPlayBusinessBuild) {
-            binding.settingsMenuGroup.settingsChatsButton.visibility = View.GONE
-            binding.settingsChatsGroup.root.visibility = View.GONE
-        }
         if (BuildConfig.DEBUG) {
             binding.settingsMenuGroup.settingsDebugButton.setOnClickListener { showSection(SettingsSection.DEBUG) }
         } else {
