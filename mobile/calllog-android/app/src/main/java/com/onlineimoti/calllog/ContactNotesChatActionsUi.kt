@@ -20,7 +20,7 @@ internal class ContactNotesChatActionsUi(
     fun row(phone: String): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(12), dp(2), dp(12), dp(4))
+        setPadding(dp(12), dp(4), dp(12), dp(4))
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
