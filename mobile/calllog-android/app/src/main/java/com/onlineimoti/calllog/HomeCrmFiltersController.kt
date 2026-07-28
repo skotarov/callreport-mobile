@@ -223,23 +223,15 @@ internal class HomeCrmFiltersController(
                 setColor(fill)
                 setStroke(dp(1), border)
             }
-            setPadding(dp(7), 0, dp(7), 0)
+            setPadding(dp(10), 0, dp(10), 0)
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply {
                 marginEnd = dp(4)
             }
             addView(ImageView(activity).apply {
-                setImageResource(R.drawable.ic_cloud_note)
-                imageTintList = ColorStateList.valueOf(foreground)
-                scaleType = ImageView.ScaleType.CENTER_INSIDE
-                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
-            })
-            addView(ImageView(activity).apply {
                 setImageResource(R.drawable.ic_client_care)
                 imageTintList = ColorStateList.valueOf(foreground)
                 scaleType = ImageView.ScaleType.CENTER_INSIDE
-                layoutParams = LinearLayout.LayoutParams(dp(22), dp(22)).apply {
-                    marginStart = dp(4)
-                }
+                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28))
             })
             setOnClickListener { toggleCrmOnly() }
         }
