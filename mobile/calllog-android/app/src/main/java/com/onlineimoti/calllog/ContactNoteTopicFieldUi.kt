@@ -5,7 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.widget.LinearLayout
-import android.widget.Spinner
+import android.widget.RadioGroup
 import android.widget.TextView
 
 /** Shared destination field used by full-screen and overlay note editors. */
@@ -16,7 +16,7 @@ internal class ContactNoteTopicFieldUi(
     fun create(
         state: ContactNoteTopicState,
         onSelected: (String) -> Unit,
-        onSpinnerReady: (Spinner) -> Unit,
+        onControlReady: (RadioGroup) -> Unit,
     ): LinearLayout? {
         if (!state.visible) return null
 
@@ -32,7 +32,9 @@ internal class ContactNoteTopicFieldUi(
                 topMargin = dp(12)
             }
         }
-        val spinner = Spinner(context)
+        val radioGroup = RadioGroup(context).apply {
+            orientation = RadioGroup.VERTICAL
+        }
         field.addView(TextView(context).apply {
             text = if (state.localOnly) {
                 context.getString(R.string.dynamic_note_local_storage_label)
@@ -58,13 +60,13 @@ internal class ContactNoteTopicFieldUi(
                 setPadding(0, dp(4), 0, 0)
             })
         }
-        field.addView(spinner, LinearLayout.LayoutParams(
+        field.addView(radioGroup, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = dp(5) })
 
-        ContactNoteTopicSelector.bind(context, spinner, state, onSelected)
-        onSpinnerReady(spinner)
+        ContactNoteTopicSelector.bind(context, radioGroup, state, onSelected)
+        onControlReady(radioGroup)
         return field
     }
 
