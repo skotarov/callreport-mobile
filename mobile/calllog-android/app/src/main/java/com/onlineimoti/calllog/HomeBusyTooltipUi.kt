@@ -101,8 +101,6 @@ internal object HomeBusyTooltipUi {
         private var popup: PopupWindow? = null
         private var label: TextView? = null
         private var shownAtMs = 0L
-        private var contentAnchorRef: WeakReference<View>? = null
-        private var originalAnchorPadding: IntArray? = null
         private val dismissRunnable = Runnable { dismissNow() }
 
         fun begin(token: Long, work: HomeBusyWork) {
@@ -135,7 +133,6 @@ internal object HomeBusyTooltipUi {
             val text = HomeBusyText.value(work, AppLocaleText.isBulgarian())
             label?.text = text
             val anchor = activity.findViewById<View>(android.R.id.content) ?: return
-            ensureContentClearance(activity, anchor)
             if (popup?.isShowing == true) return
             if (!anchor.isAttachedToWindow || anchor.windowToken == null) {
                 anchor.post { if (tasks.isNotEmpty()) showOrUpdate() }
@@ -171,7 +168,6 @@ internal object HomeBusyTooltipUi {
                 setOnDismissListener {
                     popup = null
                     label = null
-                    restoreContentClearance()
                 }
             }
             runCatching {
@@ -180,55 +176,13 @@ internal object HomeBusyTooltipUi {
             }.onFailure {
                 popup = null
                 label = null
-                restoreContentClearance()
             }
-        }
-
-        /**
-         * The tooltip is an overlay, so temporarily reserve only the missing top
-         * space. Home and History keep their own existing padding and gain an
-         * 8dp visual gap below the bar while it is visible.
-         */
-        private fun ensureContentClearance(activity: Activity, anchor: View) {
-            if (contentAnchorRef?.get() !== anchor) {
-                restoreContentClearance()
-                contentAnchorRef = WeakReference(anchor)
-                originalAnchorPadding = intArrayOf(
-                    anchor.paddingLeft,
-                    anchor.paddingTop,
-                    anchor.paddingRight,
-                    anchor.paddingBottom,
-                )
-            }
-            val original = originalAnchorPadding ?: return
-            val childTopPadding = (anchor as? ViewGroup)?.getChildAt(0)?.paddingTop ?: 0
-            val requiredVisualTop = dp(activity, TOOLTIP_HEIGHT_DP + CONTENT_GAP_DP)
-            val targetAnchorTop = max(original[1], requiredVisualTop - childTopPadding)
-            if (
-                anchor.paddingLeft != original[0] ||
-                anchor.paddingTop != targetAnchorTop ||
-                anchor.paddingRight != original[2] ||
-                anchor.paddingBottom != original[3]
-            ) {
-                anchor.setPadding(original[0], targetAnchorTop, original[2], original[3])
-            }
-        }
-
-        private fun restoreContentClearance() {
-            val anchor = contentAnchorRef?.get()
-            val original = originalAnchorPadding
-            if (anchor != null && original != null) {
-                anchor.setPadding(original[0], original[1], original[2], original[3])
-            }
-            contentAnchorRef = null
-            originalAnchorPadding = null
         }
 
         private fun dismissNow() {
             popup?.dismiss()
             popup = null
             label = null
-            restoreContentClearance()
         }
     }
 
@@ -236,6 +190,5 @@ internal object HomeBusyTooltipUi {
         (value * activity.resources.displayMetrics.density).toInt()
 
     private const val TOOLTIP_HEIGHT_DP = 26
-    private const val CONTENT_GAP_DP = 8
     private const val MIN_VISIBLE_MS = 320L
 }
