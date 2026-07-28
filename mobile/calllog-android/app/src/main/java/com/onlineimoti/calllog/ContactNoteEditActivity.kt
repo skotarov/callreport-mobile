@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.EditText
-import android.widget.Spinner
+import android.widget.RadioGroup
 import android.widget.Toast
 import java.util.concurrent.Executors
 
@@ -23,7 +23,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private var generalServerClientEventId = ""
     private var serverClientEventId = ""
     private var topicState = ContactNoteTopicState(visible = false)
-    private var topicSpinner: Spinner? = null
+    private var topicControl: RadioGroup? = null
     private var noteInput: EditText? = null
     private var persistedEditorText = ""
     private var editorGeneration = 0
@@ -83,7 +83,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private fun renderEditor() {
         editorGeneration += 1
         val generation = editorGeneration
-        topicSpinner = null
+        topicControl = null
         noteInput = null
         scopeTextController = ContactNoteScopeTextController(
             activity = this,
@@ -110,7 +110,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
                 persistedEditorText = input.text?.toString().orEmpty()
                 if (topicState.visible) scopeTextController?.refresh(topicState.selectedCompanyId, input)
             },
-            onTopicSpinnerReady = { topicSpinner = it },
+            onTopicControlReady = { topicControl = it },
             saveAndSwitch = ::saveAndSwitch,
             saveAndClose = ::saveAndClose,
             deleteAndClose = ::deleteSelectedNote,
@@ -190,14 +190,14 @@ class ContactNoteEditActivity : FontScaledActivity() {
                         loadedState.copy(selectedCompanyId = preferredCompanyId)
                     else -> loadedState
                 }
-                topicSpinner?.let(::bindTopicSpinner)
+                topicControl?.let(::bindTopicControl)
                 noteInput?.let { scopeTextController?.refresh(topicState.selectedCompanyId, it) }
             }
         }
     }
 
-    private fun bindTopicSpinner(spinner: Spinner) {
-        ContactNoteTopicSelector.bind(this, spinner, topicState) { selected ->
+    private fun bindTopicControl(control: RadioGroup) {
+        ContactNoteTopicSelector.bind(this, control, topicState) { selected ->
             noteInput?.let { selectTopicCompany(selected, it) }
         }
     }
@@ -215,7 +215,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         )
         if (!switched) {
             Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()
-            topicSpinner?.let(::bindTopicSpinner)
+            topicControl?.let(::bindTopicControl)
         }
     }
 
