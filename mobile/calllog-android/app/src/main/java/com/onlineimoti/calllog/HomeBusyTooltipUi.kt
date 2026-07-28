@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import android.app.Activity
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -67,8 +68,7 @@ internal object HomeBusyText {
 }
 
 /**
- * Shows one non-blocking status bar for concurrent background tasks.
- * Every screen and background-work type shares this single visual template.
+ * Shows one non-blocking light overlay for concurrent background tasks.
  * Tokens prevent an older completion from hiding a newer operation.
  */
 internal object HomeBusyTooltipUi {
@@ -101,6 +101,8 @@ internal object HomeBusyTooltipUi {
         private var popup: PopupWindow? = null
         private var label: TextView? = null
         private var shownAtMs = 0L
+        private var contentAnchorRef: WeakReference<View>? = null
+        private var originalAnchorPadding: IntArray? = null
         private val dismissRunnable = Runnable { dismissNow() }
 
         fun begin(token: Long, work: HomeBusyWork) {
@@ -132,60 +134,108 @@ internal object HomeBusyTooltipUi {
             val work = tasks.entries.lastOrNull()?.value ?: return
             val text = HomeBusyText.value(work, AppLocaleText.isBulgarian())
             label?.text = text
-            if (popup?.isShowing == true) return
             val anchor = activity.findViewById<View>(android.R.id.content) ?: return
+            ensureContentClearance(activity, anchor)
+            if (popup?.isShowing == true) return
             if (!anchor.isAttachedToWindow || anchor.windowToken == null) {
                 anchor.post { if (tasks.isNotEmpty()) showOrUpdate() }
                 return
             }
             val content = TextView(activity).apply {
                 this.text = text
-                textSize = 11f
+                textSize = 12f
                 includeFontPadding = false
                 maxLines = 1
                 gravity = Gravity.CENTER
-                setTextColor(Color.WHITE)
-                setBackgroundColor(Color.rgb(15, 23, 42))
-                setPadding(dp(activity, HORIZONTAL_PADDING_DP), 0, dp(activity, HORIZONTAL_PADDING_DP), 0)
+                setTextColor(Color.rgb(30, 41, 59))
+                setPadding(dp(activity, 14), 0, dp(activity, 14), 0)
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(232, 235, 239))
+                    setStroke(dp(activity, 1), Color.rgb(203, 213, 225))
+                    cornerRadius = dp(activity, 13).toFloat()
+                }
                 contentDescription = text
             }
             label = content
             popup = PopupWindow(
                 content,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(activity, HEIGHT_DP),
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(activity, TOOLTIP_HEIGHT_DP),
                 false,
             ).apply {
                 setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                 isTouchable = false
                 isOutsideTouchable = false
                 isClippingEnabled = true
-                elevation = 0f
+                elevation = dp(activity, 9).toFloat()
                 setOnDismissListener {
                     popup = null
                     label = null
+                    restoreContentClearance()
                 }
             }
             runCatching {
-                popup?.showAtLocation(anchor, Gravity.TOP, 0, 0)
+                popup?.showAtLocation(anchor, Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 0)
                 shownAtMs = SystemClock.uptimeMillis()
             }.onFailure {
                 popup = null
                 label = null
+                restoreContentClearance()
             }
+        }
+
+        /**
+         * The tooltip is an overlay, so temporarily reserve only the missing top
+         * space. Home and History keep their own existing padding and gain an
+         * 8dp visual gap below the bar while it is visible.
+         */
+        private fun ensureContentClearance(activity: Activity, anchor: View) {
+            if (contentAnchorRef?.get() !== anchor) {
+                restoreContentClearance()
+                contentAnchorRef = WeakReference(anchor)
+                originalAnchorPadding = intArrayOf(
+                    anchor.paddingLeft,
+                    anchor.paddingTop,
+                    anchor.paddingRight,
+                    anchor.paddingBottom,
+                )
+            }
+            val original = originalAnchorPadding ?: return
+            val childTopPadding = (anchor as? ViewGroup)?.getChildAt(0)?.paddingTop ?: 0
+            val requiredVisualTop = dp(activity, TOOLTIP_HEIGHT_DP + CONTENT_GAP_DP)
+            val targetAnchorTop = max(original[1], requiredVisualTop - childTopPadding)
+            if (
+                anchor.paddingLeft != original[0] ||
+                anchor.paddingTop != targetAnchorTop ||
+                anchor.paddingRight != original[2] ||
+                anchor.paddingBottom != original[3]
+            ) {
+                anchor.setPadding(original[0], targetAnchorTop, original[2], original[3])
+            }
+        }
+
+        private fun restoreContentClearance() {
+            val anchor = contentAnchorRef?.get()
+            val original = originalAnchorPadding
+            if (anchor != null && original != null) {
+                anchor.setPadding(original[0], original[1], original[2], original[3])
+            }
+            contentAnchorRef = null
+            originalAnchorPadding = null
         }
 
         private fun dismissNow() {
             popup?.dismiss()
             popup = null
             label = null
+            restoreContentClearance()
         }
     }
 
     private fun dp(activity: Activity, value: Int): Int =
         (value * activity.resources.displayMetrics.density).toInt()
 
-    private const val HEIGHT_DP = 18
-    private const val HORIZONTAL_PADDING_DP = 8
+    private const val TOOLTIP_HEIGHT_DP = 26
+    private const val CONTENT_GAP_DP = 8
     private const val MIN_VISIBLE_MS = 320L
 }
