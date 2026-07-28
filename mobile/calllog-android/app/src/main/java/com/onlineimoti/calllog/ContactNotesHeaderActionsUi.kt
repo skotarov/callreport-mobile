@@ -145,8 +145,13 @@ internal class ContactNotesHeaderActionsUi(
     }
 
     fun iconButton(drawableRes: Int, description: String, action: () -> Unit): ImageButton {
+        val iconRes = if (drawableRes == R.drawable.ic_settings_rm_contacts) {
+            R.drawable.ic_edit_pencil
+        } else {
+            drawableRes
+        }
         return ImageButton(activity).apply {
-            setImageResource(drawableRes)
+            setImageResource(iconRes)
             contentDescription = description
             background = null
             setBackgroundColor(Color.TRANSPARENT)
