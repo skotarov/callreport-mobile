@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -75,10 +76,9 @@ class ContactNotesHeaderUi(
                 openCleanCallList = if (showRmCallLogButton) openRmCallLog else null,
             ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
             addView(compactTitle)
-            addView(actions.iconButton(
-                R.drawable.ic_settings_rm_contacts,
-                activity.getString(R.string.history_rm_contact),
-                openRmContact,
+            addView(actions.historyOverflowButton(
+                openRmContact = openRmContact,
+                openChatSettings = ::openChatSettings,
             ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
         }
         val createActionRow = {
@@ -272,6 +272,13 @@ class ContactNotesHeaderUi(
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
             addView(button)
         }
+    }
+
+    private fun openChatSettings() {
+        activity.startActivity(
+            Intent(activity, MainActivity::class.java)
+                .putExtra(MainSettingsNavigationController.EXTRA_OPEN_CHATS, true),
+        )
     }
 
     private fun displayNameFromTitle(title: String, phone: String): String {
