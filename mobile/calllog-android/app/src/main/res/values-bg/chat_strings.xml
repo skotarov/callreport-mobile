@@ -4,4 +4,7 @@
     <string name="chat_settings_description">Избери кои преки пътища към чатове да се показват на страница „История“. Viber, WhatsApp, Telegram и Messages отварят директно телефонния номер, а останалите бутони отварят приложението.</string>
     <string name="chat_app_not_available">%1$s не е инсталиран или не може да бъде отворен.</string>
     <string name="chat_invalid_phone">Невалиден телефонен номер</string>
+    <string name="history_more_actions">Още действия</string>
+    <string name="history_edit_crm">Редакция CRM</string>
+    <string name="history_chat_settings">Настройки на чатовете</string>
 </resources>
