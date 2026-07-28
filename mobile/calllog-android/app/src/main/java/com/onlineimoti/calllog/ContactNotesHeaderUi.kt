@@ -68,6 +68,11 @@ class ContactNotesHeaderUi(
                 openCleanCallList = if (showRmCallLogButton) openRmCallLog else null,
             ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
             addView(compactTitle)
+            addView(actions.iconButton(
+                R.drawable.ic_settings_rm_contacts,
+                activity.getString(R.string.history_rm_contact),
+                openRmContact,
+            ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
         }
         val createActionRow = {
             actionRow(
@@ -83,7 +88,6 @@ class ContactNotesHeaderUi(
                 openDialer = openDialer,
                 openCalendarEvent = openCalendarEvent,
                 openDefaultContact = openDefaultContact,
-                openRmContact = openRmContact,
                 toggleCrmSync = toggleCrmSync,
             ).apply {
                 setBackgroundColor(activity.getColor(R.color.calllog_bg))
@@ -155,7 +159,6 @@ class ContactNotesHeaderUi(
         openDialer: () -> Unit,
         openCalendarEvent: () -> Unit,
         openDefaultContact: () -> Unit,
-        openRmContact: () -> Unit,
         toggleCrmSync: () -> Unit,
     ): LinearLayout {
         val row = LinearLayout(activity).apply {
@@ -181,10 +184,10 @@ class ContactNotesHeaderUi(
                     activity.getString(R.string.dynamic_action_calendar),
                     openCalendarEvent,
                 )
-                ContactNotesHeaderAction.CONTACT -> actions.contactMenuButton(
+                ContactNotesHeaderAction.CONTACT -> actions.iconButton(
+                    R.drawable.ic_contact_person,
                     contactDescription,
                     openDefaultContact,
-                    openRmContact,
                 )
                 ContactNotesHeaderAction.ADD_CONTACT -> actions.iconButton(
                     R.drawable.ic_contact_person_add,
