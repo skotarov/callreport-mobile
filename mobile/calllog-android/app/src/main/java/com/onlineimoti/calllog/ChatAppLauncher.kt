@@ -3,7 +3,9 @@ package com.onlineimoti.calllog
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.IntentSender
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 
 internal class ChatAppLauncher(
@@ -68,6 +70,15 @@ internal class ChatAppLauncher(
     }
 
     private fun openInstalledApp(packages: List<String>): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packages.forEach { packageName ->
+                val launchIntentSender = runCatching {
+                    activity.packageManager.getLaunchIntentSenderForPackage(packageName)
+                }.getOrNull()
+                if (launchIntentSender != null && start(launchIntentSender)) return true
+            }
+        }
+
         packages.forEach { packageName ->
             val launchIntent = runCatching {
                 activity.packageManager.getLaunchIntentForPackage(packageName)
@@ -98,6 +109,15 @@ internal class ChatAppLauncher(
         activity.startActivity(intent)
         true
     } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: SecurityException) {
+        false
+    }
+
+    private fun start(intentSender: IntentSender): Boolean = try {
+        intentSender.sendIntent(activity, 0, null, null, null)
+        true
+    } catch (_: IntentSender.SendIntentException) {
         false
     } catch (_: SecurityException) {
         false
