@@ -25,12 +25,6 @@ internal class ContactNotesHeaderActionsUi(
         action: () -> Unit,
     ): LinearLayout {
         val activeColor = activity.getColor(R.color.callreport_icon_background)
-        val filledCloud = !enabled && serverBacked
-        val cloudColor = when {
-            enabled -> Color.WHITE
-            filledCloud -> activeColor
-            else -> Color.BLACK
-        }
         val careColor = if (enabled) Color.WHITE else Color.BLACK
         val bulgarian = AppLocaleText.isBulgarian()
         val description = when {
@@ -40,24 +34,17 @@ internal class ContactNotesHeaderActionsUi(
             serverBacked -> if (bulgarian) "Има сървърна история. Натисни, за да маркираш като Активен" else "Server history exists. Tap to mark as Active"
             else -> if (bulgarian) "Маркирай като Активен клиент" else "Mark as an active client"
         }
-        val cloudIcon = ImageView(activity).apply {
-            setImageResource(if (filledCloud) R.drawable.ic_cloud_note_filled else R.drawable.ic_cloud_note)
-            imageTintList = ColorStateList.valueOf(cloudColor)
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(3), dp(5), dp(3), dp(5))
-            layoutParams = LinearLayout.LayoutParams(dp(30), dp(36))
-        }
         val clientCareIcon = ImageView(activity).apply {
             setImageResource(R.drawable.ic_client_care)
             imageTintList = ColorStateList.valueOf(careColor)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(2), dp(5), dp(5), dp(5))
-            layoutParams = LinearLayout.LayoutParams(dp(30), dp(36))
+            setPadding(dp(2), dp(2), dp(2), dp(2))
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(36))
         }
         return LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), 0, dp(1), 0)
+            setPadding(dp(9), 0, dp(9), 0)
             background = if (enabled) roundedIconBackground(activeColor) else null
             contentDescription = description
             isClickable = available && !busy
@@ -72,10 +59,9 @@ internal class ContactNotesHeaderActionsUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 dp(36),
             )
-            addView(cloudIcon)
             addView(clientCareIcon)
             setOnClickListener { action() }
-            if (busy) cloudIcon.startAnimation(cloudSpinAnimation())
+            if (busy) clientCareIcon.startAnimation(cloudSpinAnimation())
         }
     }
 
