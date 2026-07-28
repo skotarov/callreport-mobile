@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -291,7 +292,15 @@ internal class UnifiedNoteEditorContentUi(
         setOnClickListener { action() }
     }
 
-    private fun activeTabBackground(color: Int, topRadius: Int): GradientDrawable =
+    private fun activeTabBackground(color: Int, topRadius: Int): LayerDrawable {
+        val border = topRoundedRect(Color.rgb(71, 85, 105), topRadius)
+        val fill = topRoundedRect(color, (topRadius - dp(1)).coerceAtLeast(0))
+        return LayerDrawable(arrayOf(border, fill)).apply {
+            setLayerInset(1, dp(1), dp(1), dp(1), 0)
+        }
+    }
+
+    private fun topRoundedRect(color: Int, topRadius: Int): GradientDrawable =
         GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadii = floatArrayOf(
