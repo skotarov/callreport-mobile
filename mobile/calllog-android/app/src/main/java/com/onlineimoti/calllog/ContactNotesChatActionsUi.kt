@@ -3,12 +3,13 @@ package com.onlineimoti.calllog
 import android.app.Activity
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.ColorUtils
 import com.google.android.material.button.MaterialButton
 
-/** Secondary History action row for the chat applications selected in Settings. */
+/** Secondary History action row for the installed chat applications selected in Settings. */
 internal class ContactNotesChatActionsUi(
     private val activity: Activity,
     private val dp: (Int) -> Int,
@@ -24,43 +25,49 @@ internal class ContactNotesChatActionsUi(
             ViewGroup.LayoutParams.WRAP_CONTENT,
         )
         ChatAppVisibilityStore.enabledApps(activity).forEach { app ->
-            addView(chatButton(app, phone))
+            installedIcon(app)?.let { appIcon ->
+                addView(chatButton(app, phone, appIcon))
+            }
         }
         visibility = if (childCount == 0) View.GONE else View.VISIBLE
     }
 
-    private fun chatButton(app: ChatApp, phone: String): MaterialButton =
+    private fun chatButton(app: ChatApp, phone: String, appIcon: Drawable): MaterialButton =
         MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = app.displayName
+            text = ""
             contentDescription = if (AppLocaleText.isBulgarian()) {
                 "Отвори ${app.displayName}"
             } else {
                 "Open ${app.displayName}"
             }
-            isAllCaps = false
-            textSize = 13f
+            tooltipText = app.displayName
             minimumWidth = 0
             minimumHeight = 0
             insetTop = 0
             insetBottom = 0
             cornerRadius = dp(12)
-            setPadding(dp(10), 0, dp(12), 0)
-            icon = activity.getDrawable(
-                if (app == ChatApp.VIBER) R.drawable.ic_chat_viber else R.drawable.ic_chat_app,
-            )
-            iconTint = ColorStateList.valueOf(app.brandColor)
-            iconSize = dp(20)
-            iconPadding = dp(6)
-            setTextColor(app.brandColor)
+            setPadding(dp(8), 0, dp(8), 0)
+            icon = appIcon
+            iconTint = null
+            iconSize = dp(24)
+            iconPadding = 0
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
             backgroundTintList = ColorStateList.valueOf(
                 ColorUtils.blendARGB(Color.WHITE, app.brandColor, 0.06f),
             )
             strokeColor = ColorStateList.valueOf(ColorUtils.setAlphaComponent(app.brandColor, 90))
             strokeWidth = dp(1)
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                dp(40),
-            )
+            layoutParams = ViewGroup.MarginLayoutParams(dp(44), dp(40))
             setOnClickListener { launcher.open(app, phone) }
         }
+
+    private fun installedIcon(app: ChatApp): Drawable? {
+        app.packageNames.forEach { packageName ->
+            val icon = runCatching {
+                activity.packageManager.getApplicationIcon(packageName)
+            }.getOrNull()
+            if (icon != null) return icon
+        }
+        return null
+    }
 }
