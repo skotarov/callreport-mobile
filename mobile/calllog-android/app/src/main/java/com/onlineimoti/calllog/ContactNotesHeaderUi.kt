@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.view.Gravity
@@ -44,7 +45,7 @@ class ContactNotesHeaderUi(
         val contactDescription = activity.getString(
             if (contactExists) R.string.dynamic_contact_open else R.string.dynamic_contact_create,
         )
-        val identityAnchor = identityBlock(displayName, phone, contactExists)
+        val identityAnchor = identityBlock(displayName, phone, contactExists, crmSyncServerBacked)
         val compactTitle = TextView(activity).apply {
             text = compactIdentity
             textSize = 18f
@@ -55,6 +56,11 @@ class ContactNotesHeaderUi(
             ellipsize = android.text.TextUtils.TruncateAt.END
             visibility = View.INVISIBLE
             setPadding(dp(4), 0, dp(8), 0)
+            if (crmSyncServerBacked) {
+                setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_cloud_note_filled, 0, 0, 0)
+                compoundDrawableTintList = ColorStateList.valueOf(activity.getColor(R.color.callreport_icon_background))
+                compoundDrawablePadding = dp(5)
+            }
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
         }
         val topBar = LinearLayout(activity).apply {
@@ -128,7 +134,12 @@ class ContactNotesHeaderUi(
         else -> PhoneCallReader.directionLabel(direction)
     }
 
-    private fun identityBlock(displayName: String, phone: String, contactExists: Boolean): LinearLayout {
+    private fun identityBlock(
+        displayName: String,
+        phone: String,
+        contactExists: Boolean,
+        serverBacked: Boolean,
+    ): LinearLayout {
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -138,13 +149,37 @@ class ContactNotesHeaderUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
             if (contactExists && displayName.isNotBlank()) {
-                addView(contactNameText(displayName))
+                addView(identityPrimaryRow(contactNameText(displayName), serverBacked))
                 if (phone.isNotBlank()) addView(phoneNumberText(phone, prominent = false))
             } else if (phone.isNotBlank()) {
-                addView(phoneNumberText(phone, prominent = true))
+                addView(identityPrimaryRow(phoneNumberText(phone, prominent = true), serverBacked))
             }
         }
     }
+
+    private fun identityPrimaryRow(label: TextView, serverBacked: Boolean): LinearLayout =
+        LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            if (serverBacked) {
+                addView(ImageView(activity).apply {
+                    setImageResource(R.drawable.ic_cloud_note_filled)
+                    imageTintList = ColorStateList.valueOf(activity.getColor(R.color.callreport_icon_background))
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    contentDescription = if (AppLocaleText.isBulgarian()) "Има сървърен запис" else "Server record exists"
+                    layoutParams = LinearLayout.LayoutParams(dp(21), dp(21)).apply { marginEnd = dp(5) }
+                })
+            }
+            label.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            addView(label)
+        }
 
     private fun actionRow(
         phone: String,
