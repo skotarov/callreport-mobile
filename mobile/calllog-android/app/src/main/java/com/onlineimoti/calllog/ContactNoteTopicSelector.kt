@@ -1,13 +1,15 @@
 package com.onlineimoti.calllog
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.LinearLayout
-import android.widget.Spinner
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.TextView
 
 internal data class ContactNoteTopicState(
     val visible: Boolean,
@@ -34,55 +36,61 @@ internal data class ContactNoteTopicState(
 internal object ContactNoteTopicSelector {
     fun bind(
         context: Context,
-        spinner: Spinner,
+        radioGroup: RadioGroup,
         state: ContactNoteTopicState,
         onSelected: (String) -> Unit,
     ) {
         val options = selectableOptions(context, state)
-        val labels = when {
-            state.loading && (state.includeLocalOption || state.localOnly) -> {
-                listOf(context.getString(R.string.note_local_company))
-            }
-            state.loading -> listOf(context.getString(R.string.dynamic_note_companies_loading))
-            state.loadError.isNotBlank() && (state.includeLocalOption || state.localOnly) -> {
-                listOf(context.getString(R.string.note_local_company))
-            }
-            state.loadError.isNotBlank() -> listOf(context.getString(R.string.note_topics_unavailable_local_only))
-            state.localOnly -> listOf(context.getString(R.string.note_local_company))
-            options.isEmpty() -> listOf(context.getString(R.string.dynamic_note_no_company_destinations))
-            else -> options.map { it.label }
-        }
-        val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, labels).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        spinner.adapter = adapter
-        // A single Local destination needs no interaction. Enable the spinner only
-        // when the user can actually switch between Local and one or more firms.
-        spinner.isEnabled = !state.loading &&
+        val selectedCompanyId = resolvedSelectedCompanyId(state)
+        val interactionEnabled = !state.loading &&
             state.loadError.isBlank() &&
             !state.localOnly &&
             options.size > 1
 
-        val selectedCompanyId = resolvedSelectedCompanyId(state)
-        val selectedIndex = options.indexOfFirst { it.id == selectedCompanyId }.coerceAtLeast(0)
-        spinner.setSelection(selectedIndex, false)
-        updateValidationBorder(context, spinner, state, selectedCompanyId, options.isNotEmpty())
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val selected = options.getOrNull(position)?.id.orEmpty()
-                updateValidationBorder(context, spinner, state, selected, options.isNotEmpty())
-                onSelected(selected)
-            }
+        radioGroup.setOnCheckedChangeListener(null)
+        radioGroup.removeAllViews()
+        radioGroup.clearCheck()
+        radioGroup.isEnabled = interactionEnabled
 
-            override fun onNothingSelected(parent: AdapterView<*>?) {
-                val fallback = resolvedSelectedCompanyId(state)
-                updateValidationBorder(context, spinner, state, fallback, options.isNotEmpty())
-                onSelected(fallback)
-            }
+        if (options.isEmpty()) {
+            radioGroup.addView(statusText(context, statusLabel(context, state)))
+            updateValidationBorder(context, radioGroup, state, selectedCompanyId, hasOptions = false)
+            return
         }
 
-        // setSelection() runs before the listener is attached, so persist the real
-        // default explicitly. This lets Save work immediately without a tap.
+        val optionByViewId = linkedMapOf<Int, String>()
+        options.forEach { option ->
+            val viewId = View.generateViewId()
+            optionByViewId[viewId] = option.id
+            radioGroup.addView(RadioButton(context).apply {
+                id = viewId
+                text = option.label
+                textSize = 14f
+                gravity = Gravity.CENTER_VERTICAL
+                setTextColor(Color.rgb(51, 65, 85))
+                buttonTintList = radioTint()
+                minHeight = dp(context, 42)
+                setPadding(0, dp(context, 2), 0, dp(context, 2))
+                isEnabled = interactionEnabled
+                layoutParams = RadioGroup.LayoutParams(
+                    RadioGroup.LayoutParams.MATCH_PARENT,
+                    RadioGroup.LayoutParams.WRAP_CONTENT,
+                )
+            })
+        }
+
+        val selectedViewId = optionByViewId.entries.firstOrNull { it.value == selectedCompanyId }?.key
+        if (selectedViewId != null) radioGroup.check(selectedViewId)
+        updateValidationBorder(context, radioGroup, state, selectedCompanyId, hasOptions = true)
+
+        radioGroup.setOnCheckedChangeListener { _, checkedId ->
+            val selected = optionByViewId[checkedId].orEmpty()
+            if (selected.isBlank()) return@setOnCheckedChangeListener
+            updateValidationBorder(context, radioGroup, state, selected, hasOptions = true)
+            onSelected(selected)
+        }
+
+        // Persist the resolved default immediately, so Save works without an extra tap.
         if (selectedCompanyId.isNotBlank()) onSelected(selectedCompanyId)
     }
 
@@ -113,14 +121,46 @@ internal object ContactNoteTopicSelector {
         }
     }
 
+    private fun statusLabel(context: Context, state: ContactNoteTopicState): String = when {
+        state.loading -> context.getString(R.string.dynamic_note_companies_loading)
+        state.loadError.isNotBlank() -> context.getString(R.string.note_topics_unavailable_local_only)
+        else -> context.getString(R.string.dynamic_note_no_company_destinations)
+    }
+
+    private fun statusText(context: Context, value: String): TextView = TextView(context).apply {
+        text = value
+        textSize = 14f
+        setTextColor(Color.rgb(100, 116, 139))
+        gravity = Gravity.CENTER_VERTICAL
+        minHeight = dp(context, 42)
+        setPadding(dp(context, 4), dp(context, 4), dp(context, 4), dp(context, 4))
+        layoutParams = RadioGroup.LayoutParams(
+            RadioGroup.LayoutParams.MATCH_PARENT,
+            RadioGroup.LayoutParams.WRAP_CONTENT,
+        )
+    }
+
+    private fun radioTint(): ColorStateList = ColorStateList(
+        arrayOf(
+            intArrayOf(android.R.attr.state_checked),
+            intArrayOf(android.R.attr.state_enabled),
+            intArrayOf(),
+        ),
+        intArrayOf(
+            Color.rgb(37, 99, 235),
+            Color.rgb(100, 116, 139),
+            Color.rgb(148, 163, 184),
+        ),
+    )
+
     private fun updateValidationBorder(
         context: Context,
-        spinner: Spinner,
+        radioGroup: RadioGroup,
         state: ContactNoteTopicState,
         selectedCompanyId: String,
         hasOptions: Boolean,
     ) {
-        val field = spinner.parent as? LinearLayout ?: return
+        val field = radioGroup.parent as? LinearLayout ?: return
         if (field.tag != ContactNoteTopicFieldUi.FIELD_TAG) return
 
         val selectionRequired = !state.loading && state.loadError.isBlank() && !state.localOnly && hasOptions
@@ -137,6 +177,9 @@ internal object ContactNoteTopicSelector {
             )
         }
     }
+
+    private fun dp(context: Context, value: Int): Int =
+        (value * context.resources.displayMetrics.density).toInt()
 
     private data class TopicOption(
         val id: String,
