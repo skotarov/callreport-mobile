@@ -7,8 +7,8 @@ import android.graphics.drawable.GradientDrawable
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioGroup
 import android.widget.ScrollView
-import android.widget.Spinner
 
 internal data class ContactNoteEditUiState(
     val phone: String,
@@ -29,7 +29,7 @@ internal class ContactNoteEditUi(
     private val state: () -> ContactNoteEditUiState,
     private val onTopicSelected: (String, EditText) -> Unit,
     private val onNoteInputReady: (EditText) -> Unit,
-    private val onTopicSpinnerReady: (Spinner) -> Unit,
+    private val onTopicControlReady: (RadioGroup) -> Unit,
     private val saveAndSwitch: (UnifiedNoteKind, String) -> Unit,
     private val saveAndClose: (String) -> Unit,
     private val deleteAndClose: () -> Unit,
@@ -64,7 +64,7 @@ internal class ContactNoteEditUi(
                 topicFieldUi.create(
                     state = current.topic,
                     onSelected = { companyId -> onTopicSelected(companyId, input) },
-                    onSpinnerReady = onTopicSpinnerReady,
+                    onControlReady = onTopicControlReady,
                 )?.let(card::addView)
             },
         )
