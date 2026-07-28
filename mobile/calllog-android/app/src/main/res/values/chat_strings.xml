@@ -4,6 +4,9 @@
     <string name="chat_settings_description">Choose which chat shortcuts appear on the History page. Viber, WhatsApp, Telegram and Messages open the phone number directly; the other buttons open their app.</string>
     <string name="chat_app_not_available">%1$s is not installed or cannot be opened.</string>
     <string name="chat_invalid_phone">Invalid phone number</string>
+    <string name="history_more_actions">More actions</string>
+    <string name="history_edit_crm">Edit CRM</string>
+    <string name="history_chat_settings">Chat button settings</string>
     <string name="chat_viber">Viber</string>
     <string name="chat_whatsapp">WhatsApp</string>
     <string name="chat_telegram">Telegram</string>
