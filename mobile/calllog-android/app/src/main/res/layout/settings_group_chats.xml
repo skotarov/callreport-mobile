@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="16dp"
+    app:cardBackgroundColor="@color/calllog_surface"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="1dp"
+    app:strokeColor="@color/calllog_border"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="10dp"
+                android:contentDescription="@string/settings_chats_section"
+                android:src="@drawable/ic_settings_chats" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/settings_chats_section"
+                android:textColor="@color/calllog_text"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/chat_settings_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="13sp" />
+
+        <CheckBox
+            android:id="@+id/viberChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="44dp"
+            android:text="@string/chat_viber"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/whatsappChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_whatsapp"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/telegramChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_telegram"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/messengerChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_messenger"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/signalChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_signal"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/instagramChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_instagram"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/messagesChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_messages"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/snapchatChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_snapchat"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/discordChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_discord"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/wechatChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_wechat"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/lineChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_line"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/kakaoTalkChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_kakaotalk"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+
+        <CheckBox
+            android:id="@+id/qqChatCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="@string/chat_qq"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
