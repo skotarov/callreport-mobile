@@ -20,14 +20,15 @@ internal class HomeCrmContactsContentView(
     private val hasActiveCrmFilters: () -> Boolean,
     private val retainRowsDuringEdgePaging: () -> Boolean = { false },
 ) {
+    /** Current data remains nullable so delayed company-label callbacks stop after invalidation. */
     private var currentData: HomeRenderData? = null
+    /** Last rows actually drawn remain available for a safe diff on the next explicit render. */
+    private var lastRenderedData: HomeRenderData? = null
     private var currentCompanyLabelsByNumber: Map<String, List<HomeCompanyScopeLabel>> = emptyMap()
     private var currentCrmPhoneKeys: Set<String> = emptySet()
 
     fun invalidate() {
         currentData = null
-        currentCompanyLabelsByNumber = emptyMap()
-        currentCrmPhoneKeys = emptySet()
     }
 
     fun showLoading() {
@@ -37,6 +38,7 @@ internal class HomeCrmContactsContentView(
         val retainingRows = retainRowsDuringEdgePaging()
         if (!retainingRows) {
             currentData = null
+            lastRenderedData = null
             currentCompanyLabelsByNumber = emptyMap()
             currentCrmPhoneKeys = emptySet()
             contentRenderer.clearCalls()
@@ -59,12 +61,13 @@ internal class HomeCrmContactsContentView(
     fun render(data: HomeRenderData, pageSize: Int, refreshCompanyLabels: Boolean = true) {
         prepareCustomersHeader()
         removeServerLoadingStatus()
-        val previousData = currentData
+        val previousData = lastRenderedData
         val previousLabels = currentCompanyLabelsByNumber
         val previousCrmKeys = currentCrmPhoneKeys
         val companyLabels = companyGeneralNotes.labelsFor(data.calls)
         val crmPhoneKeys = visibleCrmPhoneKeys(data.calls)
         currentData = data
+        lastRenderedData = data
         currentCompanyLabelsByNumber = companyLabels
         currentCrmPhoneKeys = crmPhoneKeys
         contentRenderer.replaceCurrentCalls(data.calls)
@@ -99,6 +102,7 @@ internal class HomeCrmContactsContentView(
         removeServerLoadingStatus()
         if (retainRowsDuringEdgePaging() && pageIndex() > 0) {
             currentData = null
+            lastRenderedData = null
             currentCompanyLabelsByNumber = emptyMap()
             currentCrmPhoneKeys = emptySet()
             contentRenderer.replaceCurrentCalls(emptyList())
@@ -110,6 +114,7 @@ internal class HomeCrmContactsContentView(
             return
         }
         currentData = null
+        lastRenderedData = null
         currentCompanyLabelsByNumber = emptyMap()
         currentCrmPhoneKeys = emptySet()
         contentRenderer.clearCalls()
