@@ -4,7 +4,7 @@ import android.app.Service
 import android.os.Handler
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Spinner
+import android.widget.RadioGroup
 import android.widget.Toast
 
 /** Bridges the shared note workflow into the floating overlay editors. */
@@ -17,7 +17,7 @@ internal class OverlayContactNoteFormController(
 ) {
     private val topicFieldUi by lazy { ContactNoteTopicFieldUi(service, dp) }
     private var topicState = initialTopicState(preferredCompanyId)
-    private var topicSpinner: Spinner? = null
+    private var topicControl: RadioGroup? = null
     private var noteInput: EditText? = null
     private var serverScopeTexts: Map<String, String>? = null
     private var serverScopeTextLoading = false
@@ -35,7 +35,7 @@ internal class OverlayContactNoteFormController(
                 topicState = topicState.copy(selectedCompanyId = selected)
                 if (draft.isGeneralNote) refreshTextForScope(selected)
             },
-            onSpinnerReady = { spinner -> topicSpinner = spinner },
+            onControlReady = { control -> topicControl = control },
         )?.let(container::addView)
         if (draft.isGeneralNote) refreshTextForScope(topicState.selectedCompanyId)
         if (topicState.visible) loadTopics()
@@ -117,8 +117,8 @@ internal class OverlayContactNoteFormController(
             val loadedState = ContactNoteFormWorkflow.loadTopics(service.applicationContext, stateAtStart)
             handler.post {
                 topicState = loadedState
-                topicSpinner?.let { spinner ->
-                    ContactNoteTopicSelector.bind(service, spinner, topicState) { selected ->
+                topicControl?.let { control ->
+                    ContactNoteTopicSelector.bind(service, control, topicState) { selected ->
                         topicState = topicState.copy(selectedCompanyId = selected)
                         if (draft.isGeneralNote) refreshTextForScope(selected)
                     }
