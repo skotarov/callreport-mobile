@@ -21,6 +21,7 @@ class ContactNotesHeaderUi(
     private val dp: (Int) -> Int,
 ) {
     private val actions by lazy { ContactNotesHeaderActionsUi(activity, dp) }
+    private val chatActions by lazy { ContactNotesChatActionsUi(activity, dp) }
 
     fun headerRow(
         title: String,
@@ -115,6 +116,7 @@ class ContactNotesHeaderUi(
             addView(topBar)
             addView(identityAnchor)
             addView(actionAnchor)
+            addView(chatActions.row(phone))
         }
     }
 
