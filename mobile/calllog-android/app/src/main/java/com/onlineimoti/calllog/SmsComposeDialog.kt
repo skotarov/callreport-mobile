@@ -86,10 +86,11 @@ internal class SmsComposeDialog(
         root.addView(status)
         root.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(historyButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(historyButton, LinearLayout.LayoutParams(0, dp(48), 0.88f).apply {
                 marginEnd = dp(10)
             })
-            addView(sendButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+            addView(sendButton, LinearLayout.LayoutParams(0, dp(52), 1.12f))
         }, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -218,9 +219,11 @@ internal class SmsComposeDialog(
         textSize = 16f
         typeface = android.graphics.Typeface.DEFAULT_BOLD
         setTextColor(Color.WHITE)
-        setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_sms_send, 0, 0, 0)
+        gravity = Gravity.CENTER
+        setPaddingRelative(dp(18), 0, dp(16), 0)
+        setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_sms_send, 0)
         compoundDrawableTintList = ColorStateList.valueOf(Color.WHITE)
-        compoundDrawablePadding = dp(8)
+        compoundDrawablePadding = dp(12)
         background = roundedRect(Color.rgb(15, 23, 42), dp(13), Color.TRANSPARENT, 0)
     }
 
