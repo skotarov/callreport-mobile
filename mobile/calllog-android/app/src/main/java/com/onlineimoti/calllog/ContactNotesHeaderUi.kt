@@ -200,7 +200,7 @@ class ContactNotesHeaderUi(
                     openDialer,
                 )
                 ContactNotesHeaderAction.SMS -> actions.iconButton(
-                    R.drawable.ic_sms_message,
+                    R.drawable.ic_sms_send,
                     activity.getString(R.string.dynamic_action_write_sms),
                 ) {
                     SmsComposeAction.open(
