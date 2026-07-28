@@ -104,10 +104,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         setContentView(ContactNoteEditUi(
             activity = this,
             state = ::uiState,
-            onTopicSelected = { selectedCompanyId, input ->
-                topicState = topicState.copy(selectedCompanyId = selectedCompanyId)
-                scopeTextController?.refresh(selectedCompanyId, input)
-            },
+            onTopicSelected = ::selectTopicCompany,
             onNoteInputReady = { input ->
                 noteInput = input
                 persistedEditorText = input.text?.toString().orEmpty()
@@ -201,8 +198,24 @@ class ContactNoteEditActivity : FontScaledActivity() {
 
     private fun bindTopicSpinner(spinner: Spinner) {
         ContactNoteTopicSelector.bind(this, spinner, topicState) { selected ->
-            topicState = topicState.copy(selectedCompanyId = selected)
-            noteInput?.let { scopeTextController?.refresh(selected, it) }
+            noteInput?.let { selectTopicCompany(selected, it) }
+        }
+    }
+
+    private fun selectTopicCompany(selectedCompanyId: String, input: EditText) {
+        val switched = ContactNoteScopeSwitchCoordinator.switch(
+            currentCompanyId = topicState.selectedCompanyId,
+            nextCompanyId = selectedCompanyId,
+            editorReady = noteInput != null,
+            persistCurrent = { saveForTransition(input.text?.toString().orEmpty()) },
+            applyNext = { nextCompanyId ->
+                topicState = topicState.copy(selectedCompanyId = nextCompanyId)
+                scopeTextController?.refresh(nextCompanyId, input)
+            },
+        )
+        if (!switched) {
+            Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()
+            topicSpinner?.let(::bindTopicSpinner)
         }
     }
 
