@@ -33,7 +33,7 @@ internal class ContactNoteTopicFieldUi(
             }
         }
         val radioGroup = RadioGroup(context).apply {
-            orientation = RadioGroup.VERTICAL
+            orientation = LinearLayout.VERTICAL
         }
         field.addView(TextView(context).apply {
             text = if (state.localOnly) {
