@@ -21,4 +21,20 @@ class IncomingCallPopupStatusTextTest {
             IncomingCallPopupStatusText.compact("Maxim   ·   Имотна бележка"),
         )
     }
+
+    @Test
+    fun companyNotesAreKeptOnSeparateLines() {
+        assertEquals(
+            "Сървър · Иска да ходя\nИмоти · Тр",
+            IncomingCallPopupStatusText.compact("Сървър · Иска да ходя • Имоти · Тр"),
+        )
+    }
+
+    @Test
+    fun localGeneralAndCallNotesRemainSeparate() {
+        assertEquals(
+            "Обща локална бележка\nБележка към разговора",
+            IncomingCallPopupStatusText.compact("Обща локална бележка • Бележка към разговора"),
+        )
+    }
 }
