@@ -43,29 +43,39 @@ internal object SmsMessageReader {
     }
 
     fun messagesForPhone(context: Context, phone: String, limit: Int = MAX_MESSAGES_PER_CONTACT): List<SmsMessageRecord> {
-        val targetPhone = PhoneNormalizer.key(phone)
-        if (targetPhone.isBlank() || !canReadSms(context)) return emptyList()
-        val candidates = PhoneNormalizer.candidates(phone)
+        val target = CommunicationAddress.from(phone)
+        if (!target.isValid || !canReadSms(context)) return emptyList()
 
         return runCatching {
-            val exact = queryMessages(
-                context = context,
-                selection = "${Telephony.Sms.ADDRESS} IN (${candidates.joinToString(",") { "?" }})",
-                selectionArgs = candidates.toTypedArray(),
-                targetPhone = targetPhone,
-                limit = limit,
-            )
-            if (exact.isNotEmpty()) {
-                exact
-            } else {
-                val lastDigits = targetPhone.takeLast(9)
-                if (lastDigits.length < 7) emptyList() else queryMessages(
+            if (!target.isPhone) {
+                queryMessages(
                     context = context,
-                    selection = "${Telephony.Sms.ADDRESS} LIKE ?",
-                    selectionArgs = arrayOf("%$lastDigits"),
-                    targetPhone = targetPhone,
+                    selection = "${Telephony.Sms.ADDRESS} = ?",
+                    selectionArgs = arrayOf(target.raw),
+                    target = target,
                     limit = limit,
                 )
+            } else {
+                val candidates = PhoneNormalizer.candidates(phone)
+                val exact = queryMessages(
+                    context = context,
+                    selection = "${Telephony.Sms.ADDRESS} IN (${candidates.joinToString(",") { "?" }})",
+                    selectionArgs = candidates.toTypedArray(),
+                    target = target,
+                    limit = limit,
+                )
+                if (exact.isNotEmpty()) {
+                    exact
+                } else {
+                    val lastDigits = target.phoneKey.takeLast(9)
+                    if (lastDigits.length < 7) emptyList() else queryMessages(
+                        context = context,
+                        selection = "${Telephony.Sms.ADDRESS} LIKE ?",
+                        selectionArgs = arrayOf("%$lastDigits"),
+                        target = target,
+                        limit = limit,
+                    )
+                }
             }
         }.getOrDefault(emptyList())
     }
@@ -192,7 +202,7 @@ internal object SmsMessageReader {
         context: Context,
         selection: String,
         selectionArgs: Array<String>,
-        targetPhone: String,
+        target: CommunicationAddress,
         limit: Int,
     ): List<SmsMessageRecord> {
         val projection = timelineProjection()
@@ -211,7 +221,7 @@ internal object SmsMessageReader {
             val typeIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.TYPE)
             while (cursor.moveToNext() && rows.size < limit) {
                 val address = cursor.getString(addressIndex).orEmpty()
-                if (!PhoneNormalizer.samePhone(address, targetPhone)) continue
+                if (!target.matches(address)) continue
                 rows += SmsMessageRecord(
                     body = cursor.getString(bodyIndex).orEmpty().trim(),
                     timestampMs = cursor.getLong(dateIndex),
