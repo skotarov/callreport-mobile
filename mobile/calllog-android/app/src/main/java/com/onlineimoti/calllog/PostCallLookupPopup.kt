@@ -124,8 +124,8 @@ internal class PostCallLookupPopup(
         contentColumn.addView(headerView)
 
         val callsRow = progressiveRow(R.drawable.ic_system_call_log, "Обаждания")
-        val localNotesRow = progressiveRow(R.drawable.ic_chat_note, "Локални бележки")
-        val serverNotesRow = progressiveRow(R.drawable.ic_cloud_note_filled, "Сървърни бележки")
+        val localNotesRow = progressiveRow(R.drawable.ic_chat_note, "Локални бележки", maxLines = 4)
+        val serverNotesRow = progressiveRow(R.drawable.ic_cloud_note_filled, "Сървърни бележки", maxLines = 6)
         contentColumn.addView(callsRow.root)
         contentColumn.addView(localNotesRow.root)
         contentColumn.addView(serverNotesRow.root)
@@ -155,11 +155,12 @@ internal class PostCallLookupPopup(
         }
     }
 
-    private fun progressiveRow(iconRes: Int, contentDescription: String): ProgressRow {
+    private fun progressiveRow(iconRes: Int, contentDescription: String, maxLines: Int = 2): ProgressRow {
         val value = TextView(service).apply {
             textSize = 13.5f
-            maxLines = 2
+            this.maxLines = maxLines
             ellipsize = android.text.TextUtils.TruncateAt.END
+            setLineSpacing(0f, 1.08f)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         val root = LinearLayout(service).apply {
