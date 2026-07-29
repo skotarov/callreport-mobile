@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.graphics.ColorUtils
 import com.google.android.material.button.MaterialButton
 
 /** Secondary History action row for the installed chat applications selected in Settings. */
@@ -52,11 +51,9 @@ internal class ContactNotesChatActionsUi(
             iconSize = dp(24)
             iconPadding = 0
             iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-            backgroundTintList = ColorStateList.valueOf(
-                ColorUtils.blendARGB(Color.WHITE, app.brandColor, 0.06f),
-            )
-            strokeColor = ColorStateList.valueOf(ColorUtils.setAlphaComponent(app.brandColor, 90))
-            strokeWidth = dp(1)
+            backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            strokeColor = ColorStateList.valueOf(Color.TRANSPARENT)
+            strokeWidth = 0
             layoutParams = ViewGroup.MarginLayoutParams(dp(44), dp(40))
             setOnClickListener { launcher.open(app, phone) }
         }
