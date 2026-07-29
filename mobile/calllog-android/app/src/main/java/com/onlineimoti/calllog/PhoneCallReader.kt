@@ -72,7 +72,7 @@ object PhoneCallReader {
     }
 
     fun callsForPhone(context: Context, phone: String, limit: Int = 50, offset: Int = 0): List<PhoneCallRecord> {
-        if (!hasCallLogPermission(context) || phone.isBlank()) return emptyList()
+        if (!hasCallLogPermission(context) || !CommunicationAddress.from(phone).isPhone) return emptyList()
         val safeLimit = limit.coerceIn(1, 500)
         val safeOffset = offset.coerceAtLeast(0)
         return runCatching { readRecentCalls(context, safeLimit, safeOffset, phoneFilter = phone) }.getOrElse { emptyList() }
