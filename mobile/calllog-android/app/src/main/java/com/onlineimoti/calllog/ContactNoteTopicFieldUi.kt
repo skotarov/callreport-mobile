@@ -36,16 +36,16 @@ internal class ContactNoteTopicFieldUi(
             horizontalSpacingPx = dp(8)
             verticalSpacingPx = dp(4)
         }
-        field.addView(TextView(context).apply {
-            text = if (state.localOnly) {
-                context.getString(R.string.dynamic_note_local_storage_label)
-            } else {
-                context.getString(R.string.dynamic_note_destination_label)
-            }
+        val storageTitle = TextView(context).apply {
+            text = storageTitleFor(
+                ContactNoteTopicSelector.resolvedSelectedCompanyId(state),
+                fallbackLocalOnly = state.localOnly,
+            )
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(55, 65, 81))
-        })
+        }
+        field.addView(storageTitle)
         if (state.usingCachedCompanies) {
             field.addView(TextView(context).apply {
                 text = context.getString(R.string.dynamic_note_companies_cached_offline)
@@ -66,9 +66,23 @@ internal class ContactNoteTopicFieldUi(
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = dp(5) })
 
-        ContactNoteTopicSelector.bind(context, radioGroup, state, onSelected)
+        ContactNoteTopicSelector.bind(context, radioGroup, state) { selectedCompanyId ->
+            storageTitle.text = storageTitleFor(selectedCompanyId, fallbackLocalOnly = state.localOnly)
+            onSelected(selectedCompanyId)
+        }
         onControlReady(radioGroup)
         return field
+    }
+
+    private fun storageTitleFor(selectedCompanyId: String, fallbackLocalOnly: Boolean): String {
+        val local = selectedCompanyId == ContactNoteTopicState.LOCAL_COMPANY_ID ||
+            (selectedCompanyId.isBlank() && fallbackLocalOnly)
+        return when {
+            AppLocaleText.isBulgarian() && local -> "Тази бележка се пази само локално"
+            AppLocaleText.isBulgarian() -> "Бележката се пази на сървъра"
+            local -> "This note is stored only locally"
+            else -> "The note is stored on the server"
+        }
     }
 
     private fun roundedTopicSectionBackground(): GradientDrawable = GradientDrawable().apply {
