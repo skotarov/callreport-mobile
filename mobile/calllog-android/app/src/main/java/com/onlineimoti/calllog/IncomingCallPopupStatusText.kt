@@ -8,9 +8,14 @@ internal object IncomingCallPopupStatusText {
     const val ERROR = "Грешка"
 
     fun compact(value: String): String {
-        val normalized = value.trim()
+        val normalized = value
+            .lineSequence()
+            .flatMap { line -> line.split(" • ").asSequence() }
+            .map { line -> line.trim().replace(Regex("\\s+"), " ") }
+            .filter { line -> line.isNotBlank() }
+            .joinToString("\n")
         if (normalized.isBlank()) return WAITING
-        val lower = normalized.lowercase()
+        val lower = normalized.replace('\n', ' ').lowercase()
         return when {
             normalized == IncomingCallPopupProgress.LOADING -> WAITING
             lower.contains("loading") || lower.contains("зареж") -> WAITING
@@ -18,7 +23,7 @@ internal object IncomingCallPopupStatusText {
             lower.startsWith("няма ") || lower == "няма" -> NONE
             lower.contains("не е настроен") || lower.contains("изключен") -> DISABLED
             lower.contains("не отговори") || lower.contains("грешка") -> ERROR
-            else -> normalized.replace(Regex("\\s+"), " ")
+            else -> normalized
         }
     }
 }
