@@ -52,6 +52,14 @@ internal object ContactNoteScopeTextResolver {
             val notes = CallReportCompanyGeneralNotesClient.fetch(appContext, config, draft.phone)
             val notesByCompany = linkedMapOf<String, ContactNoteScopeValue>()
             notes.groupBy { it.companyId }.forEach { (companyId, companyNotes) ->
+                // A freshly edited server note is first written to the durable outbox
+                // and local company cache. Until sync is confirmed, that pending value
+                // is authoritative and an older server response must not overwrite it.
+                if (CallReportTopicNoteOutbox.isGeneralPending(appContext, draft.phone, companyId)) {
+                    notesByCompany[companyId] = cachedValue(appContext, draft, companyId)
+                    return@forEach
+                }
+
                 val ownNote = companyNotes
                     .filter { it.editable && !it.placeholder }
                     .maxByOrNull { it.updatedAtMs }
@@ -87,12 +95,23 @@ internal object ContactNoteScopeTextResolver {
                     latestByCompany[event.companyId] = event
                 }
             }
-            latestByCompany.mapValues { (_, event) ->
+            val serverValues = latestByCompany.mapValues { (_, event) ->
                 ContactNoteScopeValue(
                     text = event.note,
                     serverClientEventId = event.clientEventId.trim(),
                 )
             }
+            val pendingValues = CompanyCallNoteOutbox.pendingEvents(appContext, listOf(draft.phone))
+                .filter { event -> event.companyId.isNotBlank() && sameCall(draft, event) }
+                .groupBy { event -> event.companyId }
+                .mapValues { (_, events) ->
+                    val event = events.maxByOrNull(::versionMs) ?: return@mapValues ContactNoteScopeValue()
+                    ContactNoteScopeValue(
+                        text = event.note,
+                        serverClientEventId = event.clientEventId.trim(),
+                    )
+                }
+            overlayPendingValues(serverValues, pendingValues)
         }
     }
 
@@ -106,6 +125,13 @@ internal object ContactNoteScopeTextResolver {
             return cachedValue(context, draft, companyId)
         }
         return serverValues?.get(companyId) ?: cachedValue(context, draft, companyId)
+    }
+
+    internal fun overlayPendingValues(
+        serverValues: Map<String, ContactNoteScopeValue>,
+        pendingValues: Map<String, ContactNoteScopeValue>,
+    ): Map<String, ContactNoteScopeValue> = LinkedHashMap(serverValues).apply {
+        putAll(pendingValues)
     }
 
     // Compatibility helpers retained for older callers/tests.
