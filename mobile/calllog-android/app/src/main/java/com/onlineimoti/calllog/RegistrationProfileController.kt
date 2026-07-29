@@ -6,8 +6,8 @@ import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 import java.util.Collections
 
 /**
- * Shows the last known profile immediately, then confirms it from the server for
- * the current access token. A temporary server/token problem never blanks the card.
+ * Shows only the profile bound to the current access token, then refreshes it
+ * from the server. A snapshot from another token is never shown as logged in.
  */
 internal object RegistrationProfileController {
     private val inFlight = Collections.synchronizedSet(mutableSetOf<SettingsGroupRegistrationBinding>())
@@ -17,9 +17,9 @@ internal object RegistrationProfileController {
         binding: SettingsGroupRegistrationBinding,
     ) {
         val active = CompanySessionStore.load(activity)
-        val remembered = active ?: CompanySessionStore.loadStored(activity)
+        val remembered = active
         if (remembered != null) {
-            renderSnapshot(activity, binding, remembered, confirmedForCurrentToken = active != null)
+            renderSnapshot(activity, binding, remembered, confirmedForCurrentToken = true)
         } else {
             renderSignedOut(activity, binding)
         }
@@ -47,9 +47,9 @@ internal object RegistrationProfileController {
                     renderSession(activity, binding, session)
                     RegistrationCompaniesController.refresh(activity, binding)
                 }.onFailure { error ->
-                    val fallback = CompanySessionStore.loadStored(activity)
+                    val fallback = CompanySessionStore.load(activity)
                     if (fallback != null) {
-                        renderSnapshot(activity, binding, fallback, confirmedForCurrentToken = false)
+                        renderSnapshot(activity, binding, fallback, confirmedForCurrentToken = true)
                     } else {
                         renderError(activity, binding, error)
                     }
