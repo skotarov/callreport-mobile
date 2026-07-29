@@ -65,12 +65,6 @@ internal class UnifiedNoteEditorContentUi(
         card.addView(titleRow(state, input, callbacks))
         card.addView(modeSwitch(state, input, callbacks))
         if (!state.kind.isGeneral && state.callAt > 0L) card.addView(callInfoRow(state))
-        if (state.crmStatusText.isNotBlank()) card.addView(TextView(context).apply {
-            text = state.crmStatusText
-            textSize = 12.5f
-            setTextColor(state.crmStatusColor)
-            setPadding(0, dp(10), 0, 0)
-        })
         beforeInput(card, input)
         card.addView(input)
         card.addView(actionRow(input, callbacks))
@@ -123,8 +117,8 @@ internal class UnifiedNoteEditorContentUi(
     ): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
-        setPadding(dp(3), dp(3), dp(3), 0)
-        background = roundedRect(
+        setPadding(dp(2), dp(2), dp(2), 0)
+        background = tabStripBackground(
             Color.rgb(248, 250, 252),
             dp(12),
             Color.rgb(226, 232, 240),
@@ -133,7 +127,7 @@ internal class UnifiedNoteEditorContentUi(
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply { topMargin = dp(12) }
+        ).apply { topMargin = dp(8) }
         addView(modeButton(UnifiedNoteKind.GENERAL, state.kind, input, callbacks))
         addView(modeButton(UnifiedNoteKind.CALL, state.kind, input, callbacks))
     }
@@ -147,6 +141,7 @@ internal class UnifiedNoteEditorContentUi(
         val selected = kind == selectedKind
         val colors = if (kind.isGeneral) NoteUiStyle.General else NoteUiStyle.Call
         val indicatorColor = if (kind.isGeneral) Color.rgb(245, 158, 11) else colors.border
+        val tabBorderColor = Color.rgb(71, 85, 105)
         val label = when {
             AppLocaleText.isBulgarian() && kind.isGeneral -> "Основна"
             AppLocaleText.isBulgarian() -> "Разговор"
@@ -157,9 +152,9 @@ internal class UnifiedNoteEditorContentUi(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             background = if (selected) {
-                activeTabBackground(Color.WHITE, dp(9))
+                activeTabBackground(Color.WHITE, dp(9), tabBorderColor)
             } else {
-                null
+                inactiveTabBackground(Color.rgb(248, 250, 252), dp(9), tabBorderColor)
             }
             isClickable = !selected
             isFocusable = !selected
@@ -168,7 +163,7 @@ internal class UnifiedNoteEditorContentUi(
             }
             addView(TextView(context).apply {
                 text = label
-                textSize = 14f
+                textSize = 13.5f
                 typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
                 gravity = Gravity.CENTER
                 setTextColor(if (selected) colors.text else Color.rgb(71, 85, 105))
@@ -182,13 +177,13 @@ internal class UnifiedNoteEditorContentUi(
                 setBackgroundColor(if (selected) indicatorColor else Color.TRANSPARENT)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(3),
+                    dp(2),
                 ).apply {
                     marginStart = dp(14)
                     marginEnd = dp(14)
                 }
             })
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f)
         }
     }
 
@@ -292,11 +287,32 @@ internal class UnifiedNoteEditorContentUi(
         setOnClickListener { action() }
     }
 
-    private fun activeTabBackground(color: Int, topRadius: Int): LayerDrawable {
-        val border = topRoundedRect(Color.rgb(71, 85, 105), topRadius)
+    private fun activeTabBackground(color: Int, topRadius: Int, borderColor: Int): LayerDrawable {
+        val border = topRoundedRect(borderColor, topRadius)
         val fill = topRoundedRect(color, (topRadius - dp(1)).coerceAtLeast(0))
         return LayerDrawable(arrayOf(border, fill)).apply {
             setLayerInset(1, dp(1), dp(1), dp(1), 0)
+        }
+    }
+
+    private fun inactiveTabBackground(color: Int, topRadius: Int, bottomBorderColor: Int): LayerDrawable {
+        val bottomBorder = topRoundedRect(bottomBorderColor, topRadius)
+        val fill = topRoundedRect(color, topRadius)
+        return LayerDrawable(arrayOf(bottomBorder, fill)).apply {
+            setLayerInset(1, 0, 0, 0, dp(1))
+        }
+    }
+
+    private fun tabStripBackground(
+        color: Int,
+        topRadius: Int,
+        borderColor: Int,
+        borderWidth: Int,
+    ): LayerDrawable {
+        val border = topRoundedRect(borderColor, topRadius)
+        val fill = topRoundedRect(color, (topRadius - borderWidth).coerceAtLeast(0))
+        return LayerDrawable(arrayOf(border, fill)).apply {
+            setLayerInset(1, borderWidth, borderWidth, borderWidth, 0)
         }
     }
 
