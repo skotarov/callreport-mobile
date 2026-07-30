@@ -71,6 +71,9 @@ internal object CallReportTopicCompaniesCache {
                         put("name", company.name)
                         put("role", company.role)
                         put("can_manage_users", company.canManageUsers)
+                        put("eik", company.eik)
+                        put("created_at_ms", company.createdAtMs)
+                        put("updated_at_ms", company.updatedAtMs)
                     })
                 }
         }
@@ -100,7 +103,19 @@ internal object CallReportTopicCompaniesCache {
                     else -> "member"
                 }
                 val canManageUsers = item.optBoolean("can_manage_users", role == "owner" || role == "admin")
-                if (id.isNotBlank()) add(CallReportTopicCompany(id, name, role, canManageUsers))
+                if (id.isNotBlank()) {
+                    add(
+                        CallReportTopicCompany(
+                            id = id,
+                            name = name,
+                            role = role,
+                            canManageUsers = canManageUsers,
+                            eik = item.optString("eik").trim(),
+                            createdAtMs = item.optLong("created_at_ms", 0L),
+                            updatedAtMs = item.optLong("updated_at_ms", 0L),
+                        ),
+                    )
+                }
             }
         }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
         return CachedTopicCompanies(
