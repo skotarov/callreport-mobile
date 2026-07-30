@@ -201,7 +201,14 @@ internal object RegistrationCompaniesController {
                 binding.registrationRefreshCompaniesButton.isEnabled = false
                 binding.registrationCompaniesProgress.visibility = View.VISIBLE
                 Thread {
-                    val result = runCatching { CompanyManagementApi.delete(ConfigStore.load(activity), company.id) }
+                    val result = runCatching {
+                        val newToken = CompanyManagementApi.delete(ConfigStore.load(activity), company.id)
+                        val current = ConfigStore.load(activity.applicationContext)
+                        ConfigStore.save(
+                            activity.applicationContext,
+                            current.copy(remoteEnabled = true, accessToken = newToken),
+                        )
+                    }
                     activity.runOnUiThread {
                         if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                         result.onSuccess {
@@ -210,14 +217,14 @@ internal object RegistrationCompaniesController {
                                 R.string.settings_registration_company_deleted,
                                 Toast.LENGTH_SHORT,
                             ).show()
-                            refresh(activity, binding)
+                            RegistrationActions.renderCompanySection(activity, binding)
                         }.onFailure { error ->
                             Toast.makeText(
                                 activity,
                                 activity.getString(R.string.settings_registration_action_failed, error.message.orEmpty()),
                                 Toast.LENGTH_LONG,
                             ).show()
-                            refresh(activity, binding)
+                            RegistrationActions.renderCompanySection(activity, binding)
                         }
                     }
                 }.start()
