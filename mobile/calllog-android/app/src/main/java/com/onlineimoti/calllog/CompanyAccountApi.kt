@@ -17,7 +17,7 @@ internal object CompanyAccountApi {
         val emailVerified: Boolean = false,
         val phoneVerified: Boolean = false,
     ) {
-        val profileReady: Boolean get() = emailVerified && phoneVerified
+        val profileReady: Boolean get() = emailVerified || phoneVerified
     }
 
     data class Session(
@@ -30,7 +30,7 @@ internal object CompanyAccountApi {
         val emailVerified: Boolean = false,
         val phoneVerified: Boolean = false,
     ) {
-        val profileReady: Boolean get() = emailVerified && phoneVerified
+        val profileReady: Boolean get() = emailVerified || phoneVerified
         fun user(): ProfileUser = ProfileUser(userName, userEmail, userPhone, emailVerified, phoneVerified)
     }
 
