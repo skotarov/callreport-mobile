@@ -17,7 +17,7 @@ internal object CompanyAccountApi {
         val emailVerified: Boolean = false,
         val phoneVerified: Boolean = false,
     ) {
-        val profileReady: Boolean get() = emailVerified && phoneVerified
+        val profileReady: Boolean get() = emailVerified || phoneVerified
     }
 
     data class Session(
@@ -30,7 +30,7 @@ internal object CompanyAccountApi {
         val emailVerified: Boolean = false,
         val phoneVerified: Boolean = false,
     ) {
-        val profileReady: Boolean get() = emailVerified && phoneVerified
+        val profileReady: Boolean get() = emailVerified || phoneVerified
         fun user(): ProfileUser = ProfileUser(userName, userEmail, userPhone, emailVerified, phoneVerified)
     }
 
@@ -193,33 +193,14 @@ internal object CompanyAccountApi {
         authenticated = true,
     ).map { Unit }
 
-    fun applySession(context: Context, session: Session) {
-        val current = ConfigStore.load(context)
-        ConfigStore.save(
-            context,
-            current.copy(
-                remoteEnabled = true,
-                accessToken = session.accessToken,
-            ),
-        )
-        CompanySessionStore.save(context, session)
-    }
+    fun applySession(context: Context, session: Session) =
+        CompanyAccountSessionPersistence.apply(context, session)
 
-    fun applyProfileUser(context: Context, user: ProfileUser) {
-        CompanySessionStore.updateProfile(context, user)
-    }
+    fun applyProfileUser(context: Context, user: ProfileUser) =
+        CompanyAccountSessionPersistence.updateProfile(context, user)
 
-    fun clearSession(context: Context) {
-        val current = ConfigStore.load(context)
-        ConfigStore.save(
-            context,
-            current.copy(
-                remoteEnabled = false,
-                accessToken = "",
-            ),
-        )
-        CompanySessionStore.clear(context)
-    }
+    fun clearSession(context: Context) =
+        CompanyAccountSessionPersistence.clear(context)
 
     private fun postSession(
         context: Context,
