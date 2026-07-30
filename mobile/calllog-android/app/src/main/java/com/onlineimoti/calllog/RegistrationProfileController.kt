@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import android.content.Intent
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
@@ -122,6 +123,8 @@ internal object RegistrationProfileController {
         binding.registrationEditProfileButton.apply {
             visibility = View.VISIBLE
             isEnabled = true
+            setText(R.string.settings_registration_profile_license)
+            setOnClickListener { RegistrationActions.openProfileEditor(activity) }
         }
     }
 
@@ -134,10 +137,7 @@ internal object RegistrationProfileController {
             text = activity.getString(R.string.settings_registration_profile_loading)
             alpha = 1f
         }
-        binding.registrationEditProfileButton.apply {
-            visibility = View.VISIBLE
-            isEnabled = true
-        }
+        configureAccessButton(activity, binding)
     }
 
     private fun renderSignedOut(
@@ -149,10 +149,7 @@ internal object RegistrationProfileController {
             text = activity.getString(R.string.settings_registration_no_active_profile)
             alpha = 1f
         }
-        binding.registrationEditProfileButton.apply {
-            visibility = View.VISIBLE
-            isEnabled = true
-        }
+        configureAccessButton(activity, binding)
     }
 
     private fun renderError(
@@ -168,9 +165,23 @@ internal object RegistrationProfileController {
             text = activity.getString(R.string.settings_registration_profile_load_failed, detail)
             alpha = 1f
         }
+        configureAccessButton(activity, binding)
+    }
+
+    private fun configureAccessButton(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+    ) {
         binding.registrationEditProfileButton.apply {
             visibility = View.VISIBLE
             isEnabled = true
+            setText(R.string.settings_registration_login_or_create_profile)
+            setOnClickListener {
+                activity.startActivity(
+                    Intent(activity, CompanyAccountActivity::class.java)
+                        .putExtra(CompanyAccountActivity.EXTRA_MODE, CompanyAccountActivity.MODE_LOGIN),
+                )
+            }
         }
     }
 }
