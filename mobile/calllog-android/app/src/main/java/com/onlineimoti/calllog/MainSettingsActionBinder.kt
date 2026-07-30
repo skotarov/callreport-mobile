@@ -33,14 +33,11 @@ internal object MainSettingsActionBinder {
         binding.settingsRegistrationGroup.registrationServerAddressButton.setOnClickListener {
             binding.settingsMenuGroup.settingsServerButton.performClick()
         }
-        binding.settingsRegistrationGroup.registrationCompanyAccountButton.setOnClickListener {
-            RegistrationActions.openCompanyAccount(activity)
-        }
         binding.settingsRegistrationGroup.registrationEditProfileButton.setOnClickListener {
             RegistrationActions.openProfileEditor(activity)
         }
-        binding.settingsRegistrationGroup.registrationLogoutButton.setOnClickListener {
-            RegistrationActions.logout(activity, binding.settingsRegistrationGroup)
+        binding.settingsRegistrationGroup.registrationCreateCompanyButton.setOnClickListener {
+            RegistrationActions.openCreateCompany(activity)
         }
         binding.settingsRegistrationGroup.registrationJoinCompanyButton.setOnClickListener {
             RegistrationActions.showJoinDialog(activity)
