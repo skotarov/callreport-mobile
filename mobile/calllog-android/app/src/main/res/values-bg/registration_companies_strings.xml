@@ -1,5 +1,6 @@
 <resources>
-    <string name="settings_profile_companies_section">Профил</string>
+    <string name="settings_profile_companies_section">Профил и фирми</string>
+    <string name="settings_profile_section">Профил</string>
     <string name="settings_profile_companies_description">Създай или отвори профила си с еднократен код и редактирай името, имейла и телефона.</string>
     <string name="settings_registration_profile_license">Профил</string>
     <string name="settings_registration_profile_description">Профилът е с име, имейл и телефон. Имейлът и телефонът се потвърждават с еднократни кодове. Парола не е нужна.</string>
