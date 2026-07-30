@@ -1,5 +1,6 @@
 <resources>
-    <string name="settings_profile_companies_section">Profile</string>
+    <string name="settings_profile_companies_section">Profile &amp; companies</string>
+    <string name="settings_profile_section">Profile</string>
     <string name="settings_profile_companies_description">Create or open your profile with a one-time code and edit its name, email and phone.</string>
     <string name="settings_registration_profile_license">Profile</string>
     <string name="settings_registration_profile_description">A profile has a name, email and phone. Email and phone are verified with one-time codes. No password is required.</string>
