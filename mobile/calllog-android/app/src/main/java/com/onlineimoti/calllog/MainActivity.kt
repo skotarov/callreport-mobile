@@ -10,10 +10,10 @@ import com.onlineimoti.calllog.databinding.ActivityMainBinding
 import java.util.concurrent.Executors
 
 class MainActivity : FontScaledAppCompatActivity() {
-    private lateinit var binding: ActivityMainBinding
-    private val executor = Executors.newSingleThreadExecutor()
-    private var suppressAutoSave = false
-    private var serverConnectionGeneration = 0
+    internal lateinit var binding: ActivityMainBinding
+    internal val executor = Executors.newSingleThreadExecutor()
+    internal var suppressAutoSave = false
+    internal var serverConnectionGeneration = 0
     private var currentLanguage = ConfigStore.DEFAULT_APP_LANGUAGE
     private var currentFontScale = AppFontScaleStore.NORMAL
 
@@ -27,8 +27,8 @@ class MainActivity : FontScaledAppCompatActivity() {
         MainSettingsAutoSaveController(
             binding,
             ::autoSaveSettings,
-            ::onRemoteEnabledRequested,
-            ::onRemoteConnectionInputChanged,
+            { enabled -> onRemoteEnabledRequested(enabled) },
+            { onRemoteConnectionInputChanged() },
             ::applyLanguageIfChanged,
             ::applyFontScaleIfChanged,
         )
@@ -36,13 +36,13 @@ class MainActivity : FontScaledAppCompatActivity() {
     private val translationSettingsController: TranslationSettingsController by lazy {
         TranslationSettingsController(this, binding)
     }
-    private val serverSyncQueueStatusController: ServerSyncQueueStatusController by lazy {
+    internal val serverSyncQueueStatusController: ServerSyncQueueStatusController by lazy {
         ServerSyncQueueStatusController(this, binding, ::saveConfig, ::setStatus)
     }
-    private val defaultSmsSettingsController: DefaultSmsSettingsController by lazy {
+    internal val defaultSmsSettingsController: DefaultSmsSettingsController by lazy {
         DefaultSmsSettingsController(this, binding, ::requestDefaultSmsRole, ::requestSmsPermissions, ::setStatus)
     }
-    private val callScreeningIntegrationSettingsController: CallScreeningIntegrationSettingsController by lazy {
+    internal val callScreeningIntegrationSettingsController: CallScreeningIntegrationSettingsController by lazy {
         CallScreeningIntegrationSettingsController(this, binding, ::requestCallScreeningPermissionFromSummary)
     }
     private val permissionFlowController: MainPermissionFlowController by lazy {
@@ -148,39 +148,7 @@ class MainActivity : FontScaledAppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun configureBuildSpecificSettings() {
-        val permissionsSection = binding.settingsApplicationGroup.permissionsSection.statusSmsPermissionsSection.root
-        if (DistributionCapabilities.isPlayBusinessBuild) {
-            binding.settingsMenuGroup.settingsApplicationButton.visibility = android.view.View.GONE
-            binding.settingsMenuGroup.settingsPopupButton.visibility = android.view.View.GONE
-            binding.settingsMenuGroup.settingsRmContactsButton.visibility = android.view.View.GONE
-            binding.settingsMenuGroup.settingsDataArchiveButton.visibility = android.view.View.GONE
-            binding.settingsApplicationGroup.root.visibility = android.view.View.GONE
-            binding.settingsPopupGroup.root.visibility = android.view.View.GONE
-            binding.settingsRmContactsGroup.root.visibility = android.view.View.GONE
-            binding.settingsDataArchiveGroup.root.visibility = android.view.View.GONE
-            return
-        }
-        permissionsSection.visibility = android.view.View.VISIBLE
-        defaultSmsSettingsController.wire()
-        callScreeningIntegrationSettingsController.wire()
-    }
-
     private fun hydrateFields() = MainSettingsConfigUi.hydrate(binding, ConfigStore.load(this))
-
-    private fun openRequestedSettingsSection(intent: Intent?): Boolean {
-        return when {
-            intent?.getBooleanExtra(EXTRA_OPEN_SERVER, false) == true -> {
-                binding.settingsMenuGroup.settingsServerButton.performClick()
-                true
-            }
-            intent?.getBooleanExtra(EXTRA_OPEN_REGISTRATION, false) == true -> {
-                binding.settingsMenuGroup.settingsRegistrationButton.performClick()
-                true
-            }
-            else -> false
-        }
-    }
 
     private fun wireSettingsActions() {
         MainSettingsActionBinder.wire(
@@ -188,102 +156,12 @@ class MainActivity : FontScaledAppCompatActivity() {
             binding = binding,
             openHome = ::openCallLogHome,
             syncContacts = contactsCleanupController::syncAllRmContacts,
-            saveServerSettings = ::saveServerSettings,
+            saveServerSettings = { saveServerSettings() },
             createArchive = { createArchiveLauncher.launch(MainArchiveActions.archiveFileName()) },
             restoreArchive = { restoreArchiveLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
             testStart = if (BuildConfig.DEBUG) ({ saveConfig(); testStartPopup() }) else null,
             testEnd = if (BuildConfig.DEBUG) ({ saveConfig(); testEndPopup() }) else null,
         )
-    }
-
-    private fun saveServerSettings() {
-        saveConfig()
-        setStatus(getString(R.string.settings_server_saved))
-        refreshServerDependentUi()
-    }
-
-    private fun onRemoteEnabledRequested(enabled: Boolean) {
-        if (suppressAutoSave) return
-        if (enabled) {
-            validateAndEnableServer()
-            return
-        }
-        serverConnectionGeneration++
-        applyTestedServerMode(MainSettingsConfigUi.read(binding), enabled = false)
-        setStatus(getString(R.string.server_mode_disabled))
-    }
-
-    private fun onRemoteConnectionInputChanged() {
-        if (suppressAutoSave) return
-        val wasEnabled = ConfigStore.load(this).remoteEnabled || binding.remoteSettingsSection.remoteEnabledCheckBox.isChecked
-        serverConnectionGeneration++
-        val entered = MainSettingsConfigUi.read(binding)
-        ConfigStore.save(this, entered.copy(remoteEnabled = false))
-        HomeCrmModeStore.setEnabled(this, false)
-        setRemoteCheckbox(checked = false, enabled = true)
-        if (wasEnabled) {
-            setStatus(getString(R.string.server_connection_recheck_required))
-            refreshServerDependentUi()
-        }
-    }
-
-    private fun validateAndEnableServer() {
-        val generation = ++serverConnectionGeneration
-        val entered = MainSettingsConfigUi.read(binding)
-        ConfigStore.save(this, entered.copy(remoteEnabled = false))
-        HomeCrmModeStore.setEnabled(this, false)
-        val candidate = ConfigStore.load(this).copy(remoteEnabled = true)
-        setRemoteCheckbox(checked = false, enabled = false)
-        setStatus("⏳ ${getString(R.string.test_server_connection_running)}")
-        executor.execute {
-            val result = runCatching {
-                val status = ServerConnectionTester.test(candidate)
-                val session = if (status.ok) {
-                    CompanyAccountApi.refreshProfile(applicationContext).getOrThrow()
-                } else {
-                    null
-                }
-                status to session
-            }
-            runOnUiThread {
-                if (isFinishing || isDestroyed || generation != serverConnectionGeneration) return@runOnUiThread
-                result.onSuccess { (status, session) ->
-                    val enabled = status.ok && session != null
-                    if (session != null) CompanyAccountApi.applySession(applicationContext, session)
-                    applyTestedServerMode(candidate, enabled)
-                    setStatus(buildString {
-                        append(if (enabled) "✅ " else "⚠️ ")
-                        append(status.title)
-                        if (status.detail.isNotBlank()) append("\n").append(status.detail)
-                    })
-                }.onFailure { error ->
-                    applyTestedServerMode(candidate, enabled = false)
-                    val message = error.message.orEmpty().ifBlank { getString(R.string.test_server_connection_failed) }
-                    setStatus("❌ ${getString(R.string.settings_registration_profile_load_failed, message)}")
-                }
-            }
-        }
-    }
-
-    private fun applyTestedServerMode(config: AppConfig, enabled: Boolean) {
-        ConfigStore.save(this, config.copy(remoteEnabled = enabled))
-        HomeCrmModeStore.setEnabled(this, enabled)
-        setRemoteCheckbox(checked = enabled, enabled = true)
-        refreshServerDependentUi()
-    }
-
-    private fun setRemoteCheckbox(checked: Boolean, enabled: Boolean) {
-        val previous = suppressAutoSave
-        suppressAutoSave = true
-        binding.remoteSettingsSection.remoteEnabledCheckBox.isChecked = checked
-        binding.remoteSettingsSection.remoteEnabledCheckBox.isEnabled = enabled
-        suppressAutoSave = previous
-    }
-
-    private fun refreshServerDependentUi() {
-        refreshPermissionSummary()
-        serverSyncQueueStatusController.refresh()
-        RegistrationActions.renderCompanySection(this, binding.settingsRegistrationGroup)
     }
 
     internal fun requestAppPermissionFromSummary(permission: String, label: String) {
@@ -340,7 +218,7 @@ class MainActivity : FontScaledAppCompatActivity() {
         }
     }
 
-    private fun saveConfig(): AppConfig {
+    internal fun saveConfig(): AppConfig {
         ConfigStore.save(this, MainSettingsConfigUi.read(binding))
         return ConfigStore.load(this)
     }
@@ -359,7 +237,7 @@ class MainActivity : FontScaledAppCompatActivity() {
         recreate()
     }
 
-    private fun setStatus(message: String) {
+    internal fun setStatus(message: String) {
         binding.statusText.visibility = android.view.View.VISIBLE
         binding.statusText.text = message
     }
@@ -381,7 +259,7 @@ class MainActivity : FontScaledAppCompatActivity() {
 
     private fun disableOverlayPopups() = MainPopupSettings.disableOverlayPopups(this)
     private fun disableCallScreening() = MainPermissionSettings.disableCallScreening(this)
-    private fun refreshPermissionSummary() {
+    internal fun refreshPermissionSummary() {
         PermissionStatusRenderer.refresh(this, binding)
         PermissionSummaryLocalizer.apply(this, binding)
     }

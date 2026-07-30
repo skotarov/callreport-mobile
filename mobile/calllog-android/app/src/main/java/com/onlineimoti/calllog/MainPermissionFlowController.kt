@@ -11,32 +11,32 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.ActivityCompat
 
 internal class MainPermissionFlowController(
-    private val activity: MainActivity,
-    private val requestPermissionLauncher: ActivityResultLauncher<String>,
-    private val callScreeningRoleLauncher: ActivityResultLauncher<Intent>,
-    private val storageSettingsLauncher: ActivityResultLauncher<Intent>,
-    private val overlaySettingsLauncher: ActivityResultLauncher<Intent>,
-    private val requestDefaultSmsRole: () -> Unit,
-    private val requestSmsPermissions: () -> Unit,
-    private val isDefaultSmsApp: () -> Boolean,
-    private val hasSmsPermissions: () -> Boolean,
-    private val hasPermission: (String) -> Boolean,
-    private val disableOverlayPopups: () -> Unit,
-    @Suppress("UNUSED_PARAMETER") private val disableCallScreening: () -> Unit,
-    private val refreshPermissionSummary: () -> Unit,
-    private val setStatus: (String) -> Unit,
+    internal val activity: MainActivity,
+    internal val requestPermissionLauncher: ActivityResultLauncher<String>,
+    internal val callScreeningRoleLauncher: ActivityResultLauncher<Intent>,
+    internal val storageSettingsLauncher: ActivityResultLauncher<Intent>,
+    internal val overlaySettingsLauncher: ActivityResultLauncher<Intent>,
+    internal val requestDefaultSmsRole: () -> Unit,
+    internal val requestSmsPermissions: () -> Unit,
+    internal val isDefaultSmsApp: () -> Boolean,
+    internal val hasSmsPermissions: () -> Boolean,
+    internal val hasPermission: (String) -> Boolean,
+    internal val disableOverlayPopups: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") internal val disableCallScreening: () -> Unit,
+    internal val refreshPermissionSummary: () -> Unit,
+    internal val setStatus: (String) -> Unit,
 ) {
     private companion object {
         const val PERMISSION_REQUESTS_PREFS = "relationship_manager_permission_requests"
     }
 
-    private val permissionRequests by lazy {
+    internal val permissionRequests by lazy {
         activity.getSharedPreferences(PERMISSION_REQUESTS_PREFS, Context.MODE_PRIVATE)
     }
 
-    private var isRunning = false
-    private var lastRequestedRuntimePermission: String = ""
-    private var lastRequestedRuntimePermissionLabel: String = ""
+    internal var isRunning = false
+    internal var lastRequestedRuntimePermission: String = ""
+    internal var lastRequestedRuntimePermissionLabel: String = ""
 
     fun start() {
         if (isRunning) return
@@ -277,80 +277,4 @@ internal class MainPermissionFlowController(
         )
     }
 
-    private fun requestSmsSetup() {
-        if (!isDefaultSmsApp()) {
-            setStatus("Избери Relationship Manager като SMS приложение. След това Android ще поиска SMS разрешенията с обикновен диалог.")
-            requestDefaultSmsRole()
-            return
-        }
-        if (!hasSmsPermissions()) {
-            setStatus(activity.getString(R.string.permission_flow_request_from_dialog, "SMS"))
-            requestSmsPermissions()
-            return
-        }
-        continueAfterSmsSetup()
-    }
-
-    private fun continueAfterSmsSetup() {
-        if (isRunning) {
-            requestNextStep()
-        } else {
-            setStatus(activity.getString(R.string.settings_sms_role_active))
-        }
-    }
-
-    private fun smsSetupIsComplete(): Boolean = isDefaultSmsApp() && hasSmsPermissions()
-
-    private fun requestRuntimePermission(permission: String, status: String, label: String) {
-        permissionRequests.edit().putBoolean(permission, true).apply()
-        lastRequestedRuntimePermission = permission
-        lastRequestedRuntimePermissionLabel = label
-        setStatus(status)
-        requestPermissionLauncher.launch(permission)
-    }
-
-    private fun canShowPermissionDialog(permission: String): Boolean {
-        return !permissionRequests.getBoolean(permission, false) ||
-            ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
-    }
-
-    private fun sharedStorageSettingsIntent(): Intent {
-        return Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-            data = Uri.parse("package:${activity.packageName}")
-        }
-    }
-
-    private fun reportUnavailableCallScreening() {
-        setStatus(activity.getString(R.string.permission_flow_screening_unavailable))
-        isRunning = false
-        refreshPermissionSummary()
-    }
-
-    private fun permissionLabel(permission: String, fallback: String): String = when (permission) {
-        Manifest.permission.POST_NOTIFICATIONS -> activity.getString(R.string.permission_label_notifications)
-        Manifest.permission.READ_PHONE_STATE -> activity.getString(R.string.permission_label_phone)
-        Manifest.permission.READ_CALL_LOG -> activity.getString(R.string.permission_label_call_log)
-        Manifest.permission.READ_CONTACTS -> activity.getString(R.string.permission_label_contacts_read)
-        Manifest.permission.WRITE_CONTACTS -> activity.getString(R.string.permission_label_contacts_write)
-        else -> fallback
-    }
-
-    private fun isCorporateTelephonyPermission(permission: String): Boolean {
-        return permission == Manifest.permission.READ_PHONE_STATE || permission == Manifest.permission.READ_CALL_LOG
-    }
-
-    private fun overlayPopupsSelected(): Boolean = ConfigStore.load(activity).useOverlayPopups
-
-    private fun hasCallScreeningRole(): Boolean = MainPermissionChecks.hasCallScreeningRole(activity)
-
-    private fun finishFlowWithSuccess() {
-        isRunning = false
-        setStatus(activity.getString(R.string.permission_flow_success, LocalNotesFileStore.activeRootPath(activity)))
-        refreshPermissionSummary()
-    }
-
-    private fun finishFlowWithoutStatus() {
-        isRunning = false
-        refreshPermissionSummary()
-    }
 }
