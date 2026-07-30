@@ -33,12 +33,21 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Compile, test and lint
+      - name: Apply fixes, compile, test and lint
         shell: bash
         run: |
           set +e
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" > /tmp/android-refactor.log 2>&1
+          : > /tmp/android-refactor.log
+          python3 tools/quality/fix_android_refactor_compile.py >> /tmp/android-refactor.log 2>&1
           status=$?
+          if [ "$status" -eq 0 ]; then
+            python3 tools/quality/report_large_source_files.py --threshold 350 --fail >> /tmp/android-refactor.log 2>&1
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            sdkmanager "platforms;android-35" "build-tools;35.0.0" >> /tmp/android-refactor.log 2>&1
+            status=$?
+          fi
           if [ "$status" -eq 0 ]; then
             cd mobile/calllog-android
             gradle --no-daemon compileDebugKotlin testDebugUnitTest lintDebug >> /tmp/android-refactor.log 2>&1
@@ -60,6 +69,7 @@ jobs:
           fi
 
           rm -f android_refactor_build_failure.log
+          rm tools/quality/fix_android_refactor_compile.py
           rm .github/workflows/verify-large-source-refactor-once.yml
           git add -A
           git commit -m "[android-refactor-verify] Compile, unit tests and lint passed"
