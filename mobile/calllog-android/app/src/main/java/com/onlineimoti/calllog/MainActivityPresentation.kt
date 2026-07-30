@@ -19,13 +19,14 @@ internal fun MainActivity.configureBuildSpecificSettings() {
     defaultSmsSettingsController.wire()
     callScreeningIntegrationSettingsController.wire()
 }
+
 internal fun MainActivity.openRequestedSettingsSection(intent: Intent?): Boolean {
     return when {
-        intent?.getBooleanExtra(EXTRA_OPEN_SERVER, false) == true -> {
+        intent?.getBooleanExtra(MainActivity.EXTRA_OPEN_SERVER, false) == true -> {
             binding.settingsMenuGroup.settingsServerButton.performClick()
             true
         }
-        intent?.getBooleanExtra(EXTRA_OPEN_REGISTRATION, false) == true -> {
+        intent?.getBooleanExtra(MainActivity.EXTRA_OPEN_REGISTRATION, false) == true -> {
             binding.settingsMenuGroup.settingsRegistrationButton.performClick()
             true
         }
