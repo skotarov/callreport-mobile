@@ -13,7 +13,7 @@ internal object CompanyManagementApi {
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 30_000
 
-    fun delete(config: AppConfig, companyId: String) {
+    fun delete(config: AppConfig, companyId: String): String {
         val response = request(
             config,
             JSONObject()
@@ -23,6 +23,8 @@ internal object CompanyManagementApi {
         if (!response.optBoolean("deleted", false)) {
             throw IOException("Server did not confirm the company deletion.")
         }
+        return response.optString("access_token").trim()
+            .ifBlank { throw IOException("Server did not return a replacement profile key.") }
     }
 
     private fun request(config: AppConfig, payload: JSONObject): JSONObject {
