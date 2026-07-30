@@ -18,6 +18,7 @@ internal object ProfileOtpDialog {
     fun show(
         activity: AppCompatActivity,
         title: String,
+        existingChallenge: CompanyAccountApi.OtpChallenge? = null,
         request: (((Result<CompanyAccountApi.OtpChallenge>) -> Unit) -> Unit),
         verify: (
             CompanyAccountApi.OtpChallenge,
@@ -35,7 +36,7 @@ internal object ProfileOtpDialog {
         }
         val destinationText = TextView(activity).apply {
             textSize = 15f
-            text = "Изпращане на кода…"
+            text = if (existingChallenge == null) "Изпращане на кода…" else "Отваряне на изпратения код…"
         }
         val countdownText = TextView(activity).apply {
             textSize = 22f
@@ -146,8 +147,6 @@ internal object ProfileOtpDialog {
                 cancelButton.isEnabled = !verifying
             }
 
-            beginCountdown(ProfileOtpTimer.deadline(0L, System.currentTimeMillis()))
-
             confirmButton.setOnClickListener {
                 val activeChallenge = challenge ?: return@setOnClickListener
                 val code = codeInput.text?.toString().orEmpty().trim()
@@ -180,10 +179,15 @@ internal object ProfileOtpDialog {
                 }
             }
 
-            request { result ->
-                activity.runOnUiThread {
-                    if (dialog.isShowing && !activity.isFinishing && !activity.isDestroyed) {
-                        result.onSuccess(::startCountdown).onFailure(::showRequestError)
+            if (existingChallenge != null) {
+                startCountdown(existingChallenge)
+            } else {
+                beginCountdown(ProfileOtpTimer.deadline(0L, System.currentTimeMillis()))
+                request { result ->
+                    activity.runOnUiThread {
+                        if (dialog.isShowing && !activity.isFinishing && !activity.isDestroyed) {
+                            result.onSuccess(::startCountdown).onFailure(::showRequestError)
+                        }
                     }
                 }
             }
