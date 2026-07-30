@@ -2,39 +2,16 @@ package com.onlineimoti.calllog
 
 import android.content.Intent
 import android.os.Bundle
-import android.text.InputType
-import android.view.Gravity
 import android.view.View
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.ScrollView
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /** One OTP flow enters an existing profile or creates a new one. Company creation stays separate. */
 class CompanyAccountActivity : AppCompatActivity() {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
-
-    private lateinit var titleText: TextView
-    private lateinit var descriptionText: TextView
-    private lateinit var alternativeText: TextView
-    private lateinit var statusText: TextView
-    private lateinit var progress: ProgressBar
-    private lateinit var smsButton: MaterialButton
-    private lateinit var emailButton: MaterialButton
-    private lateinit var companyButton: MaterialButton
-    private lateinit var licenseButton: MaterialButton
-    private lateinit var phoneInput: EditText
-    private lateinit var emailInput: EditText
-    private lateinit var organizationInput: EditText
-    private lateinit var eikInput: EditText
-
+    private lateinit var ui: CompanyAccountScreen
     private var mode: String = MODE_LOGIN
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,13 +30,19 @@ class CompanyAccountActivity : AppCompatActivity() {
         mode = if (
             requestedMode == MODE_CREATE_COMPANY &&
             CompanySessionStore.load(this) != null
-        ) {
-            MODE_CREATE_COMPANY
-        } else {
-            MODE_LOGIN
-        }
+        ) MODE_CREATE_COMPANY else MODE_LOGIN
         title = if (mode == MODE_CREATE_COMPANY) "Създай фирма" else "Профил"
-        setContentView(createContent())
+        ui = CompanyAccountScreen(this)
+        setContentView(
+            ui.create(
+                onSms = { requestAccessCode(ui.phoneInput.text?.toString().orEmpty(), "sms") },
+                onEmail = { requestAccessCode(ui.emailInput.text?.toString().orEmpty(), "email") },
+                onCreateCompany = ::createCompany,
+                onLicense = {
+                    startActivity(Intent(this, CompanyLicenseActivity::class.java))
+                },
+            ),
+        )
         renderMode()
     }
 
@@ -68,101 +51,13 @@ class CompanyAccountActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun createContent(): View {
-        val density = resources.displayMetrics.density
-        fun dp(value: Int) = (value * density).toInt()
-        fun params(top: Int = 0) = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply { topMargin = dp(top) }
-        fun input(hint: String, type: Int) = EditText(this).apply {
-            this.hint = hint
-            inputType = type
-            setSingleLine(true)
-        }
-
-        val root = ScrollView(this)
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(28))
-        }
-        root.addView(column)
-
-        titleText = TextView(this).apply { textSize = 24f }
-        column.addView(titleText)
-        descriptionText = TextView(this).apply {
-            textSize = 16f
-            setPadding(0, dp(8), 0, dp(16))
-        }
-        column.addView(descriptionText)
-
-        phoneInput = input("Телефон", InputType.TYPE_CLASS_PHONE)
-        column.addView(phoneInput)
-        smsButton = MaterialButton(this).apply {
-            text = "Изпрати SMS код"
-            setOnClickListener { requestAccessCode(phoneInput.text?.toString().orEmpty(), "sms") }
-        }
-        column.addView(smsButton, params(8))
-
-        alternativeText = TextView(this).apply {
-            text = "или"
-            textSize = 15f
-            gravity = Gravity.CENTER
-        }
-        column.addView(alternativeText, params(14))
-
-        emailInput = input(
-            "Имейл",
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-        )
-        column.addView(emailInput, params(10))
-        emailButton = MaterialButton(this).apply {
-            text = "Изпрати код по имейл"
-            setOnClickListener { requestAccessCode(emailInput.text?.toString().orEmpty(), "email") }
-        }
-        column.addView(emailButton, params(8))
-
-        organizationInput = input(
-            "Име на фирма / организация",
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS,
-        )
-        eikInput = input("ЕИК / Булстат (незадължително)", InputType.TYPE_CLASS_NUMBER)
-        column.addView(organizationInput)
-        column.addView(eikInput, params(8))
-        companyButton = MaterialButton(this).apply {
-            text = "Създай фирма"
-            setOnClickListener { createCompany() }
-        }
-        column.addView(companyButton, params(16))
-
-        licenseButton = MaterialButton(this).apply {
-            text = "Купи / възстанови лиценз за фирма"
-            setOnClickListener {
-                startActivity(Intent(this@CompanyAccountActivity, CompanyLicenseActivity::class.java))
-            }
-        }
-        column.addView(licenseButton, params(8))
-
-        progress = ProgressBar(this).apply { visibility = View.GONE }
-        column.addView(progress, LinearLayout.LayoutParams(dp(42), dp(42)).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            topMargin = dp(14)
-        })
-        statusText = TextView(this).apply {
-            textSize = 15f
-            setPadding(0, dp(12), 0, 0)
-        }
-        column.addView(statusText)
-        return root
-    }
-
     private fun renderMode() {
         val hasBaseUrl = ConfigStore.load(this).baseUrl.isNotBlank()
         val activation = CompanyLicenseStore.loadValid(this)
         val creatingCompany = mode == MODE_CREATE_COMPANY
 
-        titleText.text = if (creatingCompany) "Създай фирма" else "Вход или създаване на профил"
-        descriptionText.text = when {
+        ui.titleText.text = if (creatingCompany) "Създай фирма" else "Вход или създаване на профил"
+        ui.descriptionText.text = when {
             creatingCompany && activation == null ->
                 "За нова фирма е необходим потвърден лиценз. След създаването текущият профил става собственик."
             creatingCompany ->
@@ -172,18 +67,18 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
 
         val accessVisibility = if (creatingCompany) View.GONE else View.VISIBLE
-        phoneInput.visibility = accessVisibility
-        smsButton.visibility = accessVisibility
-        alternativeText.visibility = accessVisibility
-        emailInput.visibility = accessVisibility
-        emailButton.visibility = accessVisibility
-        organizationInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
-        eikInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
-        companyButton.visibility = if (creatingCompany) View.VISIBLE else View.GONE
-        licenseButton.visibility = if (creatingCompany && activation == null) View.VISIBLE else View.GONE
-        smsButton.isEnabled = hasBaseUrl
-        emailButton.isEnabled = hasBaseUrl
-        companyButton.isEnabled = hasBaseUrl && activation != null
+        ui.phoneInput.visibility = accessVisibility
+        ui.smsButton.visibility = accessVisibility
+        ui.alternativeText.visibility = accessVisibility
+        ui.emailInput.visibility = accessVisibility
+        ui.emailButton.visibility = accessVisibility
+        ui.organizationInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
+        ui.eikInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
+        ui.companyButton.visibility = if (creatingCompany) View.VISIBLE else View.GONE
+        ui.licenseButton.visibility = if (creatingCompany && activation == null) View.VISIBLE else View.GONE
+        ui.smsButton.isEnabled = hasBaseUrl
+        ui.emailButton.isEnabled = hasBaseUrl
+        ui.companyButton.isEnabled = hasBaseUrl && activation != null
 
         when {
             !hasBaseUrl -> setStatus("Първо настрой сървърния адрес от Настройки → Профил.")
@@ -212,12 +107,8 @@ class CompanyAccountActivity : AppCompatActivity() {
             runOnUiThread {
                 showLoading(false)
                 result.onSuccess { challenge ->
-                    val dialogTitle = if (target.channel == "email") {
-                        "Потвърди имейла"
-                    } else {
-                        "Потвърди телефона"
-                    }
-                    showOtpDialog(challenge, dialogTitle) { code ->
+                    val title = if (target.channel == "email") "Потвърди имейла" else "Потвърди телефона"
+                    ProfileOtpDialog.show(this, challenge, title) { code ->
                         verifyAccessCode(challenge, code)
                     }
                 }.onFailure { error ->
@@ -248,41 +139,9 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun showOtpDialog(
-        challenge: CompanyAccountApi.OtpChallenge,
-        dialogTitle: String,
-        verify: (String) -> Unit,
-    ) {
-        val codeInput = EditText(this).apply {
-            hint = "Шестцифрен код"
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setSingleLine(true)
-            if (challenge.debugCode.isNotBlank()) setText(challenge.debugCode)
-        }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(dialogTitle)
-            .setMessage("Кодът е изпратен до ${challenge.destinationHint}.")
-            .setView(codeInput)
-            .setNegativeButton("Отказ", null)
-            .setPositiveButton("Потвърди", null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val code = codeInput.text?.toString().orEmpty().trim()
-                if (code.length != 6) {
-                    codeInput.error = "Въведи шестцифрения код"
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                verify(code)
-            }
-        }
-        dialog.show()
-    }
-
     private fun createCompany() {
         val activation = CompanyLicenseStore.loadValid(this)
-        val organizationName = organizationInput.text?.toString().orEmpty().trim()
+        val organizationName = ui.organizationInput.text?.toString().orEmpty().trim()
         if (activation == null) {
             setStatus("Лицензът липсва или е изтекъл.")
             return
@@ -296,7 +155,7 @@ class CompanyAccountActivity : AppCompatActivity() {
             val result = CompanyAccountApi.createCompany(
                 applicationContext,
                 organizationName,
-                eikInput.text?.toString().orEmpty(),
+                ui.eikInput.text?.toString().orEmpty(),
                 activation.token,
             )
             runOnUiThread {
@@ -327,19 +186,11 @@ class CompanyAccountActivity : AppCompatActivity() {
     }
 
     private fun showLoading(show: Boolean) {
-        progress.visibility = if (show) View.VISIBLE else View.GONE
-        smsButton.isEnabled = !show
-        emailButton.isEnabled = !show
-        companyButton.isEnabled = !show
-        licenseButton.isEnabled = !show
-        phoneInput.isEnabled = !show
-        emailInput.isEnabled = !show
-        organizationInput.isEnabled = !show
-        eikInput.isEnabled = !show
+        ui.showLoading(show)
     }
 
     private fun setStatus(value: String) {
-        statusText.text = value
+        ui.statusText.text = value
     }
 
     companion object {
