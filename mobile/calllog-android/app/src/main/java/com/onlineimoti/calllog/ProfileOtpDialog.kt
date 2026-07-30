@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import android.graphics.Typeface
 import android.os.CountDownTimer
 import android.text.InputFilter
 import android.text.InputType
@@ -37,9 +38,11 @@ internal object ProfileOtpDialog {
             text = "Изпращане на кода…"
         }
         val countdownText = TextView(activity).apply {
-            textSize = 16f
-            setPadding(0, dp(10), 0, dp(10))
-            text = "Моля, изчакай."
+            textSize = 22f
+            gravity = Gravity.CENTER_HORIZONTAL
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(0, dp(12), 0, dp(12))
+            text = "Оставащо време: 10:00"
         }
         val codeInput = EditText(activity).apply {
             hint = "Шестцифрен код"
@@ -86,7 +89,7 @@ internal object ProfileOtpDialog {
 
             fun renderCountdown() {
                 val remaining = remainingMs()
-                countdownText.text = "Кодът е валиден още ${ProfileOtpTimer.format(remaining)}"
+                countdownText.text = "Оставащо време: ${ProfileOtpTimer.format(remaining)}"
                 if (remaining == 0L) {
                     codeInput.isEnabled = false
                     confirmButton.isEnabled = false
@@ -97,14 +100,9 @@ internal object ProfileOtpDialog {
                 }
             }
 
-            fun startCountdown(received: CompanyAccountApi.OtpChallenge) {
-                challenge = received
-                deadlineMs = ProfileOtpTimer.deadline(received.expiresAtMs, System.currentTimeMillis())
-                destinationText.text = "Кодът е изпратен до ${received.destinationHint}."
-                if (received.debugCode.isNotBlank()) codeInput.setText(received.debugCode)
-                progress.visibility = View.GONE
-                codeInput.isEnabled = true
-                confirmButton.isEnabled = true
+            fun beginCountdown(newDeadlineMs: Long) {
+                timer?.cancel()
+                deadlineMs = newDeadlineMs
                 renderCountdown()
                 val initialRemaining = remainingMs()
                 if (initialRemaining > 0L) {
@@ -112,11 +110,22 @@ internal object ProfileOtpDialog {
                         override fun onTick(millisUntilFinished: Long) = renderCountdown()
                         override fun onFinish() = renderCountdown()
                     }.start()
-                    codeInput.requestFocus()
                 }
             }
 
+            fun startCountdown(received: CompanyAccountApi.OtpChallenge) {
+                challenge = received
+                destinationText.text = "Кодът е изпратен до ${received.destinationHint}."
+                if (received.debugCode.isNotBlank()) codeInput.setText(received.debugCode)
+                progress.visibility = View.GONE
+                codeInput.isEnabled = true
+                confirmButton.isEnabled = true
+                beginCountdown(ProfileOtpTimer.deadline(received.expiresAtMs, System.currentTimeMillis()))
+                codeInput.requestFocus()
+            }
+
             fun showRequestError(error: Throwable) {
+                timer?.cancel()
                 progress.visibility = View.GONE
                 destinationText.text = "Кодът не можа да бъде изпратен."
                 countdownText.text = ""
@@ -136,6 +145,8 @@ internal object ProfileOtpDialog {
                 confirmButton.isEnabled = !verifying && active
                 cancelButton.isEnabled = !verifying
             }
+
+            beginCountdown(ProfileOtpTimer.deadline(0L, System.currentTimeMillis()))
 
             confirmButton.setOnClickListener {
                 val activeChallenge = challenge ?: return@setOnClickListener
