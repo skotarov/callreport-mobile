@@ -12,7 +12,12 @@ internal data class CallReportTopicCompany(
     val name: String,
     val role: String = "member",
     val canManageUsers: Boolean = false,
-)
+    val eik: String = "",
+    val createdAtMs: Long = 0L,
+    val updatedAtMs: Long = 0L,
+) {
+    val canDelete: Boolean get() = role == "owner"
+}
 
 /** Loads only the real firms where the current user is an active member. */
 internal object CallReportTopicCompaniesClient {
@@ -29,6 +34,7 @@ internal object CallReportTopicCompaniesClient {
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
             connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer ${config.accessToken}")
             connection.setRequestProperty("X-Relationship-Manager-Token", config.accessToken)
             connection.setRequestProperty("X-Callreport-Token", config.accessToken)
 
@@ -54,7 +60,19 @@ internal object CallReportTopicCompaniesClient {
                         else -> "member"
                     }
                     val canManageUsers = item.optBoolean("can_manage_users", role == "owner" || role == "admin")
-                    if (id.isNotBlank()) add(CallReportTopicCompany(id, name, role, canManageUsers))
+                    if (id.isNotBlank()) {
+                        add(
+                            CallReportTopicCompany(
+                                id = id,
+                                name = name,
+                                role = role,
+                                canManageUsers = canManageUsers,
+                                eik = item.optString("eik").trim(),
+                                createdAtMs = item.optLong("created_at_ms", 0L),
+                                updatedAtMs = item.optLong("updated_at_ms", 0L),
+                            ),
+                        )
+                    }
                 }
             }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
         } finally {
