@@ -5,10 +5,9 @@ import kotlin.math.ceil
 
 /** Pure countdown helpers used by the OTP dialog and unit tests. */
 internal object ProfileOtpTimer {
-    const val DEFAULT_WINDOW_MS: Long = 10 * 60 * 1000L
-
+    /** The server expiry is authoritative; missing or expired values do not start a local timer. */
     fun deadline(expiresAtMs: Long, openedAtMs: Long): Long =
-        if (expiresAtMs > 0L) expiresAtMs else openedAtMs + DEFAULT_WINDOW_MS
+        if (expiresAtMs > openedAtMs) expiresAtMs else 0L
 
     fun remainingMs(deadlineMs: Long, nowMs: Long): Long =
         (deadlineMs - nowMs).coerceAtLeast(0L)
