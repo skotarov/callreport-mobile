@@ -19,19 +19,32 @@ jobs:
           ref: agent/limit-source-files-300
           fetch-depth: 0
 
-      - name: Split intact Kotlin responsibilities
-        run: python3 tools/quality/refactor_large_sources.py
-
-      - name: Verify oversized-source inventory
-        run: python3 tools/quality/report_large_source_files.py --threshold 350 --fail
-
-      - name: Remove one-time migration files
-        run: rm tools/quality/refactor_large_sources.py .github/workflows/refactor-large-sources-once.yml
-
-      - name: Commit structural refactor
+      - name: Split, verify and commit
+        shell: bash
         run: |
+          set +e
+          python3 tools/quality/refactor_large_sources.py > /tmp/refactor.log 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            python3 tools/quality/report_large_source_files.py --threshold 350 --fail >> /tmp/refactor.log 2>&1
+            status=$?
+          fi
+
           git config user.name "relationship-manager-refactor"
           git config user.email "actions@users.noreply.github.com"
+
+          if [ "$status" -ne 0 ]; then
+            git reset --hard HEAD
+            cp /tmp/refactor.log refactor_failure.log
+            git add refactor_failure.log
+            git commit -m "[large-source-refactor] Capture Android refactor failure"
+            git push origin HEAD:agent/limit-source-files-300
+            cat /tmp/refactor.log
+            exit "$status"
+          fi
+
+          rm -f refactor_failure.log
+          rm tools/quality/refactor_large_sources.py .github/workflows/refactor-large-sources-once.yml
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "[large-source-refactor] Split oversized Android sources safely"
