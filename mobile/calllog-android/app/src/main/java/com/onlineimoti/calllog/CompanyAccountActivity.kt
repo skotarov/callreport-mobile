@@ -11,6 +11,11 @@ import java.util.concurrent.Executors
 /** One OTP flow enters an existing profile or creates a new one. Company creation stays separate. */
 class CompanyAccountActivity : AppCompatActivity() {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val otpRequestLock = Any()
+    private val otpRequestCallbacks = mutableMapOf<
+        String,
+        MutableList<(Result<CompanyAccountApi.OtpChallenge>) -> Unit>,
+    >()
     private lateinit var ui: CompanyAccountScreen
     private var mode: String = MODE_LOGIN
 
@@ -98,26 +103,67 @@ class CompanyAccountActivity : AppCompatActivity() {
             return
         }
         setStatus("")
+        val existingChallenge = ProfileOtpChallengeStore.load(
+            applicationContext,
+            target.identifier,
+            target.channel,
+        )
         val title = if (target.channel == "email") "Потвърди имейла" else "Потвърди телефона"
         ProfileOtpDialog.show(
             activity = this,
             title = title,
-            request = { completion ->
-                executor.execute {
-                    completion(
-                        CompanyAccountApi.requestLoginOtp(
-                            applicationContext,
-                            target.identifier,
-                            target.channel,
-                        ),
-                    )
-                }
-            },
+            existingChallenge = existingChallenge,
+            request = { completion -> requestChallenge(target, completion) },
             verify = { challenge, code, completion ->
                 verifyAccessCode(challenge, code, completion)
             },
             onVerified = ::completeProfileAccess,
         )
+    }
+
+    private fun requestChallenge(
+        target: ProfileAccessTarget,
+        completion: (Result<CompanyAccountApi.OtpChallenge>) -> Unit,
+    ) {
+        val key = "${target.channel}:${target.identifier}"
+        val shouldStart = synchronized(otpRequestLock) {
+            val callbacks = otpRequestCallbacks[key]
+            if (callbacks != null) {
+                callbacks += completion
+                false
+            } else {
+                otpRequestCallbacks[key] = mutableListOf(completion)
+                true
+            }
+        }
+        if (!shouldStart) return
+
+        executor.execute {
+            val result = CompanyAccountApi.requestLoginOtp(
+                applicationContext,
+                target.identifier,
+                target.channel,
+            ).map { challenge ->
+                val reusable = if (challenge.expiresAtMs > System.currentTimeMillis()) {
+                    challenge
+                } else {
+                    challenge.copy(
+                        expiresAtMs = ProfileOtpTimer.deadline(0L, System.currentTimeMillis()),
+                    )
+                }
+                ProfileOtpChallengeStore.save(
+                    applicationContext,
+                    target.identifier,
+                    target.channel,
+                    reusable,
+                )
+                reusable
+            }
+            val callbacks = synchronized(otpRequestLock) {
+                otpRequestCallbacks.remove(key).orEmpty()
+            }
+            callbacks.forEach { it(result) }
+        }
     }
 
     private fun verifyAccessCode(
@@ -131,6 +177,7 @@ class CompanyAccountActivity : AppCompatActivity() {
     }
 
     private fun completeProfileAccess(session: CompanyAccountApi.Session) {
+        ProfileOtpChallengeStore.clearAll(applicationContext)
         CompanyAccountApi.applySession(applicationContext, session)
         Toast.makeText(
             this,
