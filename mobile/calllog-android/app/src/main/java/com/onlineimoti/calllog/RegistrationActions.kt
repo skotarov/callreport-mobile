@@ -18,13 +18,16 @@ internal object RegistrationActions {
     }
 
     fun openProfileEditor(activity: AppCompatActivity) {
-        val mode = if (CompanySessionStore.load(activity) != null) {
-            CompanyAccountActivity.MODE_PROFILE
+        val config = ConfigStore.load(activity)
+        val target = if (config.accessToken.isNotBlank()) {
+            ProfileEditorActivity::class.java
         } else {
-            CompanyAccountActivity.MODE_LOGIN
+            CompanyAccountActivity::class.java
         }
-        activity.startActivity(Intent(activity, CompanyAccountActivity::class.java).apply {
-            putExtra(CompanyAccountActivity.EXTRA_MODE, mode)
+        activity.startActivity(Intent(activity, target).apply {
+            if (target == CompanyAccountActivity::class.java) {
+                putExtra(CompanyAccountActivity.EXTRA_MODE, CompanyAccountActivity.MODE_LOGIN)
+            }
         })
     }
 
