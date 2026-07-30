@@ -236,21 +236,30 @@ class MainActivity : FontScaledAppCompatActivity() {
         setRemoteCheckbox(checked = false, enabled = false)
         setStatus("⏳ ${getString(R.string.test_server_connection_running)}")
         executor.execute {
-            val result = runCatching { ServerConnectionTester.test(candidate) }
+            val result = runCatching {
+                val status = ServerConnectionTester.test(candidate)
+                val session = if (status.ok) {
+                    CompanyAccountApi.refreshProfile(applicationContext).getOrThrow()
+                } else {
+                    null
+                }
+                status to session
+            }
             runOnUiThread {
                 if (isFinishing || isDestroyed || generation != serverConnectionGeneration) return@runOnUiThread
-                result.onSuccess { status ->
-                    applyTestedServerMode(candidate, status.ok)
+                result.onSuccess { (status, session) ->
+                    val enabled = status.ok && session != null
+                    if (session != null) CompanyAccountApi.applySession(applicationContext, session)
+                    applyTestedServerMode(candidate, enabled)
                     setStatus(buildString {
-                        append(if (status.ok) "✅ " else "⚠️ ")
+                        append(if (enabled) "✅ " else "⚠️ ")
                         append(status.title)
                         if (status.detail.isNotBlank()) append("\n").append(status.detail)
                     })
-                    if (status.ok) refreshProfileAfterConnectionEnabled()
                 }.onFailure { error ->
                     applyTestedServerMode(candidate, enabled = false)
                     val message = error.message.orEmpty().ifBlank { getString(R.string.test_server_connection_failed) }
-                    setStatus("❌ $message")
+                    setStatus("❌ ${getString(R.string.settings_registration_profile_load_failed, message)}")
                 }
             }
         }
@@ -275,19 +284,6 @@ class MainActivity : FontScaledAppCompatActivity() {
         refreshPermissionSummary()
         serverSyncQueueStatusController.refresh()
         RegistrationActions.renderCompanySection(this, binding.settingsRegistrationGroup)
-    }
-
-    private fun refreshProfileAfterConnectionEnabled() {
-        executor.execute {
-            CompanyAccountApi.refreshProfile(applicationContext).onSuccess { session ->
-                CompanyAccountApi.applySession(applicationContext, session)
-            }
-            runOnUiThread {
-                if (!isFinishing && !isDestroyed) {
-                    RegistrationActions.renderCompanySection(this, binding.settingsRegistrationGroup)
-                }
-            }
-        }
     }
 
     internal fun requestAppPermissionFromSummary(permission: String, label: String) {
