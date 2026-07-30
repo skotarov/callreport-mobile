@@ -103,16 +103,10 @@ class CompanyAccountActivity : AppCompatActivity() {
             return
         }
         setStatus("")
-        val existingChallenge = ProfileOtpChallengeStore.load(
-            applicationContext,
-            target.identifier,
-            target.channel,
-        )
         val title = if (target.channel == "email") "Потвърди имейла" else "Потвърди телефона"
         ProfileOtpDialog.show(
             activity = this,
             title = title,
-            existingChallenge = existingChallenge,
             request = { completion -> requestChallenge(target, completion) },
             verify = { challenge, code, completion ->
                 verifyAccessCode(challenge, code, completion)
@@ -143,22 +137,7 @@ class CompanyAccountActivity : AppCompatActivity() {
                 applicationContext,
                 target.identifier,
                 target.channel,
-            ).map { challenge ->
-                val reusable = if (challenge.expiresAtMs > System.currentTimeMillis()) {
-                    challenge
-                } else {
-                    challenge.copy(
-                        expiresAtMs = ProfileOtpTimer.deadline(0L, System.currentTimeMillis()),
-                    )
-                }
-                ProfileOtpChallengeStore.save(
-                    applicationContext,
-                    target.identifier,
-                    target.channel,
-                    reusable,
-                )
-                reusable
-            }
+            )
             val callbacks = synchronized(otpRequestLock) {
                 otpRequestCallbacks.remove(key).orEmpty()
             }
@@ -177,7 +156,6 @@ class CompanyAccountActivity : AppCompatActivity() {
     }
 
     private fun completeProfileAccess(session: CompanyAccountApi.Session) {
-        ProfileOtpChallengeStore.clearAll(applicationContext)
         CompanyAccountApi.applySession(applicationContext, session)
         Toast.makeText(
             this,
