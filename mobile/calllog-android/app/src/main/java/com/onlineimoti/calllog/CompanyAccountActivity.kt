@@ -97,31 +97,27 @@ class CompanyAccountActivity : AppCompatActivity() {
             )
             return
         }
-        showLoading(true)
-        executor.execute {
-            val result = CompanyAccountApi.requestLoginOtp(
-                applicationContext,
-                target.identifier,
-                target.channel,
-            )
-            runOnUiThread {
-                showLoading(false)
-                result.onSuccess { challenge ->
-                    val title = if (target.channel == "email") "Потвърди имейла" else "Потвърди телефона"
-                    ProfileOtpDialog.show(
-                        activity = this,
-                        challenge = challenge,
-                        title = title,
-                        verify = { code, completion ->
-                            verifyAccessCode(challenge, code, completion)
-                        },
-                        onVerified = ::completeProfileAccess,
+        setStatus("")
+        val title = if (target.channel == "email") "Потвърди имейла" else "Потвърди телефона"
+        ProfileOtpDialog.show(
+            activity = this,
+            title = title,
+            request = { completion ->
+                executor.execute {
+                    completion(
+                        CompanyAccountApi.requestLoginOtp(
+                            applicationContext,
+                            target.identifier,
+                            target.channel,
+                        ),
                     )
-                }.onFailure { error ->
-                    setStatus(error.message ?: "Кодът не можа да бъде изпратен.")
                 }
-            }
-        }
+            },
+            verify = { challenge, code, completion ->
+                verifyAccessCode(challenge, code, completion)
+            },
+            onVerified = ::completeProfileAccess,
+        )
     }
 
     private fun verifyAccessCode(
@@ -130,8 +126,7 @@ class CompanyAccountActivity : AppCompatActivity() {
         completion: (Result<CompanyAccountApi.Session>) -> Unit,
     ) {
         executor.execute {
-            val result = CompanyAccountApi.verifyLoginOtp(applicationContext, challenge.id, code)
-            runOnUiThread { completion(result) }
+            completion(CompanyAccountApi.verifyLoginOtp(applicationContext, challenge.id, code))
         }
     }
 
