@@ -13,7 +13,19 @@ class ProfileOtpTimerTest {
     }
 
     @Test
-    fun serverDeadlineIsAuthoritative() {
+    fun serverRemainingSecondsAreAuthoritative() {
+        assertEquals(
+            1_420_000L,
+            ProfileOtpTimer.deadline(
+                expiresAtMs = 9_999_999L,
+                openedAtMs = 1_000_000L,
+                remainingSeconds = 420L,
+            ),
+        )
+    }
+
+    @Test
+    fun legacyServerDeadlineStillWorks() {
         assertEquals(
             1_420_000L,
             ProfileOtpTimer.deadline(expiresAtMs = 1_420_000L, openedAtMs = 1_000_000L),
