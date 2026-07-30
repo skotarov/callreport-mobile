@@ -230,6 +230,9 @@
         <activity
             android:name=".CompanyAccountActivity"
             android:exported="false" />
+        <activity
+            android:name=".ProfileEditorActivity"
+            android:exported="false" />
 
         <activity
             android:name=".ContactShareActivity"
