@@ -54,7 +54,7 @@ internal object IncomingCallPopupProgressFormatter {
         .removePrefix(ICON_GENERAL_NOTE)
         .removePrefix(ICON_CALL_NOTE)
         .trim()
-        .replace(Regex("\s+"), " ")
+        .replace(Regex("\\s+"), " ")
 
     private fun formatRemoteRow(row: PostCallLookupRemoteRow): String =
         listOf(row.companyName.ifBlank { "Сървър" }, row.note.trim())
