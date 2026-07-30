@@ -11,14 +11,15 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import java.util.concurrent.Executors
 
 /**
- * Shows a complete editable profile form. The display name is saved directly;
- * email and phone are replaced only after the new value passes its own OTP.
+ * Shows the complete profile form. The display name is saved directly; email and
+ * phone are replaced only after the new value passes its own OTP.
  */
 internal class ProfileEditorActivity : AppCompatActivity() {
     private val executor = Executors.newSingleThreadExecutor()
@@ -31,6 +32,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
     private lateinit var phoneStateText: TextView
     private lateinit var emailButton: MaterialButton
     private lateinit var phoneButton: MaterialButton
+    private lateinit var logoutButton: MaterialButton
     private lateinit var statusText: TextView
     private lateinit var progress: ProgressBar
 
@@ -40,7 +42,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         AppLanguageManager.applyFromConfig(this)
         super.onCreate(savedInstanceState)
-        title = "Редакция на профила"
+        title = "Профил"
         setContentView(createContent())
         profile = CompanySessionStore.load(this)
         renderProfile(overwriteInputs = true)
@@ -68,7 +70,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         root.addView(column)
 
         column.addView(TextView(this).apply {
-            text = "Данни на профила"
+            text = "Профил"
             textSize = 24f
         })
         column.addView(TextView(this).apply {
@@ -127,6 +129,12 @@ internal class ProfileEditorActivity : AppCompatActivity() {
             setPadding(0, dp(12), 0, 0)
         }
         column.addView(statusText)
+
+        logoutButton = MaterialButton(this).apply {
+            setText(R.string.settings_registration_logout)
+            setOnClickListener { logout() }
+        }
+        column.addView(logoutButton, params(28))
         return root
     }
 
@@ -295,12 +303,27 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun logout() {
+        showLoading(true)
+        executor.execute {
+            CompanyAccountApi.logout(applicationContext)
+            CompanyAccountApi.clearSession(applicationContext)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                showLoading(false)
+                Toast.makeText(this, R.string.settings_registration_logged_out, Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
     private fun showLoading(show: Boolean) {
         loading = show
         progress.visibility = if (show) View.VISIBLE else View.GONE
         nameInput.isEnabled = !show
         emailInput.isEnabled = !show
         phoneInput.isEnabled = !show
+        logoutButton.isEnabled = !show
         renderActions()
     }
 
