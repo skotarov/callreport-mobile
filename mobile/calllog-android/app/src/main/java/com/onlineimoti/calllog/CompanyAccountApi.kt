@@ -40,6 +40,8 @@ internal object CompanyAccountApi {
         val destinationHint: String,
         val expiresAtMs: Long,
         val debugCode: String = "",
+        val remainingSeconds: Long = -1L,
+        val reused: Boolean = false,
     )
 
     data class RegistrationVerification(
@@ -193,14 +195,9 @@ internal object CompanyAccountApi {
         authenticated = true,
     ).map { Unit }
 
-    fun applySession(context: Context, session: Session) =
-        CompanyAccountSessionPersistence.apply(context, session)
-
-    fun applyProfileUser(context: Context, user: ProfileUser) =
-        CompanyAccountSessionPersistence.updateProfile(context, user)
-
-    fun clearSession(context: Context) =
-        CompanyAccountSessionPersistence.clear(context)
+    fun applySession(context: Context, session: Session) = CompanyAccountSessionPersistence.apply(context, session)
+    fun applyProfileUser(context: Context, user: ProfileUser) = CompanyAccountSessionPersistence.updateProfile(context, user)
+    fun clearSession(context: Context) = CompanyAccountSessionPersistence.clear(context)
 
     private fun postSession(
         context: Context,
@@ -267,7 +264,7 @@ internal object CompanyAccountApi {
             channel = response.optString("channel").trim(),
             destinationHint = response.optString("destination_hint").trim(),
             expiresAtMs = response.optLong("expires_at_ms", 0L),
-            debugCode = response.optString("debug_code").trim(),
+            debugCode = response.optString("debug_code").trim(), remainingSeconds = response.optLong("remaining_seconds", -1L), reused = response.optBoolean("reused", false),
         )
     }
 
