@@ -23,15 +23,24 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 tools/quality/refactor_large_sources.py > /tmp/refactor.log 2>&1
+          : > /tmp/refactor.log
+          python3 tools/quality/refactor_large_sources.py >> /tmp/refactor.log 2>&1
           status=$?
           if [ "$status" -eq 0 ]; then
-            python3 tools/quality/report_large_source_files.py --threshold 350 --fail >> /tmp/refactor.log 2>&1
+            python3 tools/quality/refactor_large_sources_round2.py >> /tmp/refactor.log 2>&1
             status=$?
           fi
 
           git config user.name "relationship-manager-refactor"
           git config user.email "actions@users.noreply.github.com"
+
+          if [ "$status" -eq 0 ]; then
+            rm -f refactor_failure.log
+            rm tools/quality/refactor_large_sources.py tools/quality/refactor_large_sources_round2.py
+            rm .github/workflows/refactor-large-sources-once.yml
+            python3 tools/quality/report_large_source_files.py --threshold 350 --fail >> /tmp/refactor.log 2>&1
+            status=$?
+          fi
 
           if [ "$status" -ne 0 ]; then
             git reset --hard HEAD
@@ -43,8 +52,6 @@ jobs:
             exit "$status"
           fi
 
-          rm -f refactor_failure.log
-          rm tools/quality/refactor_large_sources.py .github/workflows/refactor-large-sources-once.yml
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "[large-source-refactor] Split oversized Android sources safely"
