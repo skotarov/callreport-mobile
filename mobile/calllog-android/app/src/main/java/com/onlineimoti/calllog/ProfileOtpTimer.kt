@@ -8,7 +8,7 @@ internal object ProfileOtpTimer {
     /** The server is authoritative; remaining seconds avoid client/server clock differences. */
     fun deadline(expiresAtMs: Long, openedAtMs: Long, remainingSeconds: Long = -1L): Long = when {
         remainingSeconds >= 0L -> openedAtMs + remainingSeconds * 1000L
-        expiresAtMs > 0L -> expiresAtMs
+        expiresAtMs > openedAtMs -> expiresAtMs
         else -> 0L
     }
 
