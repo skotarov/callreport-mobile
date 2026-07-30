@@ -1,7 +1,9 @@
 package com.onlineimoti.calllog
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProfileAccessInputTest {
@@ -35,5 +37,12 @@ class ProfileAccessInputTest {
         assertNull(ProfileAccessInput.parse("not a contact"))
         assertNull(ProfileAccessInput.parse("person@example"))
         assertNull(ProfileAccessInput.parse("1234"))
+    }
+
+    @Test
+    fun eitherVerifiedContactMakesProfileReady() {
+        assertTrue(CompanyAccountApi.ProfileUser(emailVerified = true).profileReady)
+        assertTrue(CompanyAccountApi.ProfileUser(phoneVerified = true).profileReady)
+        assertFalse(CompanyAccountApi.ProfileUser().profileReady)
     }
 }
