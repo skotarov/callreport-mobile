@@ -43,7 +43,9 @@ internal object ProfileOtpDialog {
             gravity = Gravity.CENTER_HORIZONTAL
             setTypeface(typeface, Typeface.BOLD)
             setPadding(0, dp(12), 0, dp(12))
+            minHeight = dp(52)
             text = "Оставащо време: 10:00"
+            visibility = View.VISIBLE
         }
         val codeInput = EditText(activity).apply {
             hint = "Шестцифрен код"
@@ -90,6 +92,7 @@ internal object ProfileOtpDialog {
 
             fun renderCountdown() {
                 val remaining = remainingMs()
+                countdownText.visibility = View.VISIBLE
                 countdownText.text = "Оставащо време: ${ProfileOtpTimer.format(remaining)}"
                 if (remaining == 0L) {
                     codeInput.isEnabled = false
@@ -122,14 +125,18 @@ internal object ProfileOtpDialog {
                 codeInput.isEnabled = true
                 confirmButton.isEnabled = true
                 beginCountdown(ProfileOtpTimer.deadline(received.expiresAtMs, System.currentTimeMillis()))
-                codeInput.requestFocus()
+                // Do not open the keyboard automatically: on smaller screens it can cover the countdown.
+                codeInput.clearFocus()
             }
 
             fun showRequestError(error: Throwable) {
                 timer?.cancel()
                 progress.visibility = View.GONE
                 destinationText.text = "Кодът не можа да бъде изпратен."
-                countdownText.text = ""
+                countdownText.apply {
+                    text = "Оставащо време: --:--"
+                    visibility = View.VISIBLE
+                }
                 codeInput.isEnabled = false
                 confirmButton.isEnabled = false
                 cancelButton.isEnabled = true
