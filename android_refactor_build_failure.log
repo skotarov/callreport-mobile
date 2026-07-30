@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/home/runner/work/relationship-manager-mobile/relationship-manager-mobile/tools/quality/fix_android_refactor_compile.py", line 21, in <module>
-    replace(
-  File "/home/runner/work/relationship-manager-mobile/relationship-manager-mobile/tools/quality/fix_android_refactor_compile.py", line 12, in replace
-    raise RuntimeError(f"Expected text missing in {path}: {old!r}")
-RuntimeError: Expected text missing in IncomingCallPopupProgressFormatter.kt: 'Regex("\\s+")'
