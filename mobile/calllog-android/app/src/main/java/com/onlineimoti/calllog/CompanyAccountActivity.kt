@@ -23,11 +23,15 @@ class CompanyAccountActivity : AppCompatActivity() {
 
     private lateinit var titleText: TextView
     private lateinit var descriptionText: TextView
+    private lateinit var alternativeText: TextView
     private lateinit var statusText: TextView
     private lateinit var progress: ProgressBar
-    private lateinit var submitButton: MaterialButton
+    private lateinit var smsButton: MaterialButton
+    private lateinit var emailButton: MaterialButton
+    private lateinit var companyButton: MaterialButton
     private lateinit var licenseButton: MaterialButton
-    private lateinit var identifierInput: EditText
+    private lateinit var phoneInput: EditText
+    private lateinit var emailInput: EditText
     private lateinit var organizationInput: EditText
     private lateinit var eikInput: EditText
 
@@ -92,18 +96,45 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
         column.addView(descriptionText)
 
-        identifierInput = input("Телефон или имейл", InputType.TYPE_CLASS_TEXT)
+        phoneInput = input("Телефон", InputType.TYPE_CLASS_PHONE)
+        column.addView(phoneInput)
+        smsButton = MaterialButton(this).apply {
+            text = "Изпрати SMS код"
+            setOnClickListener { requestAccessCode(phoneInput.text?.toString().orEmpty(), "sms") }
+        }
+        column.addView(smsButton, params(8))
+
+        alternativeText = TextView(this).apply {
+            text = "или"
+            textSize = 15f
+            gravity = Gravity.CENTER
+        }
+        column.addView(alternativeText, params(14))
+
+        emailInput = input(
+            "Имейл",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+        )
+        column.addView(emailInput, params(10))
+        emailButton = MaterialButton(this).apply {
+            text = "Изпрати код по имейл"
+            setOnClickListener { requestAccessCode(emailInput.text?.toString().orEmpty(), "email") }
+        }
+        column.addView(emailButton, params(8))
+
         organizationInput = input(
             "Име на фирма / организация",
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS,
         )
         eikInput = input("ЕИК / Булстат (незадължително)", InputType.TYPE_CLASS_NUMBER)
-        column.addView(identifierInput)
-        column.addView(organizationInput, params(8))
+        column.addView(organizationInput)
         column.addView(eikInput, params(8))
+        companyButton = MaterialButton(this).apply {
+            text = "Създай фирма"
+            setOnClickListener { createCompany() }
+        }
+        column.addView(companyButton, params(16))
 
-        submitButton = MaterialButton(this).apply { setOnClickListener { submitPrimary() } }
-        column.addView(submitButton, params(16))
         licenseButton = MaterialButton(this).apply {
             text = "Купи / възстанови лиценз за фирма"
             setOnClickListener {
@@ -137,15 +168,22 @@ class CompanyAccountActivity : AppCompatActivity() {
             creatingCompany ->
                 "Въведи данните на новата фирма. Текущият профил ще бъде добавен като собственик."
             else ->
-                "Въведи само телефон или имейл. Ако профилът съществува, ще влезеш в него. Ако не съществува, ще бъде създаден автоматично след правилния код. Име и парола не са нужни."
+                "Избери телефон или имейл и натисни съответния бутон. Ако профилът не съществува, ще бъде създаден автоматично след правилния код. Име и парола не са нужни."
         }
 
-        identifierInput.visibility = if (creatingCompany) View.GONE else View.VISIBLE
+        val accessVisibility = if (creatingCompany) View.GONE else View.VISIBLE
+        phoneInput.visibility = accessVisibility
+        smsButton.visibility = accessVisibility
+        alternativeText.visibility = accessVisibility
+        emailInput.visibility = accessVisibility
+        emailButton.visibility = accessVisibility
         organizationInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
         eikInput.visibility = if (creatingCompany) View.VISIBLE else View.GONE
-        submitButton.text = if (creatingCompany) "Създай фирма" else "Изпрати код"
+        companyButton.visibility = if (creatingCompany) View.VISIBLE else View.GONE
         licenseButton.visibility = if (creatingCompany && activation == null) View.VISIBLE else View.GONE
-        submitButton.isEnabled = hasBaseUrl && (!creatingCompany || activation != null)
+        smsButton.isEnabled = hasBaseUrl
+        emailButton.isEnabled = hasBaseUrl
+        companyButton.isEnabled = hasBaseUrl && activation != null
 
         when {
             !hasBaseUrl -> setStatus("Първо настрой сървърния адрес от Настройки → Профил.")
@@ -155,14 +193,13 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun submitPrimary() {
-        if (mode == MODE_CREATE_COMPANY) createCompany() else requestAccessCode()
-    }
-
-    private fun requestAccessCode() {
-        val target = ProfileAccessInput.parse(identifierInput.text?.toString().orEmpty())
-        if (target == null) {
-            setStatus("Въведи валиден телефон или имейл.")
+    private fun requestAccessCode(rawIdentifier: String, expectedChannel: String) {
+        val target = ProfileAccessInput.parse(rawIdentifier)
+        if (target == null || target.channel != expectedChannel) {
+            setStatus(
+                if (expectedChannel == "sms") "Въведи валиден телефонен номер."
+                else "Въведи валиден имейл адрес.",
+            )
             return
         }
         showLoading(true)
@@ -291,9 +328,12 @@ class CompanyAccountActivity : AppCompatActivity() {
 
     private fun showLoading(show: Boolean) {
         progress.visibility = if (show) View.VISIBLE else View.GONE
-        submitButton.isEnabled = !show
+        smsButton.isEnabled = !show
+        emailButton.isEnabled = !show
+        companyButton.isEnabled = !show
         licenseButton.isEnabled = !show
-        identifierInput.isEnabled = !show
+        phoneInput.isEnabled = !show
+        emailInput.isEnabled = !show
         organizationInput.isEnabled = !show
         eikInput.isEnabled = !show
     }
