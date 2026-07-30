@@ -13,12 +13,11 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
-/** OTP modal that opens immediately, requests the code, verifies it and shows the expiry countdown. */
+/** OTP modal that asks the server for the active challenge and counts down its server expiry. */
 internal object ProfileOtpDialog {
     fun show(
         activity: AppCompatActivity,
         title: String,
-        existingChallenge: CompanyAccountApi.OtpChallenge? = null,
         request: (((Result<CompanyAccountApi.OtpChallenge>) -> Unit) -> Unit),
         verify: (
             CompanyAccountApi.OtpChallenge,
@@ -36,7 +35,7 @@ internal object ProfileOtpDialog {
         }
         val destinationText = TextView(activity).apply {
             textSize = 15f
-            text = if (existingChallenge == null) "Изпращане на кода…" else "Отваряне на изпратения код…"
+            text = "Проверка за активен код…"
         }
         val countdownText = TextView(activity).apply {
             textSize = 22f
@@ -44,7 +43,7 @@ internal object ProfileOtpDialog {
             setTypeface(typeface, Typeface.BOLD)
             setPadding(0, dp(12), 0, dp(12))
             minHeight = dp(52)
-            text = "Оставащо време: 10:00"
+            text = "Оставащо време: --:--"
             visibility = View.VISIBLE
         }
         val codeInput = EditText(activity).apply {
@@ -93,12 +92,16 @@ internal object ProfileOtpDialog {
             fun renderCountdown() {
                 val remaining = remainingMs()
                 countdownText.visibility = View.VISIBLE
-                countdownText.text = "Оставащо време: ${ProfileOtpTimer.format(remaining)}"
-                if (remaining == 0L) {
+                countdownText.text = if (deadlineMs > 0L) {
+                    "Оставащо време: ${ProfileOtpTimer.format(remaining)}"
+                } else {
+                    "Оставащо време: --:--"
+                }
+                if (deadlineMs > 0L && remaining == 0L) {
                     codeInput.isEnabled = false
                     confirmButton.isEnabled = false
                     errorText.apply {
-                        text = "Кодът изтече. Затвори прозореца и изпрати нов код."
+                        text = "Кодът изтече. Затвори прозореца и поискай нов код."
                         visibility = View.VISIBLE
                     }
                 }
@@ -109,7 +112,7 @@ internal object ProfileOtpDialog {
                 deadlineMs = newDeadlineMs
                 renderCountdown()
                 val initialRemaining = remainingMs()
-                if (initialRemaining > 0L) {
+                if (deadlineMs > 0L && initialRemaining > 0L) {
                     timer = object : CountDownTimer(initialRemaining, 250L) {
                         override fun onTick(millisUntilFinished: Long) = renderCountdown()
                         override fun onFinish() = renderCountdown()
@@ -118,25 +121,33 @@ internal object ProfileOtpDialog {
             }
 
             fun startCountdown(received: CompanyAccountApi.OtpChallenge) {
+                val serverDeadline = ProfileOtpTimer.deadline(
+                    expiresAtMs = received.expiresAtMs,
+                    openedAtMs = System.currentTimeMillis(),
+                )
                 challenge = received
-                destinationText.text = "Кодът е изпратен до ${received.destinationHint}."
+                destinationText.text = "Активният код е за ${received.destinationHint}."
                 if (received.debugCode.isNotBlank()) codeInput.setText(received.debugCode)
                 progress.visibility = View.GONE
-                codeInput.isEnabled = true
-                confirmButton.isEnabled = true
-                beginCountdown(ProfileOtpTimer.deadline(received.expiresAtMs, System.currentTimeMillis()))
-                // Do not open the keyboard automatically: on smaller screens it can cover the countdown.
+                beginCountdown(serverDeadline)
+                val active = serverDeadline > System.currentTimeMillis()
+                codeInput.isEnabled = active
+                confirmButton.isEnabled = active
+                if (!active) {
+                    errorText.apply {
+                        text = "Сървърът не върна активен срок за кода."
+                        visibility = View.VISIBLE
+                    }
+                }
                 codeInput.clearFocus()
             }
 
             fun showRequestError(error: Throwable) {
                 timer?.cancel()
+                deadlineMs = 0L
                 progress.visibility = View.GONE
-                destinationText.text = "Кодът не можа да бъде изпратен."
-                countdownText.apply {
-                    text = "Оставащо време: --:--"
-                    visibility = View.VISIBLE
-                }
+                destinationText.text = "Кодът не можа да бъде заявен."
+                renderCountdown()
                 codeInput.isEnabled = false
                 confirmButton.isEnabled = false
                 cancelButton.isEnabled = true
@@ -186,15 +197,10 @@ internal object ProfileOtpDialog {
                 }
             }
 
-            if (existingChallenge != null) {
-                startCountdown(existingChallenge)
-            } else {
-                beginCountdown(ProfileOtpTimer.deadline(0L, System.currentTimeMillis()))
-                request { result ->
-                    activity.runOnUiThread {
-                        if (dialog.isShowing && !activity.isFinishing && !activity.isDestroyed) {
-                            result.onSuccess(::startCountdown).onFailure(::showRequestError)
-                        }
+            request { result ->
+                activity.runOnUiThread {
+                    if (dialog.isShowing && !activity.isFinishing && !activity.isDestroyed) {
+                        result.onSuccess(::startCountdown).onFailure(::showRequestError)
                     }
                 }
             }
