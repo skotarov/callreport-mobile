@@ -18,20 +18,44 @@ import com.google.android.material.button.MaterialButton
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
 internal object RegistrationCompaniesController {
+    fun renderLocked(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+        checking: Boolean,
+    ) {
+        binding.registrationConnectedCompaniesCard.alpha = if (checking) 0.78f else 0.62f
+        binding.registrationCompaniesList.removeAllViews()
+        binding.registrationCompaniesProgress.visibility = if (checking) View.VISIBLE else View.GONE
+        binding.registrationCompaniesStatusText.apply {
+            visibility = View.VISIBLE
+            setText(
+                if (checking) R.string.settings_registration_companies_loading
+                else R.string.settings_registration_companies_require_profile,
+            )
+        }
+        binding.registrationCreateCompanyButton.isEnabled = false
+        binding.registrationJoinCompanyButton.isEnabled = false
+        binding.registrationRefreshCompaniesButton.isEnabled = false
+    }
+
     fun refresh(activity: AppCompatActivity, binding: SettingsGroupRegistrationBinding) {
         val config = ConfigStore.load(activity)
+        if (!CallReportRemoteAccess.isReady(config)) {
+            renderLocked(activity, binding, checking = false)
+            return
+        }
+
+        binding.registrationConnectedCompaniesCard.alpha = 1f
         binding.registrationCompaniesList.removeAllViews()
         binding.registrationCompaniesProgress.visibility = View.VISIBLE
         binding.registrationCompaniesStatusText.apply {
             visibility = View.VISIBLE
             setText(R.string.settings_registration_companies_loading)
         }
+        binding.registrationCreateCompanyButton.isEnabled = true
+        binding.registrationJoinCompanyButton.isEnabled = true
         binding.registrationRefreshCompaniesButton.isEnabled = false
 
-        if (!CallReportRemoteAccess.isReady(config)) {
-            renderCompanies(activity, binding, emptyList())
-            return
-        }
         Thread {
             val online = runCatching { CallReportTopicCompaniesRepository.refresh(activity.applicationContext, config) }
             val result = online.getOrNull()
@@ -59,7 +83,10 @@ internal object RegistrationCompaniesController {
         binding: SettingsGroupRegistrationBinding,
         companies: List<CallReportTopicCompany>,
     ) {
+        binding.registrationConnectedCompaniesCard.alpha = 1f
         binding.registrationCompaniesProgress.visibility = View.GONE
+        binding.registrationCreateCompanyButton.isEnabled = true
+        binding.registrationJoinCompanyButton.isEnabled = true
         binding.registrationRefreshCompaniesButton.isEnabled = true
         binding.registrationCompaniesList.removeAllViews()
         if (companies.isEmpty()) {
@@ -72,13 +99,17 @@ internal object RegistrationCompaniesController {
         binding.registrationCompaniesStatusText.visibility = View.GONE
         companies.forEachIndexed { index, company ->
             binding.registrationCompaniesList.addView(
-                companyRow(activity, company),
+                companyRow(activity, binding, company),
                 verticalParams(activity, if (index == 0) 8 else 6),
             )
         }
     }
 
-    private fun companyRow(activity: AppCompatActivity, company: CallReportTopicCompany): View {
+    private fun companyRow(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+        company: CallReportTopicCompany,
+    ): View {
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(activity, 12), dp(activity, 10), dp(activity, 12), dp(activity, 10))
@@ -100,24 +131,98 @@ internal object RegistrationCompaniesController {
             setTextColor(ContextCompat.getColor(activity, R.color.calllog_muted_text))
             setPadding(0, dp(activity, 3), 0, 0)
         })
-        if (company.canManageUsers) {
-            val actions = LinearLayout(activity).apply {
+
+        if (company.canDelete) {
+            val ownerActions = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.END
             }
-            actions.addView(MaterialButton(activity).apply {
+            ownerActions.addView(MaterialButton(activity).apply {
+                setText(R.string.settings_registration_company_information)
+                isAllCaps = false
+                setOnClickListener { showCompanyInfo(activity, company) }
+            }, actionParams(activity))
+            ownerActions.addView(MaterialButton(activity).apply {
+                setText(R.string.settings_registration_company_delete)
+                isAllCaps = false
+                setOnClickListener { confirmDelete(activity, binding, company) }
+            }, actionParams(activity, 6))
+            row.addView(ownerActions, verticalParams(activity, 8))
+        }
+
+        if (company.canManageUsers) {
+            val userActions = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END
+            }
+            userActions.addView(MaterialButton(activity).apply {
                 text = "Покани колега"
                 isAllCaps = false
                 setOnClickListener { RegistrationActions.showInviteDialog(activity, company) }
             }, actionParams(activity))
-            actions.addView(MaterialButton(activity).apply {
+            userActions.addView(MaterialButton(activity).apply {
                 setText(R.string.settings_registration_users)
                 isAllCaps = false
                 setOnClickListener { showUsers(activity, company) }
             }, actionParams(activity, 6))
-            row.addView(actions, verticalParams(activity, 8))
+            row.addView(userActions, verticalParams(activity, 8))
         }
         return row
+    }
+
+    private fun showCompanyInfo(activity: AppCompatActivity, company: CallReportTopicCompany) {
+        AlertDialog.Builder(activity)
+            .setTitle(company.name)
+            .setMessage(
+                activity.getString(
+                    R.string.settings_registration_company_details,
+                    company.name,
+                    company.id,
+                    company.eik.ifBlank { "—" },
+                    roleLabel(activity, company.role),
+                ),
+            )
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun confirmDelete(
+        activity: AppCompatActivity,
+        binding: SettingsGroupRegistrationBinding,
+        company: CallReportTopicCompany,
+    ) {
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.settings_registration_company_delete_title)
+            .setMessage(activity.getString(R.string.settings_registration_company_delete_message, company.name))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.settings_registration_company_delete) { _, _ ->
+                binding.registrationCreateCompanyButton.isEnabled = false
+                binding.registrationJoinCompanyButton.isEnabled = false
+                binding.registrationRefreshCompaniesButton.isEnabled = false
+                binding.registrationCompaniesProgress.visibility = View.VISIBLE
+                Thread {
+                    val result = runCatching { CompanyManagementApi.delete(ConfigStore.load(activity), company.id) }
+                    activity.runOnUiThread {
+                        if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                        result.onSuccess {
+                            Toast.makeText(
+                                activity,
+                                R.string.settings_registration_company_deleted,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            refresh(activity, binding)
+                        }.onFailure { error ->
+                            Toast.makeText(
+                                activity,
+                                activity.getString(R.string.settings_registration_action_failed, error.message.orEmpty()),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            refresh(activity, binding)
+                        }
+                    }
+                }.start()
+            }
+            .show()
     }
 
     private fun showUsers(activity: AppCompatActivity, company: CallReportTopicCompany) {
