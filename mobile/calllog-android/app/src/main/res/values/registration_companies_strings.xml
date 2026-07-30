@@ -1,6 +1,6 @@
 <resources>
-    <string name="settings_profile_companies_section">Profile &amp; companies</string>
-    <string name="settings_profile_companies_description">Create or open your profile with a one-time code, join by invitation, and manage its companies separately.</string>
+    <string name="settings_profile_companies_section">Profile</string>
+    <string name="settings_profile_companies_description">Create or open your profile with a one-time code and edit its name, email and phone.</string>
     <string name="settings_registration_profile_license">Profile</string>
     <string name="settings_registration_profile_description">A profile has a name, email and phone. Email and phone are verified with one-time codes. No password is required.</string>
     <string name="settings_registration_current_profile">Signed-in profile: %1$s</string>
@@ -15,10 +15,18 @@
     <string name="settings_registration_missing_phone">no phone entered</string>
     <string name="settings_registration_logout">Sign out</string>
     <string name="settings_registration_logged_out">You have signed out. The server connection key was deleted.</string>
-    <string name="settings_registration_companies_section">Connected companies</string>
-    <string name="settings_registration_companies_description">Companies where you are an owner or administrator have their own Invite colleague button.</string>
-    <string name="settings_registration_no_company">No connected companies</string>
-    <string name="settings_registration_no_company_description">This profile has no companies yet. Create one from the profile or join with an invitation code.</string>
+    <string name="settings_registration_companies_section">Companies</string>
+    <string name="settings_registration_companies_description">Create companies, join by invitation, and manage the companies you belong to.</string>
+    <string name="settings_registration_companies_require_profile">Sign in with a valid profile key before using companies.</string>
+    <string name="settings_registration_create_company">Create new</string>
+    <string name="settings_registration_company_information">Information</string>
+    <string name="settings_registration_company_delete">Delete</string>
+    <string name="settings_registration_company_delete_title">Delete company?</string>
+    <string name="settings_registration_company_delete_message">Company “%1$s” and its related company data will be deleted. This action cannot be undone.</string>
+    <string name="settings_registration_company_deleted">The company was deleted.</string>
+    <string name="settings_registration_company_details">Name: %1$s\nID: %2$s\nCompany number: %3$s\nRole: %4$s</string>
+    <string name="settings_registration_no_company">No companies</string>
+    <string name="settings_registration_no_company_description">This profile has no companies yet. Create one or join with an invitation code.</string>
     <string name="settings_registration_companies_loading">Loading companies…</string>
     <string name="settings_registration_refresh_companies">Refresh companies</string>
     <string name="settings_registration_role_owner">Owner</string>
