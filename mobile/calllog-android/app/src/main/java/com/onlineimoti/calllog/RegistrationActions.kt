@@ -11,12 +11,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
-/** Shared profile and company-access actions, reachable from Profile and companies. */
+/** Shared profile and company-access actions, reachable from Profile and Companies. */
 internal object RegistrationActions {
-    fun openCompanyAccount(activity: AppCompatActivity) {
-        activity.startActivity(Intent(activity, CompanyAccountActivity::class.java))
-    }
-
     fun openProfileEditor(activity: AppCompatActivity) {
         val config = ConfigStore.load(activity)
         val target = if (config.accessToken.isNotBlank()) {
@@ -31,28 +27,40 @@ internal object RegistrationActions {
         })
     }
 
+    fun openCreateCompany(activity: AppCompatActivity) {
+        Thread {
+            val result = CompanyAccountApi.refreshProfile(activity.applicationContext)
+            activity.runOnUiThread {
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                result.onSuccess { session ->
+                    CompanyAccountApi.applySession(activity.applicationContext, session)
+                    val target = if (CompanyLicenseStore.loadValid(activity) != null) {
+                        Intent(activity, CompanyAccountActivity::class.java)
+                            .putExtra(CompanyAccountActivity.EXTRA_MODE, CompanyAccountActivity.MODE_CREATE_COMPANY)
+                    } else {
+                        Intent(activity, CompanyLicenseActivity::class.java)
+                    }
+                    activity.startActivity(target)
+                }.onFailure {
+                    Toast.makeText(
+                        activity,
+                        activity.getString(R.string.settings_registration_companies_require_profile),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
     fun renderCompanySection(
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
-        RegistrationProfileController.refresh(activity, binding)
-        RegistrationCompaniesController.refresh(activity, binding)
-    }
-
-    fun logout(
-        activity: AppCompatActivity,
-        binding: SettingsGroupRegistrationBinding,
-    ) {
-        binding.registrationLogoutButton.isEnabled = false
-        Thread {
-            CompanyAccountApi.logout(activity.applicationContext)
-            CompanyAccountApi.clearSession(activity.applicationContext)
-            activity.runOnUiThread {
-                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
-                Toast.makeText(activity, R.string.settings_registration_logged_out, Toast.LENGTH_SHORT).show()
-                renderCompanySection(activity, binding)
-            }
-        }.start()
+        RegistrationCompaniesController.renderLocked(activity, binding, checking = true)
+        RegistrationProfileController.refresh(activity, binding) { valid ->
+            if (valid) RegistrationCompaniesController.refresh(activity, binding)
+            else RegistrationCompaniesController.renderLocked(activity, binding, checking = false)
+        }
     }
 
     fun showJoinDialog(activity: AppCompatActivity) {
@@ -60,7 +68,7 @@ internal object RegistrationActions {
             AlertDialog.Builder(activity)
                 .setTitle("Присъедини се по покана")
                 .setMessage("Първо създай профил или влез с еднократен код по имейл или SMS. След това ще въведеш само кода от поканата.")
-                .setPositiveButton("Профил") { _, _ -> openCompanyAccount(activity) }
+                .setPositiveButton("Профил") { _, _ -> openProfileEditor(activity) }
                 .setNegativeButton("Отказ", null)
                 .show()
             return
