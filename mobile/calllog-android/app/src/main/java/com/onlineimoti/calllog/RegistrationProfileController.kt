@@ -3,30 +3,29 @@ package com.onlineimoti.calllog
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
-import java.util.Collections
 
 /**
- * Shows only the profile bound to the current access token, then refreshes it
- * from the server. A snapshot from another token is never shown as logged in.
+ * Shows the locally remembered profile immediately, but enables company actions
+ * only after the server confirms the current access token.
  */
 internal object RegistrationProfileController {
-    private val inFlight = Collections.synchronizedSet(mutableSetOf<SettingsGroupRegistrationBinding>())
-
     fun refresh(
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
+        onValidated: (Boolean) -> Unit,
     ) {
-        val active = CompanySessionStore.load(activity)
-        val remembered = active
+        val remembered = CompanySessionStore.load(activity)
         if (remembered != null) {
-            renderSnapshot(activity, binding, remembered, confirmedForCurrentToken = true)
+            renderSnapshot(activity, binding, remembered, confirmedForCurrentToken = false)
         } else {
             renderSignedOut(activity, binding)
         }
 
         val config = ConfigStore.load(activity)
-        if (config.baseUrl.isBlank() || config.accessToken.isBlank()) return
-        if (!inFlight.add(binding)) return
+        if (config.baseUrl.isBlank() || config.accessToken.isBlank()) {
+            onValidated(false)
+            return
+        }
 
         val expectedToken = config.accessToken
         if (remembered == null) renderLoading(activity, binding)
@@ -34,25 +33,19 @@ internal object RegistrationProfileController {
         Thread {
             val result = CompanyAccountApi.refreshProfile(activity.applicationContext)
             activity.runOnUiThread {
-                inFlight.remove(binding)
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
-
                 if (ConfigStore.load(activity).accessToken != expectedToken) {
-                    refresh(activity, binding)
+                    onValidated(false)
                     return@runOnUiThread
                 }
 
                 result.onSuccess { session ->
                     CompanyAccountApi.applySession(activity.applicationContext, session)
                     renderSession(activity, binding, session)
-                    RegistrationCompaniesController.refresh(activity, binding)
+                    onValidated(true)
                 }.onFailure { error ->
-                    val fallback = CompanySessionStore.load(activity)
-                    if (fallback != null) {
-                        renderSnapshot(activity, binding, fallback, confirmedForCurrentToken = true)
-                    } else {
-                        renderError(activity, binding, error)
-                    }
+                    renderError(activity, binding, error)
+                    onValidated(false)
                 }
             }
         }.start()
@@ -130,10 +123,6 @@ internal object RegistrationProfileController {
             visibility = View.VISIBLE
             isEnabled = true
         }
-        binding.registrationLogoutButton.apply {
-            visibility = View.VISIBLE
-            isEnabled = true
-        }
     }
 
     private fun renderLoading(
@@ -149,17 +138,12 @@ internal object RegistrationProfileController {
             visibility = View.VISIBLE
             isEnabled = true
         }
-        binding.registrationLogoutButton.apply {
-            visibility = View.VISIBLE
-            isEnabled = true
-        }
     }
 
     private fun renderSignedOut(
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
-        inFlight.remove(binding)
         binding.registrationCurrentProfileText.apply {
             visibility = View.VISIBLE
             text = activity.getString(R.string.settings_registration_no_active_profile)
@@ -169,7 +153,6 @@ internal object RegistrationProfileController {
             visibility = View.VISIBLE
             isEnabled = true
         }
-        binding.registrationLogoutButton.visibility = View.GONE
     }
 
     private fun renderError(
@@ -186,10 +169,6 @@ internal object RegistrationProfileController {
             alpha = 1f
         }
         binding.registrationEditProfileButton.apply {
-            visibility = View.VISIBLE
-            isEnabled = true
-        }
-        binding.registrationLogoutButton.apply {
             visibility = View.VISIBLE
             isEnabled = true
         }
