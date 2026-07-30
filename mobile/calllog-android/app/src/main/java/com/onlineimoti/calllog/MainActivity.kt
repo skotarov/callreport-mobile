@@ -39,10 +39,10 @@ class MainActivity : FontScaledAppCompatActivity() {
     internal val serverSyncQueueStatusController: ServerSyncQueueStatusController by lazy {
         ServerSyncQueueStatusController(this, binding, ::saveConfig, ::setStatus)
     }
-    private val defaultSmsSettingsController: DefaultSmsSettingsController by lazy {
+    internal val defaultSmsSettingsController: DefaultSmsSettingsController by lazy {
         DefaultSmsSettingsController(this, binding, ::requestDefaultSmsRole, ::requestSmsPermissions, ::setStatus)
     }
-    private val callScreeningIntegrationSettingsController: CallScreeningIntegrationSettingsController by lazy {
+    internal val callScreeningIntegrationSettingsController: CallScreeningIntegrationSettingsController by lazy {
         CallScreeningIntegrationSettingsController(this, binding, ::requestCallScreeningPermissionFromSummary)
     }
     private val permissionFlowController: MainPermissionFlowController by lazy {
