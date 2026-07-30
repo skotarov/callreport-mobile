@@ -199,6 +199,7 @@ internal object CompanyAccountApi {
             context,
             current.copy(
                 remoteEnabled = true,
+                baseUrl = current.baseUrl.trim(),
                 accessToken = session.accessToken,
             ),
         )
