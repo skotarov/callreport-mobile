@@ -1,0 +1,20 @@
+ 257  CallReportMergedHistoryController.kt
+ 282  CallReportMergedHistoryControllerSupport.kt
+ 224  HomeContentRenderer.kt
+ 189  HomeContentRendererSupport.kt
+ 252  RegistrationCompaniesController.kt
+ 197  RegistrationCompanyUsersUi.kt
+ 283  IncomingCallLookupCoordinator.kt
+  85  IncomingCallPopupSessionStore.kt
+  31  IncomingCallLookupExecutors.kt
+  63  IncomingCallPopupProgressFormatter.kt
+ 275  MainActivity.kt
+  91  MainActivityServerConnection.kt
+  34  MainActivityPresentation.kt
+Authored source files over 350 lines:
+  433  tools/quality/refactor_large_sources.py
+  389  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeActivityPaged.kt
+  380  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/PostCallLookupPopup.kt
+  371  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNotesHeaderUi.kt
+  370  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNotesRestoredController.kt
+  356  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/MainPermissionFlowController.kt
