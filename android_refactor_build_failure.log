@@ -1,55 +1,6 @@
-Loading package information...                                                  Loading local repository...                                                     [                                       ] 3% Loading local repository...        [                                       ] 3% Fetch remote repository...         [=                                      ] 3% Fetch remote repository...         [=                                      ] 4% Fetch remote repository...         [=                                      ] 5% Fetch remote repository...         [==                                     ] 5% Fetch remote repository...         [==                                     ] 6% Fetch remote repository...         [==                                     ] 7% Fetch remote repository...         [==                                     ] 7% Computing updates...               [===                                    ] 8% Computing updates...               [===                                    ] 10% Computing updates...              [=======================================] 100% Computing updates...             
-
-To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
-Daemon will be stopped at the end of the build 
-> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app:preBuild UP-TO-DATE
-> Task :app:preDebugBuild UP-TO-DATE
-> Task :app:dataBindingMergeDependencyArtifactsDebug
-> Task :app:generateDebugResValues
-> Task :app:generateDebugResources
-> Task :app:packageDebugResources
-> Task :app:generateDebugBuildConfig
-> Task :app:mapDebugSourceSetPaths
-> Task :app:checkDebugAarMetadata
-> Task :app:createDebugCompatibleScreenManifests
-> Task :app:extractDeepLinksDebug
-> Task :app:parseDebugLocalResources
-> Task :app:mergeDebugResources
-> Task :app:processDebugMainManifest
-> Task :app:dataBindingGenBaseClassesDebug
-> Task :app:processDebugManifest
-> Task :app:preDebugUnitTestBuild UP-TO-DATE
-> Task :app:javaPreCompileDebug
-> Task :app:processDebugManifestForPackage
-> Task :app:javaPreCompileDebugUnitTest
-> Task :app:preDebugAndroidTestBuild SKIPPED
-> Task :app:generateDebugAndroidTestResValues
-> Task :app:extractProguardFiles
-> Task :app:processDebugResources
-> Task :app:compileDebugKotlin
-e: file:///home/runner/work/relationship-manager-mobile/relationship-manager-mobile/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNotesHeaderUiSupport.kt:57:33 Unresolved reference 'ColorStateList'.
-e: file:///home/runner/work/relationship-manager-mobile/relationship-manager-mobile/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/IncomingCallPopupProgressFormatter.kt:57:25 Unsupported escape sequence.
-e: file:///home/runner/work/relationship-manager-mobile/relationship-manager-mobile/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/MainActivityPresentation.kt:19:5 Cannot access 'val defaultSmsSettingsController: DefaultSmsSettingsController': it is private in 'com/onlineimoti/calllog/MainActivity'.
-e: file:///home/runner/work/relationship-manager-mobile/relationship-manager-mobile/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/MainActivityPresentation.kt:20:5 Cannot access 'val callScreeningIntegrationSettingsController: CallScreeningIntegrationSettingsController': it is private in 'com/onlineimoti/calllog/MainActivity'.
-e: file:///home/runner/work/relationship-manager-mobile/relationship-manager-mobile/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/MainActivityPresentation.kt:24:33 Unresolved reference 'EXTRA_OPEN_SERVER'.
-e: file:///home/runner/work/relationship-manager-mobile/relationship-manager-mobile/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/MainActivityPresentation.kt:28:33 Unresolved reference 'EXTRA_OPEN_REGISTRATION'.
-
-> Task :app:compileDebugKotlin FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1785416285291.json
-
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':app:compileDebugKotlin'.
-> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
-   > Compilation error. See log for more details
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 47s
-21 actionable tasks: 21 executed
+Traceback (most recent call last):
+  File "/home/runner/work/relationship-manager-mobile/relationship-manager-mobile/tools/quality/fix_android_refactor_compile.py", line 21, in <module>
+    replace(
+  File "/home/runner/work/relationship-manager-mobile/relationship-manager-mobile/tools/quality/fix_android_refactor_compile.py", line 12, in replace
+    raise RuntimeError(f"Expected text missing in {path}: {old!r}")
+RuntimeError: Expected text missing in IncomingCallPopupProgressFormatter.kt: 'Regex("\\s+")'
