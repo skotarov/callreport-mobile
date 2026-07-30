@@ -121,16 +121,22 @@ internal object ProfileOtpDialog {
             }
 
             fun startCountdown(received: CompanyAccountApi.OtpChallenge) {
+                val receivedAtMs = System.currentTimeMillis()
                 val serverDeadline = ProfileOtpTimer.deadline(
                     expiresAtMs = received.expiresAtMs,
-                    openedAtMs = System.currentTimeMillis(),
+                    openedAtMs = receivedAtMs,
+                    remainingSeconds = received.remainingSeconds,
                 )
                 challenge = received
-                destinationText.text = "Активният код е за ${received.destinationHint}."
+                destinationText.text = if (received.reused) {
+                    "Използвай вече изпратения код за ${received.destinationHint}."
+                } else {
+                    "Кодът е изпратен до ${received.destinationHint}."
+                }
                 if (received.debugCode.isNotBlank()) codeInput.setText(received.debugCode)
                 progress.visibility = View.GONE
                 beginCountdown(serverDeadline)
-                val active = serverDeadline > System.currentTimeMillis()
+                val active = serverDeadline > receivedAtMs
                 codeInput.isEnabled = active
                 confirmButton.isEnabled = active
                 if (!active) {
