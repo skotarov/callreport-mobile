@@ -24,7 +24,7 @@ internal object CompanySessionStore {
         val organizationName: String,
         val organizationId: String,
     ) {
-        val profileReady: Boolean get() = emailVerified && phoneVerified
+        val profileReady: Boolean get() = emailVerified || phoneVerified
     }
 
     fun save(context: Context, session: CompanyAccountApi.Session) {
