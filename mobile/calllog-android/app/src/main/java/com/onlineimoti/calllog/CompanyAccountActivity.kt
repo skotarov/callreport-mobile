@@ -108,9 +108,15 @@ class CompanyAccountActivity : AppCompatActivity() {
                 showLoading(false)
                 result.onSuccess { challenge ->
                     val title = if (target.channel == "email") "Потвърди имейла" else "Потвърди телефона"
-                    ProfileOtpDialog.show(this, challenge, title) { code ->
-                        verifyAccessCode(challenge, code)
-                    }
+                    ProfileOtpDialog.show(
+                        activity = this,
+                        challenge = challenge,
+                        title = title,
+                        verify = { code, completion ->
+                            verifyAccessCode(challenge, code, completion)
+                        },
+                        onVerified = ::completeProfileAccess,
+                    )
                 }.onFailure { error ->
                     setStatus(error.message ?: "Кодът не можа да бъде изпратен.")
                 }
@@ -118,25 +124,25 @@ class CompanyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun verifyAccessCode(challenge: CompanyAccountApi.OtpChallenge, code: String) {
-        showLoading(true)
+    private fun verifyAccessCode(
+        challenge: CompanyAccountApi.OtpChallenge,
+        code: String,
+        completion: (Result<CompanyAccountApi.Session>) -> Unit,
+    ) {
         executor.execute {
             val result = CompanyAccountApi.verifyLoginOtp(applicationContext, challenge.id, code)
-            runOnUiThread {
-                showLoading(false)
-                result.onSuccess { session ->
-                    CompanyAccountApi.applySession(applicationContext, session)
-                    Toast.makeText(
-                        this,
-                        "Профилът е потвърден и новият токън е записан автоматично.",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    openProfileAndFinish()
-                }.onFailure { error ->
-                    setStatus(error.message ?: "Кодът не е приет.")
-                }
-            }
+            runOnUiThread { completion(result) }
         }
+    }
+
+    private fun completeProfileAccess(session: CompanyAccountApi.Session) {
+        CompanyAccountApi.applySession(applicationContext, session)
+        Toast.makeText(
+            this,
+            "Сървърният URL и новият токън са записани автоматично.",
+            Toast.LENGTH_LONG,
+        ).show()
+        openProfileAndFinish()
     }
 
     private fun createCompany() {
