@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
@@ -14,6 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import java.util.concurrent.Executors
 
@@ -130,8 +132,16 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         }
         column.addView(statusText)
 
-        logoutButton = MaterialButton(this).apply {
+        val errorColor = ContextCompat.getColor(this, R.color.calllog_error)
+        logoutButton = MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle,
+        ).apply {
             setText(R.string.settings_registration_logout)
+            setTextColor(errorColor)
+            strokeColor = ColorStateList.valueOf(errorColor)
+            strokeWidth = dp(1)
             setOnClickListener { logout() }
         }
         column.addView(logoutButton, params(28))
