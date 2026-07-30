@@ -72,7 +72,7 @@ internal object ProfileOtpDialog {
         )
 
         var challenge: CompanyAccountApi.OtpChallenge? = null
-        var deadlineMs = 0L
+        var remainingMsValue = 0L
         var timer: CountDownTimer? = null
         val dialog = AlertDialog.Builder(activity)
             .setTitle(title)
@@ -86,18 +86,16 @@ internal object ProfileOtpDialog {
             val cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
             confirmButton.isEnabled = false
 
-            fun remainingMs(): Long =
-                ProfileOtpTimer.remainingMs(deadlineMs, System.currentTimeMillis())
+            fun remainingMs(): Long = remainingMsValue.coerceAtLeast(0L)
 
-            fun renderCountdown() {
-                val remaining = remainingMs()
+            fun renderCountdown(remaining: Long = remainingMs()) {
                 countdownText.visibility = View.VISIBLE
-                countdownText.text = if (deadlineMs > 0L) {
+                countdownText.text = if (challenge != null) {
                     "Оставащо време: ${ProfileOtpTimer.format(remaining)}"
                 } else {
                     "Оставащо време: --:--"
                 }
-                if (deadlineMs > 0L && remaining == 0L) {
+                if (challenge != null && remaining == 0L) {
                     codeInput.isEnabled = false
                     confirmButton.isEnabled = false
                     errorText.apply {
@@ -107,15 +105,21 @@ internal object ProfileOtpDialog {
                 }
             }
 
-            fun beginCountdown(newDeadlineMs: Long) {
+            fun beginCountdown(initialRemainingMs: Long) {
                 timer?.cancel()
-                deadlineMs = newDeadlineMs
+                remainingMsValue = initialRemainingMs.coerceAtLeast(0L)
                 renderCountdown()
-                val initialRemaining = remainingMs()
-                if (deadlineMs > 0L && initialRemaining > 0L) {
-                    timer = object : CountDownTimer(initialRemaining, 250L) {
-                        override fun onTick(millisUntilFinished: Long) = renderCountdown()
-                        override fun onFinish() = renderCountdown()
+                if (remainingMsValue > 0L) {
+                    timer = object : CountDownTimer(remainingMsValue, 1_000L) {
+                        override fun onTick(millisUntilFinished: Long) {
+                            remainingMsValue = millisUntilFinished.coerceAtLeast(0L)
+                            renderCountdown(remainingMsValue)
+                        }
+
+                        override fun onFinish() {
+                            remainingMsValue = 0L
+                            renderCountdown(0L)
+                        }
                     }.start()
                 }
             }
@@ -127,6 +131,7 @@ internal object ProfileOtpDialog {
                     openedAtMs = receivedAtMs,
                     remainingSeconds = received.remainingSeconds,
                 )
+                val initialRemainingMs = ProfileOtpTimer.remainingMs(serverDeadline, receivedAtMs)
                 challenge = received
                 destinationText.text = if (received.reused) {
                     "Използвай вече изпратения код за ${received.destinationHint}."
@@ -135,8 +140,9 @@ internal object ProfileOtpDialog {
                 }
                 if (received.debugCode.isNotBlank()) codeInput.setText(received.debugCode)
                 progress.visibility = View.GONE
-                beginCountdown(serverDeadline)
-                val active = serverDeadline > receivedAtMs
+                errorText.visibility = View.GONE
+                beginCountdown(initialRemainingMs)
+                val active = initialRemainingMs > 0L
                 codeInput.isEnabled = active
                 confirmButton.isEnabled = active
                 if (!active) {
@@ -150,7 +156,8 @@ internal object ProfileOtpDialog {
 
             fun showRequestError(error: Throwable) {
                 timer?.cancel()
-                deadlineMs = 0L
+                challenge = null
+                remainingMsValue = 0L
                 progress.visibility = View.GONE
                 destinationText.text = "Кодът не можа да бъде заявен."
                 renderCountdown()
