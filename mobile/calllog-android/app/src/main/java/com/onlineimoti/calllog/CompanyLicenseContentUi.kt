@@ -82,7 +82,7 @@ internal object CompanyLicenseContentUi {
             setOnClickListener {
                 activity.startActivity(
                     Intent(activity, CompanyAccountActivity::class.java)
-                        .putExtra(CompanyAccountActivity.EXTRA_MODE, CompanyAccountActivity.MODE_REGISTER),
+                        .putExtra(CompanyAccountActivity.EXTRA_MODE, CompanyAccountActivity.MODE_CREATE_COMPANY),
                 )
             }
         }
