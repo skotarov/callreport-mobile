@@ -31,6 +31,9 @@ object PhoneNormalizer {
             countryCode.isNotBlank() &&
                 parsed.digits.startsWith(NATIONAL_PREFIX) &&
                 parsed.digits.length >= 7 -> "+$countryCode${parsed.digits.drop(1)}"
+            countryCode == "359" &&
+                parsed.digits.length == LEGACY_PHONE_KEY_LENGTH &&
+                parsed.digits.startsWith("8") -> "+$countryCode${parsed.digits}"
             else -> parsed.digits
         }
     }
