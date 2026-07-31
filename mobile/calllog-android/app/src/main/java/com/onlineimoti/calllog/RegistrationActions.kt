@@ -50,6 +50,7 @@ internal object RegistrationActions {
         activity: AppCompatActivity,
         binding: SettingsGroupRegistrationBinding,
     ) {
+        RegistrationCompanyDetailsUi.install(activity, binding)
         RegistrationCompaniesController.renderLocked(activity, binding, checking = true)
         RegistrationProfileController.refresh(activity, binding) { valid ->
             if (valid) RegistrationCompaniesController.refresh(activity, binding)
