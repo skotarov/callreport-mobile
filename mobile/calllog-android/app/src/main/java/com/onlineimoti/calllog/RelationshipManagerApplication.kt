@@ -6,5 +6,6 @@ class RelationshipManagerApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         PhoneCountrySettingsStore.load(this)
+        ProfileServerControlsUi.register(this)
     }
 }
