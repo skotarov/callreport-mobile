@@ -1,8 +1,15 @@
 package com.onlineimoti.calllog
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 
 /**
@@ -97,26 +104,22 @@ internal object RegistrationProfileController {
         phoneVerified: Boolean,
         confirmedForCurrentToken: Boolean,
     ) {
-        val profileName = userName.ifBlank { activity.getString(R.string.settings_registration_profile_license) }
+        val profileName = userName.trim()
         val email = userEmail.ifBlank { activity.getString(R.string.settings_registration_missing_email) }
         val phone = userPhone.ifBlank { activity.getString(R.string.settings_registration_missing_phone) }
-        val emailStatus = activity.getString(
-            if (emailVerified) R.string.settings_registration_contact_verified
-            else R.string.settings_registration_contact_unverified,
-        )
-        val phoneStatus = activity.getString(
-            if (phoneVerified) R.string.settings_registration_contact_verified
-            else R.string.settings_registration_contact_unverified,
-        )
+        val emailStatus = verificationStatus(activity, emailVerified)
+        val phoneStatus = verificationStatus(activity, phoneVerified)
         binding.registrationCurrentProfileText.apply {
             visibility = View.VISIBLE
-            text = activity.getString(
-                R.string.settings_registration_current_profile_details,
-                profileName,
-                email,
-                emailStatus,
-                phone,
-                phoneStatus,
+            text = profileSummary(
+                activity = activity,
+                profileName = profileName,
+                email = email,
+                emailStatus = emailStatus,
+                emailVerified = emailVerified,
+                phone = phone,
+                phoneStatus = phoneStatus,
+                phoneVerified = phoneVerified,
             )
             alpha = if (confirmedForCurrentToken) 1f else 0.82f
         }
@@ -126,6 +129,98 @@ internal object RegistrationProfileController {
             setText(R.string.settings_registration_profile_license)
             setOnClickListener { RegistrationActions.openProfileEditor(activity) }
         }
+    }
+
+    private fun verificationStatus(activity: AppCompatActivity, verified: Boolean): String {
+        val label = activity.getString(
+            if (verified) R.string.settings_registration_contact_verified
+            else R.string.settings_registration_contact_unverified,
+        )
+        return if (verified) "✓ $label" else "✕ $label"
+    }
+
+    private fun profileSummary(
+        activity: AppCompatActivity,
+        profileName: String,
+        email: String,
+        emailStatus: String,
+        emailVerified: Boolean,
+        phone: String,
+        phoneStatus: String,
+        phoneVerified: Boolean,
+    ): CharSequence {
+        val text = activity.getString(
+            R.string.settings_registration_current_profile_details,
+            profileName,
+            email,
+            emailStatus,
+            phone,
+            phoneStatus,
+        )
+        val styled = SpannableStringBuilder(text)
+        val plain = styled.toString()
+
+        var lineStart = 0
+        while (lineStart < plain.length) {
+            val lineEnd = plain.indexOf('\n', lineStart).let { if (it < 0) plain.length else it }
+            val colon = plain.indexOf(':', lineStart)
+            if (colon in lineStart until lineEnd) {
+                styled.setSpan(
+                    StyleSpan(Typeface.BOLD),
+                    lineStart,
+                    colon + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+            lineStart = lineEnd + 1
+        }
+
+        var statusSearchFrom = 0
+        statusSearchFrom = applyStatusStyle(
+            styled = styled,
+            status = emailStatus,
+            verified = emailVerified,
+            activity = activity,
+            searchFrom = statusSearchFrom,
+        )
+        applyStatusStyle(
+            styled = styled,
+            status = phoneStatus,
+            verified = phoneVerified,
+            activity = activity,
+            searchFrom = statusSearchFrom,
+        )
+        return styled
+    }
+
+    private fun applyStatusStyle(
+        styled: SpannableStringBuilder,
+        status: String,
+        verified: Boolean,
+        activity: AppCompatActivity,
+        searchFrom: Int,
+    ): Int {
+        val start = styled.toString().indexOf(status, searchFrom)
+        if (start < 0) return searchFrom
+        val end = start + status.length
+        val color = if (verified) {
+            Color.rgb(21, 128, 61)
+        } else {
+            ContextCompat.getColor(activity, R.color.calllog_error)
+        }
+        styled.setSpan(
+            ForegroundColorSpan(color),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        styled.setSpan(
+            StyleSpan(Typeface.BOLD),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        return end
     }
 
     private fun renderLoading(
