@@ -6,10 +6,12 @@ on:
     paths:
       - 'mobile/calllog-android/**'
       - '.github/workflows/play-release-readiness.yml'
+      - '.github/workflows/play-internal-release.yml'
   pull_request:
     paths:
       - 'mobile/calllog-android/**'
       - '.github/workflows/play-release-readiness.yml'
+      - '.github/workflows/play-internal-release.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,8 +19,9 @@ permissions:
 
 jobs:
   play-manifest-and-build:
-    name: Verify single Play-ready manifest and debug build
+    name: Verify Play manifest and signed release build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: mobile/calllog-android
@@ -34,9 +37,55 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
 
       - name: Verify merged app manifest
         run: bash tools/play/verify-play-manifest.sh
 
       - name: Compile debug variant
-        run: ./gradlew --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Create temporary CI upload key
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/relationship-manager-ci-upload.jks"
+          password='ci-release-key-not-for-distribution'
+          keytool -genkeypair \
+            -keystore "$keystore" \
+            -storetype PKCS12 \
+            -storepass "$password" \
+            -alias relationship-manager-ci-upload \
+            -keypass "$password" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 30 \
+            -dname 'CN=Relationship Manager CI, O=Online Imoti OOD, C=BG' \
+            -noprompt
+          printf 'storeFile=%s\nstoreSecret=%s\nkeyAlias=%s\nkeySecret=%s\n' \
+            "$keystore" \
+            "$password" \
+            'relationship-manager-ci-upload' \
+            "$password" \
+            > play-signing.properties
+          chmod 600 play-signing.properties "$keystore"
+
+      - name: Build signed release AAB
+        run: |
+          gradle --no-daemon :app:bundleRelease \
+            -PplayVersionCode=1000000001 \
+            -PplayVersionName=ci-readiness \
+            -PskipReleaseOptimization=true
+
+      - name: Verify signed release AAB
+        run: |
+          aab='app/build/outputs/bundle/release/app-release.aab'
+          test -f "$aab"
+          jarsigner -verify "$aab" > /dev/null
+
+      - name: Remove temporary CI key
+        if: always()
+        run: |
+          rm -f play-signing.properties
+          rm -f "$RUNNER_TEMP/relationship-manager-ci-upload.jks"

@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Verifies that the single Relationship Manager build is Play-ready.
+# Verifies that the single Relationship Manager build is structurally ready for Play packaging.
 set -Eeuo pipefail
 IFS=$'\n\t'
 
 readonly APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-cd "$APP_DIR"
-./gradlew --no-daemon :app:processReleaseMainManifest
+command -v gradle >/dev/null 2>&1 || {
+  echo "ERROR: Gradle is required but was not found in PATH." >&2
+  exit 1
+}
 
-manifest="$(find app/build/intermediates -type f -path '*release*' -name AndroidManifest.xml \
-  | grep -E '/(merged_manifest|merged_manifests)/' \
-  | head -n 1)"
+cd "$APP_DIR"
+gradle --no-daemon :app:processReleaseMainManifest
+
+manifest="$(find app/build/intermediates -type f -name AndroidManifest.xml \
+  | grep -E '/(merged_manifest|merged_manifests)/release/' \
+  | sort \
+  | head -n 1 || true)"
 [[ -n "$manifest" && -f "$manifest" ]] || {
   echo "ERROR: Could not locate the merged release manifest." >&2
+  find app/build/intermediates -type f -name AndroidManifest.xml -print >&2 || true
   exit 1
 }
 
