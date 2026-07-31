@@ -47,6 +47,9 @@ object MainSettingsConfigUi {
             AppFontScaleStore.NORMAL -> binding.settingsGeneralGroup.fontScaleLargerRadio.isChecked = true
             else -> binding.settingsGeneralGroup.fontScaleNormalRadio.isChecked = true
         }
+        binding.settingsGeneralGroup.nativeCountryCodeInput.setText(
+            PhoneCountrySettingsStore.load(binding.root.context),
+        )
         tests.showRmDebugBoxCheckBox.isChecked = config.showRmDebugBox
     }
 
