@@ -61,7 +61,7 @@ internal object CompanyAccountApi {
         JSONObject()
             .put("action", "request_profile_registration_otp")
             .put("email", email.trim())
-            .put("phone", phone.trim())
+            .put("phone", normalizePhoneValue(phone))
             .put("display_name", displayName.trim())
             .put("channel", channel),
     ).map(::parseChallenge)
@@ -95,7 +95,7 @@ internal object CompanyAccountApi {
         context,
         JSONObject()
             .put("action", "request_login_otp")
-            .put("identifier", identifier.trim())
+            .put("identifier", normalizeOtpValue(identifier, channel))
             .put("channel", channel),
     ).map(::parseChallenge)
 
@@ -121,7 +121,7 @@ internal object CompanyAccountApi {
         JSONObject()
             .put("action", "request_contact_otp")
             .put("channel", channel)
-            .put("value", value.trim()),
+            .put("value", normalizeOtpValue(value, channel)),
         authenticated = true,
     ).map(::parseChallenge)
 
@@ -254,6 +254,18 @@ internal object CompanyAccountApi {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun normalizeOtpValue(value: String, channel: String): String {
+        return if (channel.trim().lowercase() in setOf("sms", "phone", "text")) {
+            normalizePhoneValue(value)
+        } else {
+            value.trim()
+        }
+    }
+
+    private fun normalizePhoneValue(value: String): String {
+        return PhoneNormalizer.normalize(value).ifBlank { value.trim() }
     }
 
     private fun parseChallenge(response: JSONObject): OtpChallenge {
