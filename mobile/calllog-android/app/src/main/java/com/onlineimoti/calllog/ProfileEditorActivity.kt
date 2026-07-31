@@ -189,17 +189,18 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         if (current != null && overwriteInputs) {
             nameInput.setText(current.userName)
             emailInput.setText(current.userEmail)
-            phoneInput.setText(current.userPhone)
+            phoneInput.setText(PhoneNormalizer.display(current.userPhone))
         }
         emailStateText.text = when {
             current == null -> "Текущ имейл: зарежда се…"
             current.emailVerified -> "Текущ имейл: ${current.userEmail} · потвърден"
             else -> "Текущ имейл: ${current.userEmail.ifBlank { "няма" }} · непотвърден"
         }
+        val displayPhone = current?.userPhone?.let(PhoneNormalizer::display).orEmpty()
         phoneStateText.text = when {
             current == null -> "Текущ телефон: зарежда се…"
-            current.phoneVerified -> "Текущ телефон: ${current.userPhone} · потвърден"
-            else -> "Текущ телефон: ${current.userPhone.ifBlank { "няма" }} · непотвърден"
+            current.phoneVerified -> "Текущ телефон: ${displayPhone.ifBlank { "няма" }} · потвърден"
+            else -> "Текущ телефон: ${displayPhone.ifBlank { "няма" }} · непотвърден"
         }
         renderActions()
     }
@@ -211,7 +212,9 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         val enteredPhone = phoneInput.text?.toString().orEmpty().trim()
         val nameChanged = current != null && enteredName.isNotBlank() && enteredName != current.userName
         val emailChanged = current != null && enteredEmail.isNotBlank() && enteredEmail != current.userEmail
-        val phoneChanged = current != null && enteredPhone.isNotBlank() && enteredPhone != current.userPhone
+        val phoneChanged = current != null &&
+            enteredPhone.isNotBlank() &&
+            !PhoneNormalizer.samePhone(enteredPhone, current.userPhone)
 
         nameButton.text = if (nameChanged) "Запази името" else "Името не е променено"
         emailButton.text = if (emailChanged) "Потвърди новия имейл" else "Въведи различен имейл"
@@ -243,10 +246,15 @@ internal class ProfileEditorActivity : AppCompatActivity() {
     }
 
     private fun requestReplacement(channel: String) {
-        val value = if (channel == "email") {
+        val rawValue = if (channel == "email") {
             emailInput.text?.toString().orEmpty().trim()
         } else {
             phoneInput.text?.toString().orEmpty().trim()
+        }
+        val value = if (channel == "email") {
+            rawValue
+        } else {
+            PhoneNormalizer.normalize(rawValue).ifBlank { rawValue }
         }
         if (value.isBlank()) return
         setStatus("")
