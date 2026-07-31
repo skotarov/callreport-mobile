@@ -1,12 +1,24 @@
 package com.onlineimoti.calllog
 
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class ProfileAccessInputTest {
+    @Before
+    fun setUp() {
+        PhoneNormalizer.configureNativeCountryCode("+359")
+    }
+
+    @After
+    fun tearDown() {
+        PhoneNormalizer.configureNativeCountryCode("")
+    }
+
     @Test
     fun emailUsesEmailChannel() {
         assertEquals(
@@ -18,7 +30,7 @@ class ProfileAccessInputTest {
     @Test
     fun phoneUsesSmsChannel() {
         assertEquals(
-            ProfileAccessTarget("+359 888 123 456", "sms"),
+            ProfileAccessTarget("+359888123456", "sms"),
             ProfileAccessInput.parse("+359 888 123 456"),
         )
     }
@@ -26,7 +38,7 @@ class ProfileAccessInputTest {
     @Test
     fun localPhoneUsesSmsChannel() {
         assertEquals(
-            ProfileAccessTarget("0888123456", "sms"),
+            ProfileAccessTarget("+359888123456", "sms"),
             ProfileAccessInput.parse("0888123456"),
         )
     }
