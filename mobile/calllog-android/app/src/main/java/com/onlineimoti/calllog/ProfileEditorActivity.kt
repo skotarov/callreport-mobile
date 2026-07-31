@@ -1,6 +1,9 @@
 package com.onlineimoti.calllog
 
 import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
@@ -127,10 +130,13 @@ internal class ProfileEditorActivity : AppCompatActivity() {
             topMargin = dp(16)
         })
         statusText = TextView(this).apply {
+            visibility = View.GONE
             textSize = 15f
-            setPadding(0, dp(12), 0, 0)
+            gravity = Gravity.CENTER_VERTICAL
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
         }
-        column.addView(statusText)
+        column.addView(statusText, params(16))
 
         val errorColor = ContextCompat.getColor(this, R.color.calllog_error)
         logoutButton = MaterialButton(
@@ -218,6 +224,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
     private fun saveName() {
         val value = nameInput.text?.toString().orEmpty().trim()
         if (value.isBlank()) return
+        setStatus("")
         showLoading(true)
         executor.execute {
             val result = ProfileNameApi.update(applicationContext, value)
@@ -227,7 +234,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
                     CompanyAccountApi.applyProfileUser(applicationContext, user)
                     profile = CompanySessionStore.load(this)
                     renderProfile(overwriteInputs = true)
-                    setStatus("Името е променено.")
+                    setStatus("Името е променено.", success = true)
                 }.onFailure { error ->
                     setStatus(error.message ?: "Името не можа да бъде променено.")
                 }
@@ -242,12 +249,14 @@ internal class ProfileEditorActivity : AppCompatActivity() {
             phoneInput.text?.toString().orEmpty().trim()
         }
         if (value.isBlank()) return
+        setStatus("")
         showLoading(true)
         executor.execute {
             val result = CompanyAccountApi.requestContactOtp(applicationContext, channel, value)
             runOnUiThread {
                 showLoading(false)
                 result.onSuccess { challenge ->
+                    setStatus("Кодът е изпратен до ${challenge.destinationHint}.", success = true)
                     showOtpDialog(
                         challenge = challenge,
                         title = if (channel == "email") "Потвърди новия имейл" else "Потвърди новия телефон",
@@ -264,6 +273,7 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         code: String,
         channel: String,
     ) {
+        setStatus("")
         showLoading(true)
         executor.execute {
             val result = CompanyAccountApi.verifyContactOtp(applicationContext, challenge.id, code)
@@ -273,7 +283,10 @@ internal class ProfileEditorActivity : AppCompatActivity() {
                     CompanyAccountApi.applyProfileUser(applicationContext, user)
                     profile = CompanySessionStore.load(this)
                     renderProfile(overwriteInputs = true)
-                    setStatus(if (channel == "email") "Имейлът е сменен и потвърден." else "Телефонът е сменен и потвърден.")
+                    setStatus(
+                        if (channel == "email") "Имейлът е сменен и потвърден." else "Телефонът е сменен и потвърден.",
+                        success = true,
+                    )
                 }.onFailure { error ->
                     setStatus(error.message ?: "Кодът не е приет. Старият контакт остава непроменен.")
                 }
@@ -337,7 +350,28 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         renderActions()
     }
 
-    private fun setStatus(value: String) {
-        statusText.text = value
+    private fun setStatus(value: String, success: Boolean = false) {
+        val message = value.trim()
+        if (message.isEmpty()) {
+            statusText.text = ""
+            statusText.background = null
+            statusText.visibility = View.GONE
+            return
+        }
+
+        val density = resources.displayMetrics.density
+        fun dp(valueDp: Int) = (valueDp * density).toInt()
+        val foreground = if (success) Color.rgb(22, 101, 52) else ContextCompat.getColor(this, R.color.calllog_error)
+        val backgroundColor = if (success) Color.rgb(220, 252, 231) else Color.rgb(254, 226, 226)
+
+        statusText.text = if (success) "✓ $message" else "⚠ $message"
+        statusText.setTextColor(foreground)
+        statusText.background = GradientDrawable().apply {
+            setColor(backgroundColor)
+            setStroke(dp(1), foreground)
+            cornerRadius = dp(10).toFloat()
+        }
+        statusText.visibility = View.VISIBLE
+        statusText.announceForAccessibility(statusText.text)
     }
 }
