@@ -23,6 +23,7 @@ internal object ProfileAccessInput {
         if (value.any { it.isLetter() }) return null
         val digits = value.filter(Char::isDigit)
         if (digits.length !in 8..15) return null
-        return ProfileAccessTarget(value, "sms")
+        val normalized = PhoneNormalizer.normalize(value)
+        return ProfileAccessTarget(normalized.ifBlank { value }, "sms")
     }
 }
