@@ -138,6 +138,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("com.google.android.material:material:1.12.0")
+    implementation("com.googlecode.libphonenumber:libphonenumber:9.0.31")
     implementation("com.android.billingclient:billing-ktx:9.1.0")
     testImplementation("junit:junit:4.13.2")
 }
