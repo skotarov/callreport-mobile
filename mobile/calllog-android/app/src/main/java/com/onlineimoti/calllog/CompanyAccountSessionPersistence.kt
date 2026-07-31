@@ -25,14 +25,8 @@ internal object CompanyAccountSessionPersistence {
     }
 
     fun clear(context: Context) {
-        val current = ConfigStore.load(context)
-        ConfigStore.save(
-            context,
-            current.copy(
-                remoteEnabled = false,
-                accessToken = "",
-            ),
-        )
-        CompanySessionStore.clear(context)
+        val appContext = context.applicationContext
+        ProfileLocalAccessStore.clear(appContext)
+        CompanySessionStore.clear(appContext)
     }
 }
