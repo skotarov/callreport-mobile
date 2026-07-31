@@ -148,7 +148,6 @@ internal object HomeBusyTooltipUi {
                 setPadding(dp(activity, 14), 0, dp(activity, 14), 0)
                 background = GradientDrawable().apply {
                     setColor(Color.rgb(232, 235, 239))
-                    setStroke(dp(activity, 1), Color.rgb(203, 213, 225))
                     cornerRadius = dp(activity, 13).toFloat()
                 }
                 contentDescription = text
