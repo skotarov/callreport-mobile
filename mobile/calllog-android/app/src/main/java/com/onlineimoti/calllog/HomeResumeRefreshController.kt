@@ -39,8 +39,9 @@ internal class HomeResumeRefreshController private constructor(
         if (activity.isFinishing || activity.isDestroyed || !activity.hasWindowFocus()) return@Runnable
         if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0) return@Runnable
 
-        // A settings-side refresh may have been cancelled while Home was paused.
-        // Remove stale overlays, show a real spinner and start one fresh read.
+        // The call model may still contain rows even though Android has lost the
+        // rendered page. Force one clean rebuild from the authoritative loaders.
+        HomeRefreshRenderPolicy.requestForceRebuild()
         HomeBusyTooltipUi.clear(activity)
         HomeLoadingFooterUi.show(binding.homeCallsContainer)
         requestAuthoritativeRefresh()
@@ -95,7 +96,13 @@ internal class HomeResumeRefreshController private constructor(
             }
             return
         }
-        if (canRefreshLoadedPage()) handler.postDelayed(refreshRunnable, RESUME_REFRESH_DELAY_MS)
+        if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) == 0) {
+            // Also recover when Android removed the page while another app was in
+            // front. The user should never need to switch to Clients and back.
+            handler.post(reloadAfterSettingsRunnable)
+        } else if (canRefreshLoadedPage()) {
+            handler.postDelayed(refreshRunnable, RESUME_REFRESH_DELAY_MS)
+        }
     }
 
     override fun onActivityPaused(pausedActivity: Activity) {
