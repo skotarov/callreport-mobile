@@ -39,6 +39,12 @@ internal class MainSettingsAutoSaveController(
             callLog.homeCallPageSizeInput,
             popupFilter.contactGroupsInput,
         ).forEach { input -> input.watchTextChanges { autoSaveSettings() } }
+        binding.settingsGeneralGroup.nativeCountryCodeInput.watchTextChanges {
+            PhoneCountrySettingsStore.save(
+                binding.root.context,
+                binding.settingsGeneralGroup.nativeCountryCodeInput.text?.toString().orEmpty(),
+            )
+        }
 
         callLog.pageLoadingModeGroup.setOnCheckedChangeListener { _, checkedId ->
             PageLoadingModeStore.save(
