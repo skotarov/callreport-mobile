@@ -94,6 +94,42 @@
             android:textSize="12sp" />
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/native_country_code_title"
+            android:textColor="@color/calllog_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/nativeCountryCodeLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="@string/native_country_code_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/nativeCountryCodeInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:digits="+0123456789"
+                android:inputType="phone"
+                android:maxLength="5"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="4dp"
+            android:text="@string/native_country_code_description"
+            android:textColor="@color/calllog_muted_text"
+            android:textSize="12sp" />
+
+        <TextView
             android:id="@+id/buildVersionText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
