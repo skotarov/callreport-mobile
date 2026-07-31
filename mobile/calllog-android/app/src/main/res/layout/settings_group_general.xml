@@ -104,16 +104,18 @@
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/nativeCountryCodeLayout"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="@string/native_country_code_hint">
+            android:hint="@string/native_country_code_hint"
+            app:boxBackgroundColor="@android:color/white"
+            app:boxStrokeColor="@color/calllog_border">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/nativeCountryCodeInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
                 android:digits="+0123456789"
                 android:inputType="phone"
                 android:maxLength="5"
