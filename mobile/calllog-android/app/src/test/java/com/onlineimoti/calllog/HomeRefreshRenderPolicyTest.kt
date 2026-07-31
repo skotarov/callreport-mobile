@@ -20,10 +20,29 @@ class HomeRefreshRenderPolicyTest {
     }
 
     @Test
-    fun clearCancelsPendingRetention() {
+    fun forcesExactlyOnePageRebuild() {
+        HomeRefreshRenderPolicy.requestForceRebuild()
+
+        assertTrue(HomeRefreshRenderPolicy.consumeForceRebuild())
+        assertFalse(HomeRefreshRenderPolicy.consumeForceRebuild())
+    }
+
+    @Test
+    fun forcedRebuildCancelsOneTimeRowRetention() {
         HomeRefreshRenderPolicy.requestKeepExistingRows()
+        HomeRefreshRenderPolicy.requestForceRebuild()
+
+        assertFalse(HomeRefreshRenderPolicy.consumeKeepExistingRows())
+        assertTrue(HomeRefreshRenderPolicy.consumeForceRebuild())
+    }
+
+    @Test
+    fun clearCancelsPendingPolicies() {
+        HomeRefreshRenderPolicy.requestKeepExistingRows()
+        HomeRefreshRenderPolicy.requestForceRebuild()
         HomeRefreshRenderPolicy.clear()
 
         assertFalse(HomeRefreshRenderPolicy.consumeKeepExistingRows())
+        assertFalse(HomeRefreshRenderPolicy.consumeForceRebuild())
     }
 }
