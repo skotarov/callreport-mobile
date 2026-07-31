@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_country_code_title">Код на местната държава</string>
+    <string name="native_country_code_hint">Код на държавата, например +359</string>
+    <string name="native_country_code_description">Номерата с този код се показват с начална 0. Чуждите номера остават с +код. Остави полето празно, за да няма преобразуване.</string>
+</resources>
