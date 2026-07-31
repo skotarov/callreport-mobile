@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_country_code_title">Local phone country code</string>
+    <string name="native_country_code_hint">Country code, for example +359</string>
+    <string name="native_country_code_description">Numbers with this country code are shown with a leading 0. Foreign numbers keep their +country code. Leave empty to disable conversion.</string>
+</resources>
