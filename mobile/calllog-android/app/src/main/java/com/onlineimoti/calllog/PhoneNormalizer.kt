@@ -1,78 +1,129 @@
 package com.onlineimoti.calllog
 
+import java.net.URLDecoder
+
 object PhoneNormalizer {
-    private const val DEFAULT_COUNTRY_CODE = "359"
-    private const val BULGARIAN_NATIONAL_PREFIX = "0"
-    private const val PHONE_KEY_LENGTH = 9
+    private const val NATIONAL_PREFIX = "0"
+    private const val LEGACY_PHONE_KEY_LENGTH = 9
+
+    @Volatile
+    private var nativeCountryCodeDigits: String = ""
+
+    /** Configures which international country code is represented locally by a leading 0. */
+    fun configureNativeCountryCode(value: String) {
+        var digits = value.filter(Char::isDigit)
+        if (digits.startsWith("00")) digits = digits.drop(2)
+        nativeCountryCodeDigits = digits.takeIf { it.length in 1..3 }.orEmpty()
+    }
 
     /**
-     * Canonical display-neutral phone value. Bulgarian numbers are normalized to +359…
-     * while the lookup key below remains the single source for comparisons.
+     * Canonical value used for server requests. Explicit international numbers keep +,
+     * while a local 0-prefix is expanded only when a native country code is configured.
      */
     fun normalize(value: String): String {
-        val decoded = cleanInput(value)
-        if (decoded.isBlank()) return ""
+        val parsed = parse(value)
+        if (parsed.digits.isBlank()) return ""
 
-        val startsWithPlus = decoded.trimStart().startsWith("+")
-        var digits = decoded.filter { it.isDigit() }
-        if (digits.isBlank()) return ""
-
-        if (digits.startsWith("00") && digits.length > 4) {
-            digits = digits.drop(2)
-        }
-
+        val countryCode = nativeCountryCodeDigits
         return when {
-            digits.startsWith(DEFAULT_COUNTRY_CODE) -> "+$digits"
-            digits.startsWith(BULGARIAN_NATIONAL_PREFIX) && digits.length in 9..10 -> "+$DEFAULT_COUNTRY_CODE${digits.drop(1)}"
-            digits.length == PHONE_KEY_LENGTH && digits.startsWith("8") -> "+$DEFAULT_COUNTRY_CODE$digits"
-            startsWithPlus -> "+$digits"
-            else -> digits
+            parsed.explicitInternational -> "+${parsed.digits}"
+            countryCode.isNotBlank() && parsed.digits.startsWith(countryCode) -> "+${parsed.digits}"
+            countryCode.isNotBlank() &&
+                parsed.digits.startsWith(NATIONAL_PREFIX) &&
+                parsed.digits.length >= 7 -> "+$countryCode${parsed.digits.drop(1)}"
+            else -> parsed.digits
         }
     }
 
-    /** The internal matching/storage key: +359888… and 0888… both become 888…. */
+    /**
+     * Legacy local key retained so existing notes and Android contact links remain readable.
+     * Server/profile identity must use [normalize], not this shortened key.
+     */
     fun key(value: String): String {
-        val digits = cleanInput(value).filter { it.isDigit() }
-            .let { raw -> if (raw.startsWith("00") && raw.length > 4) raw.drop(2) else raw }
-        return if (digits.length > PHONE_KEY_LENGTH) digits.takeLast(PHONE_KEY_LENGTH) else digits
+        val digits = parse(value).digits
+        return if (digits.length > LEGACY_PHONE_KEY_LENGTH) digits.takeLast(LEGACY_PHONE_KEY_LENGTH) else digits
     }
 
     fun samePhone(left: String, right: String): Boolean {
-        val a = key(left)
-        val b = key(right)
-        return a.isNotBlank() && a == b
+        val normalizedLeft = normalize(left)
+        val normalizedRight = normalize(right)
+        if (normalizedLeft.startsWith("+") && normalizedRight.startsWith("+")) {
+            return normalizedLeft == normalizedRight
+        }
+        val leftKey = key(left)
+        val rightKey = key(right)
+        return leftKey.isNotBlank() && leftKey == rightKey
     }
 
-    /** Candidate forms used when Android providers store either 0…, 359… or +359…. */
+    /** Candidate forms used when Android providers store local or international variants. */
     fun candidates(value: String): List<String> {
         val decoded = cleanInput(value)
-        val digits = decoded.filter { it.isDigit() }
-            .let { raw -> if (raw.startsWith("00") && raw.length > 4) raw.drop(2) else raw }
-        val phoneKey = key(value)
+        val parsed = parse(value)
+        val normalized = normalize(value)
+        val countryCode = nativeCountryCodeDigits
+
         return linkedSetOf<String>().apply {
-            add(decoded.trim())
-            add(digits)
-            add(normalize(value))
-            if (phoneKey.length == PHONE_KEY_LENGTH) {
-                add(phoneKey)
-                add("$BULGARIAN_NATIONAL_PREFIX$phoneKey")
-                add("$DEFAULT_COUNTRY_CODE$phoneKey")
-                add("+$DEFAULT_COUNTRY_CODE$phoneKey")
+            add(decoded)
+            add(parsed.digits)
+            add(normalized)
+
+            if (countryCode.isNotBlank() && normalized.startsWith("+$countryCode")) {
+                val nationalNumber = normalized.removePrefix("+$countryCode")
+                if (nationalNumber.isNotBlank()) {
+                    add(nationalNumber)
+                    add("$NATIONAL_PREFIX$nationalNumber")
+                    add("$countryCode$nationalNumber")
+                    add("+$countryCode$nationalNumber")
+                    add("00$countryCode$nationalNumber")
+                }
             }
         }.filter { it.isNotBlank() }
     }
 
-    /** Friendly Bulgarian display format for mobile numbers; storage/search still use [key]. */
+    /**
+     * Replaces only the selected native country code with 0 for display.
+     * Other international numbers remain visibly foreign with their +country code.
+     */
     fun display(value: String): String {
-        val phoneKey = key(value)
-        if (phoneKey.length == PHONE_KEY_LENGTH && phoneKey.startsWith("8")) {
-            return "0${phoneKey.take(3)} ${phoneKey.drop(3).take(3)} ${phoneKey.drop(6)}"
+        val countryCode = nativeCountryCodeDigits
+        if (countryCode.isBlank()) return cleanInput(value).ifBlank { value.trim() }
+
+        val normalized = normalize(value)
+        if (!normalized.startsWith("+$countryCode")) {
+            return normalized.ifBlank { cleanInput(value) }
         }
-        return normalize(value).ifBlank { value.trim() }
+
+        val nationalNumber = normalized.removePrefix("+$countryCode")
+        if (nationalNumber.isBlank()) return normalized
+        val local = "$NATIONAL_PREFIX$nationalNumber"
+        return if (countryCode == "359" && local.length == 10) {
+            "${local.take(4)} ${local.drop(4).take(3)} ${local.drop(7)}"
+        } else {
+            local
+        }
+    }
+
+    private data class ParsedPhone(
+        val digits: String,
+        val explicitInternational: Boolean,
+    )
+
+    private fun parse(value: String): ParsedPhone {
+        val decoded = cleanInput(value)
+        var digits = decoded.filter(Char::isDigit)
+        var explicitInternational = decoded.trimStart().startsWith("+")
+        if (digits.startsWith("00") && digits.length > 4) {
+            digits = digits.drop(2)
+            explicitInternational = true
+        }
+        return ParsedPhone(digits, explicitInternational)
     }
 
     private fun cleanInput(value: String): String {
-        return android.net.Uri.decode(value.trim())
+        val protectedPlus = value.trim().replace("+", "%2B")
+        val decoded = runCatching { URLDecoder.decode(protectedPlus, "UTF-8") }
+            .getOrDefault(value.trim())
+        return decoded
             .removePrefix("tel:")
             .removePrefix("phone:")
             .removePrefix("web_search:")
