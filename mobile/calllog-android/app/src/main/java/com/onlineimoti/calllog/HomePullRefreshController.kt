@@ -18,6 +18,11 @@ internal class HomePullRefreshController(
     fun request(refresh: () -> Unit) {
         if (inProgress) complete()
         inProgress = true
+        if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) == 0) {
+            // The in-memory model can survive while Android has lost the rendered
+            // page. Force one rebuild so equal freshly-read data cannot leave it white.
+            HomeRefreshRenderPolicy.requestForceRebuild()
+        }
         handler.removeCallbacks(timeoutWatcher)
         handler.postDelayed(timeoutWatcher, REFRESH_TIMEOUT_MS)
         runCatching { refresh() }.onFailure { complete() }
