@@ -106,7 +106,8 @@ internal object RegistrationProfileController {
     ) {
         val profileName = userName.trim()
         val email = userEmail.ifBlank { activity.getString(R.string.settings_registration_missing_email) }
-        val phone = userPhone.ifBlank { activity.getString(R.string.settings_registration_missing_phone) }
+        val phone = PhoneNormalizer.display(userPhone)
+            .ifBlank { activity.getString(R.string.settings_registration_missing_phone) }
         val emailStatus = verificationStatus(activity, emailVerified)
         val phoneStatus = verificationStatus(activity, phoneVerified)
         binding.registrationCurrentProfileText.apply {
