@@ -21,6 +21,12 @@ internal class HomeTimelineCoordinator(
     private val onCrmModeChanged: () -> Unit,
 ) {
     fun renderCalls() {
+        if (HomeRefreshRenderPolicy.consumeForceRebuild()) {
+            // Android can discard the rendered page while this coordinator still
+            // holds the same call model. Clearing the model guarantees that an
+            // equal authoritative reload rebuilds the views instead of returning early.
+            contentRenderer.clearCalls()
+        }
         val callsGeneration = callsLoader.invalidate()
         val contactsGeneration = contactsLoader.invalidate()
         serverCallNotes.cancelPending()
