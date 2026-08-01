@@ -2,6 +2,7 @@ package com.onlineimoti.calllog
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
@@ -23,6 +24,9 @@ internal data class CompanyLicenseViews(
 )
 
 internal object CompanyLicenseContentUi {
+    private const val LICENSE_INFO_URL =
+        "https://onlineimoti.com/relationship-manager/admin_licenses.php"
+
     fun create(
         activity: Activity,
         launchPurchase: () -> Unit,
@@ -95,8 +99,10 @@ internal object CompanyLicenseContentUi {
         )
         box.addView(
             MaterialButton(activity).apply {
-                text = "Отвори настройки"
-                setOnClickListener { activity.startActivity(Intent(activity, MainActivity::class.java)) }
+                text = "Информация"
+                setOnClickListener {
+                    activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(LICENSE_INFO_URL)))
+                }
             },
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
