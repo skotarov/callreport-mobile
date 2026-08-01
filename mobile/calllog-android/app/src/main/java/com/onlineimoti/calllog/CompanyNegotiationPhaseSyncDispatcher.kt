@@ -11,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -41,6 +42,9 @@ internal object CompanyNegotiationPhaseSyncDispatcher {
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build(),
             )
+            // This is a durable backup for the immediate online path. A short delay
+            // prevents the backup worker from racing the request already in progress.
+            .setInitialDelay(15, TimeUnit.SECONDS)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(appContext).enqueueUniqueWork(
@@ -50,7 +54,7 @@ internal object CompanyNegotiationPhaseSyncDispatcher {
         )
 
         // The persistent worker is enough while offline. When already online, keep
-        // the existing immediate UI refresh and cancel the redundant work on success.
+        // the existing immediate UI refresh and cancel the delayed backup on success.
         if (!CallReportRemoteAccess.isReady(ConfigStore.load(appContext))) return
         val activity = context as? Activity
         val busyToken = activity?.let { HomeBusyTooltipUi.begin(it, HomeBusyWork.COMPANY_DATA) } ?: 0L
@@ -69,7 +73,10 @@ internal object CompanyNegotiationPhaseSyncDispatcher {
     }
 
     private fun workName(phone: String, companyId: String, accountScope: String): String {
-        val phoneKey = HomeCallPageLoader.noteKey(phone).ifBlank { phone.hashCode().toString() }
-        return "$WORK_PREFIX:${accountScope.take(12)}:$phoneKey:${companyId.hashCode()}"
+        val phoneKey = HomeCallPageLoader.noteKey(phone).ifBlank { phone.trim() }
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest("$accountScope|$phoneKey|$companyId".toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
+        return "$WORK_PREFIX:$digest"
     }
 }
