@@ -2,22 +2,34 @@ package com.onlineimoti.calllog
 
 import android.content.Context
 
-/** Persists the verified server URL, rotating token and local profile snapshot together. */
+/** Persists authenticated profile access without treating company membership changes as a new login. */
 internal object CompanyAccountSessionPersistence {
     fun apply(context: Context, session: CompanyAccountApi.Session) {
-        val current = ConfigStore.load(context)
+        val appContext = context.applicationContext
+        val current = ConfigStore.load(appContext)
         val serverUrl = current.baseUrl.trim()
+        val incomingToken = session.accessToken.trim()
         require(serverUrl.isNotBlank()) { "Липсва сървърен URL." }
-        require(session.accessToken.isNotBlank()) { "Липсва access token." }
+        require(incomingToken.isNotBlank()) { "Липсва access token." }
+
+        val sameAuthenticatedSession = current.accessToken.trim() == incomingToken &&
+            CompanySessionStore.isCurrent(appContext, incomingToken)
+
         ConfigStore.save(
-            context,
+            appContext,
             current.copy(
                 remoteEnabled = true,
                 baseUrl = serverUrl,
-                accessToken = session.accessToken,
+                accessToken = incomingToken,
             ),
         )
-        CompanySessionStore.save(context, session)
+
+        if (sameAuthenticatedSession) {
+            CompanySessionStore.updateProfile(appContext, session.user())
+            CrmContactSyncStore.refreshAsync(appContext, force = true)
+        } else {
+            CompanySessionStore.save(appContext, session)
+        }
     }
 
     fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
