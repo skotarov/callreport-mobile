@@ -12,21 +12,27 @@ class AccountMutationWorker(
     workerParameters: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParameters) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val config = ConfigStore.load(applicationContext)
-        if (config.baseUrl.isBlank() || config.accessToken.isBlank()) {
-            return@withContext Result.success()
-        }
-
         try {
             while (true) {
                 val batch = AccountMutationOutbox.takeCurrentBatch(applicationContext)
                 if (batch.isEmpty()) break
 
                 batch.forEach { operation ->
+                    // Never send an operation through a different signed-in profile.
+                    // The operation remains durable and will be scheduled again when
+                    // its original profile becomes active.
+                    if (operation.accountScope != OfflineAccountScope.current(applicationContext)) {
+                        return@withContext Result.success()
+                    }
+                    val operationConfig = ConfigStore.load(applicationContext)
+                    if (operationConfig.baseUrl.isBlank() || operationConfig.accessToken.isBlank()) {
+                        return@withContext Result.success()
+                    }
+
                     when (operation.kind) {
                         AccountMutationOutbox.Kind.PROFILE_NAME -> {
                             val serverUser = ProfileNameApi.updateRemote(
-                                applicationContext,
+                                operationConfig,
                                 operation.name,
                             ).getOrThrow()
                             val removed = AccountMutationOutbox.acknowledgeConfirmed(
@@ -42,7 +48,7 @@ class AccountMutationWorker(
 
                         AccountMutationOutbox.Kind.COMPANY_UPDATE -> {
                             CompanyManagementApi.update(
-                                config = ConfigStore.load(applicationContext),
+                                config = operationConfig,
                                 companyId = operation.companyId,
                                 name = operation.name,
                                 eik = operation.eik,
