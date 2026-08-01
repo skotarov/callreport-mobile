@@ -55,6 +55,16 @@ internal object CompanySessionStore {
             .apply()
     }
 
+    /** Updates only the locally visible name while preserving verified contact data. */
+    fun updateUserName(context: Context, userName: String) {
+        val safeName = userName.trim()
+        if (safeName.isBlank()) return
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_USER_NAME, safeName)
+            .commit()
+    }
+
     /** Returns a profile only when the saved access token still owns the session. */
     fun load(context: Context): Snapshot? {
         val appContext = context.applicationContext

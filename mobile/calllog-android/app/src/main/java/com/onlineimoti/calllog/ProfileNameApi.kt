@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import android.content.Context
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -8,11 +9,32 @@ import java.net.URL
 internal object ProfileNameApi {
     private const val AUTH_PATH = "/relationship-manager/api/auth.php"
 
-    fun update(context: android.content.Context, displayName: String): Result<CompanyAccountApi.ProfileUser> = runCatching {
+    /**
+     * Keeps the existing UI contract while making the save local-first. The durable
+     * outbox performs the actual HTTP request when a network is available.
+     */
+    fun update(context: Context, displayName: String): Result<CompanyAccountApi.ProfileUser> = runCatching {
+        val appContext = context.applicationContext
+        AccountMutationOutbox.enqueueProfileName(appContext, displayName).getOrThrow()
+        val profile = CompanySessionStore.load(appContext)
+            ?: throw IllegalStateException("Профилът не можа да бъде записан локално.")
+        CompanyAccountApi.ProfileUser(
+            name = profile.userName,
+            email = profile.userEmail,
+            phone = profile.userPhone,
+            emailVerified = profile.emailVerified,
+            phoneVerified = profile.phoneVerified,
+        )
+    }
+
+    /** Called only by [AccountMutationWorker] after its network constraint is met. */
+    internal fun updateRemote(
+        config: AppConfig,
+        displayName: String,
+    ): Result<CompanyAccountApi.ProfileUser> = runCatching {
         val safeName = displayName.trim()
         require(safeName.isNotBlank()) { "Въведи име." }
         require(safeName.length <= 120) { "Името е прекалено дълго." }
-        val config = ConfigStore.load(context.applicationContext)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
         require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
 
