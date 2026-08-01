@@ -66,7 +66,27 @@ internal object InvitationCenterApi {
             .put("action", "accept")
             .put("invitation_id", invitationId.trim())
             .put("device_name", android.os.Build.MODEL.take(120)),
-    ).map(::parseSession)
+    ).map(::parseSession).mapCatching { joinedSession ->
+        activateRotatedSession(context.applicationContext, joinedSession)
+        joinedSession
+    }
+
+    private fun activateRotatedSession(
+        context: Context,
+        joinedSession: CompanyAccountApi.Session,
+    ) {
+        CompanyAccountApi.applySession(context, joinedSession)
+        val persistedToken = ConfigStore.load(context).accessToken.trim()
+        check(persistedToken == joinedSession.accessToken.trim()) {
+            "Новият access token не беше записан в приложението."
+        }
+
+        val verifiedSession = CompanyAccountApi.refreshProfile(context).getOrThrow()
+        CompanyAccountApi.applySession(context, verifiedSession)
+        check(ConfigStore.load(context).accessToken.trim() == persistedToken) {
+            "Новият access token се промени при обновяването на профила."
+        }
+    }
 
     private fun request(context: Context, payload: JSONObject): Result<JSONObject> = runCatching {
         val config = ConfigStore.load(context)
@@ -132,7 +152,8 @@ internal object InvitationCenterApi {
         val accessToken = response.optString("access_token").trim()
         require(accessToken.isNotBlank()) { "Сървърът не върна валиден access token." }
         val user = response.optJSONObject("user")
-        val organization = response.optJSONObject("organization")
+        val organization = response.optJSONObject("joined_organization")
+            ?: response.optJSONObject("organization")
         return CompanyAccountApi.Session(
             accessToken = accessToken,
             userName = user?.optString("display_name").orEmpty().trim(),
