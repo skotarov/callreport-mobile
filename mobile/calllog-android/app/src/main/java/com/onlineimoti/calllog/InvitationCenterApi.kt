@@ -10,8 +10,6 @@ import java.nio.charset.StandardCharsets
 /** API for automatic invitation inboxes and company pending invitations. */
 internal object InvitationCenterApi {
     private const val PATH = "/relationship-manager/api/invitations.php"
-    private const val HANDOFF_PREFS = "relationship_manager_invitation_handoff"
-    private const val KEY_PENDING_ROTATION_ID = "pending_rotation_id"
 
     data class Invitation(
         val id: String,
@@ -24,11 +22,6 @@ internal object InvitationCenterApi {
         val expiresAtMs: Long,
         val alreadyMember: Boolean,
         val currentRole: String,
-    )
-
-    private data class Acceptance(
-        val session: CompanyAccountApi.Session,
-        val rotationId: String,
     )
 
     fun listReceived(context: Context): Result<List<Invitation>> = request(
@@ -73,96 +66,26 @@ internal object InvitationCenterApi {
             .put("action", "accept")
             .put("invitation_id", invitationId.trim())
             .put("device_name", android.os.Build.MODEL.take(120)),
-    ).map { response ->
-        val rotationId = response.optString("rotation_id").trim()
-        require(rotationId.isNotBlank()) { "Сървърът не върна потвърждение за смяната на токена." }
-        Acceptance(parseSession(response), rotationId)
-    }.mapCatching { acceptance ->
-        activateRotatedSession(context.applicationContext, acceptance)
-    }
-
-    private fun activateRotatedSession(
-        context: Context,
-        acceptance: Acceptance,
-    ): CompanyAccountApi.Session {
-        val previousConfig = ConfigStore.load(context)
-        val previousSnapshot = CompanySessionStore.loadStored(context)
-        val previousSession = previousSnapshot?.let { snapshot ->
-            CompanyAccountApi.Session(
-                accessToken = previousConfig.accessToken,
-                userName = snapshot.userName,
-                organizationName = snapshot.organizationName,
-                organizationId = snapshot.organizationId,
-                userEmail = snapshot.userEmail,
-                userPhone = snapshot.userPhone,
-                emailVerified = snapshot.emailVerified,
-                phoneVerified = snapshot.phoneVerified,
-            )
+    ).map(::parseSession).mapCatching { acceptedSession ->
+        val appContext = context.applicationContext
+        val currentToken = ConfigStore.load(appContext).accessToken.trim()
+        check(currentToken.isNotBlank()) { "Липсва активен профилен токън." }
+        check(acceptedSession.accessToken.trim() == currentToken) {
+            "Сървърът не запази текущата профилна сесия."
         }
 
-        savePendingRotation(context, acceptance.rotationId)
-        try {
-            CompanyAccountApi.applySession(context, acceptance.session)
-            val newToken = acceptance.session.accessToken.trim()
-            check(ConfigStore.load(context).accessToken.trim() == newToken) {
-                "Новият access token не беше записан в приложението."
-            }
-            check(CompanySessionStore.isCurrent(context, newToken)) {
-                "Профилната сесия не беше свързана с новия access token."
-            }
-
-            val verified = CompanyAccountApi.refreshProfile(context).getOrThrow()
-            val activeSession = verified.copy(
-                organizationName = acceptance.session.organizationName.ifBlank { verified.organizationName },
-                organizationId = acceptance.session.organizationId.ifBlank { verified.organizationId },
-            )
-            CompanyAccountApi.applySession(context, activeSession)
-
-            val confirmed = requestRaw(
-                context,
-                JSONObject()
-                    .put("action", "confirm_rotation")
-                    .put("rotation_id", acceptance.rotationId),
-            ).isSuccess
-            if (confirmed) clearPendingRotation(context)
-            return activeSession
-        } catch (error: Throwable) {
-            clearPendingRotation(context)
-            if (previousSession != null && previousSession.accessToken.isNotBlank()) {
-                runCatching { CompanyAccountApi.applySession(context, previousSession) }
-                runCatching {
-                    requestRaw(
-                        context,
-                        JSONObject()
-                            .put("action", "abort_rotation")
-                            .put("rotation_id", acceptance.rotationId),
-                    ).getOrThrow()
-                }
-            }
-            throw error
-        }
+        CompanyAccountApi.applySession(appContext, acceptedSession)
+        val verified = CompanyAccountApi.refreshProfile(appContext).getOrThrow()
+        val activeSession = verified.copy(
+            accessToken = currentToken,
+            organizationName = acceptedSession.organizationName.ifBlank { verified.organizationName },
+            organizationId = acceptedSession.organizationId.ifBlank { verified.organizationId },
+        )
+        CompanyAccountApi.applySession(appContext, activeSession)
+        activeSession
     }
 
-    private fun request(context: Context, payload: JSONObject): Result<JSONObject> {
-        if (payload.optString("action") !in setOf("confirm_rotation", "abort_rotation")) {
-            confirmPendingRotation(context.applicationContext)
-        }
-        return requestRaw(context, payload)
-    }
-
-    private fun confirmPendingRotation(context: Context) {
-        val rotationId = pendingRotationId(context)
-        if (rotationId.isBlank()) return
-        val confirmed = requestRaw(
-            context,
-            JSONObject()
-                .put("action", "confirm_rotation")
-                .put("rotation_id", rotationId),
-        ).isSuccess
-        if (confirmed) clearPendingRotation(context)
-    }
-
-    private fun requestRaw(context: Context, payload: JSONObject): Result<JSONObject> = runCatching {
+    private fun request(context: Context, payload: JSONObject): Result<JSONObject> = runCatching {
         val config = ConfigStore.load(context)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
         require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
@@ -192,27 +115,6 @@ internal object InvitationCenterApi {
         } finally {
             connection.disconnect()
         }
-    }
-
-    private fun savePendingRotation(context: Context, rotationId: String) {
-        val saved = context.getSharedPreferences(HANDOFF_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_PENDING_ROTATION_ID, rotationId.trim())
-            .commit()
-        check(saved) { "Смяната на access token не можа да бъде запазена." }
-    }
-
-    private fun pendingRotationId(context: Context): String =
-        context.getSharedPreferences(HANDOFF_PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_PENDING_ROTATION_ID, "")
-            .orEmpty()
-            .trim()
-
-    private fun clearPendingRotation(context: Context) {
-        context.getSharedPreferences(HANDOFF_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_PENDING_ROTATION_ID)
-            .apply()
     }
 
     private fun parseList(response: JSONObject): List<Invitation> {
