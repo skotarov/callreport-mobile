@@ -13,6 +13,29 @@ internal object CompanyManagementApi {
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 30_000
 
+    fun update(
+        config: AppConfig,
+        companyId: String,
+        name: String,
+        eik: String,
+    ) {
+        val response = request(
+            config,
+            JSONObject()
+                .put("action", "update")
+                .put("company_id", companyId.trim())
+                .put("name", name.trim())
+                .put("eik", eik.trim()),
+        )
+        if (!response.optBoolean("updated", false)) {
+            throw IOException("Server did not confirm the company update.")
+        }
+        val company = response.optJSONObject("company")
+        if (company == null || company.optString("id").trim() != companyId.trim()) {
+            throw IOException("Server returned invalid company data after update.")
+        }
+    }
+
     fun delete(config: AppConfig, companyId: String): String {
         val response = request(
             config,
