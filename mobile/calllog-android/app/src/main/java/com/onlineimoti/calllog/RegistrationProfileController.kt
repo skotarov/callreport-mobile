@@ -108,8 +108,8 @@ internal object RegistrationProfileController {
         val email = userEmail.ifBlank { activity.getString(R.string.settings_registration_missing_email) }
         val phone = PhoneNormalizer.display(userPhone)
             .ifBlank { activity.getString(R.string.settings_registration_missing_phone) }
-        val emailStatus = verificationStatus(activity, emailVerified)
-        val phoneStatus = verificationStatus(activity, phoneVerified)
+        val emailStatus = verificationStatus(emailVerified)
+        val phoneStatus = verificationStatus(phoneVerified)
         binding.registrationCurrentProfileText.apply {
             visibility = View.VISIBLE
             text = profileSummary(
@@ -127,18 +127,12 @@ internal object RegistrationProfileController {
         binding.registrationEditProfileButton.apply {
             visibility = View.VISIBLE
             isEnabled = true
-            setText(R.string.settings_registration_profile_license)
+            setText(R.string.settings_registration_edit_profile)
             setOnClickListener { RegistrationActions.openProfileEditor(activity) }
         }
     }
 
-    private fun verificationStatus(activity: AppCompatActivity, verified: Boolean): String {
-        val label = activity.getString(
-            if (verified) R.string.settings_registration_contact_verified
-            else R.string.settings_registration_contact_unverified,
-        )
-        return if (verified) "✓ $label" else "✕ $label"
-    }
+    private fun verificationStatus(verified: Boolean): String = if (verified) "✓" else "✕"
 
     private fun profileSummary(
         activity: AppCompatActivity,
