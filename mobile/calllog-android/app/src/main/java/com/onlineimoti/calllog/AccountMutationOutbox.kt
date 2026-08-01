@@ -130,6 +130,42 @@ internal object AccountMutationOutbox {
         return synchronized(lock) { readLocked(context).count { it.accountScope == scope } }
     }
 
+    fun pendingProfileName(context: Context): String? {
+        val scope = currentScope(context.applicationContext)
+        if (scope.isBlank()) return null
+        return synchronized(lock) {
+            readLocked(context)
+                .asSequence()
+                .filter { it.accountScope == scope && it.kind == Kind.PROFILE_NAME }
+                .maxByOrNull { it.updatedAtMs }
+                ?.name
+        }
+    }
+
+    /** Keeps optimistic company metadata visible when an older server refresh arrives first. */
+    fun applyPendingCompanyOverrides(
+        context: Context,
+        companies: List<CallReportTopicCompany>,
+    ): List<CallReportTopicCompany> {
+        val scope = currentScope(context.applicationContext)
+        if (scope.isBlank() || companies.isEmpty()) return companies
+        val pending = synchronized(lock) {
+            readLocked(context)
+                .asSequence()
+                .filter { it.accountScope == scope && it.kind == Kind.COMPANY_UPDATE }
+                .associateBy { it.companyId }
+        }
+        if (pending.isEmpty()) return companies
+        return companies.map { company ->
+            val operation = pending[company.id] ?: return@map company
+            company.copy(
+                name = operation.name,
+                eik = operation.eik,
+                updatedAtMs = maxOf(company.updatedAtMs, operation.updatedAtMs),
+            )
+        }.sortedBy { it.name.lowercase() }
+    }
+
     fun lastFailure(context: Context): String = context.applicationContext
         .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         .getString(KEY_LAST_FAILURE, "")
