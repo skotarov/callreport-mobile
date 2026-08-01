@@ -40,7 +40,11 @@ internal object CallReportTopicCompaniesRepository {
 
     /** Replaces the account-scoped cache with the current authorized firms. */
     fun refresh(context: Context, config: AppConfig): TopicCompaniesLoadResult {
-        val companies = CallReportTopicCompaniesClient.fetch(config)
+        val serverCompanies = CallReportTopicCompaniesClient.fetch(config)
+        val companies = AccountMutationOutbox.applyPendingCompanyOverrides(
+            context.applicationContext,
+            serverCompanies,
+        )
         val updatedAtMs = System.currentTimeMillis()
         CallReportTopicCompaniesCache.save(context, config, companies, updatedAtMs)
         return TopicCompaniesLoadResult(companies, TopicCompaniesSource.ONLINE, updatedAtMs)
@@ -83,6 +87,40 @@ internal object CallReportTopicCompaniesCache {
             .putLong(KEY_UPDATED_AT, updatedAtMs)
             .putString(KEY_COMPANIES, payload.toString())
             .commit()
+    }
+
+    /** Optimistically updates an already cached company without changing its role. */
+    fun updateCompany(
+        context: Context,
+        config: AppConfig,
+        companyId: String,
+        name: String,
+        eik: String,
+    ): Boolean {
+        val targetId = companyId.trim()
+        val safeName = name.trim()
+        if (targetId.isBlank() || safeName.isBlank()) return false
+        val cached = read(context.applicationContext, config) ?: return false
+        var found = false
+        val now = System.currentTimeMillis()
+        val companies = cached.companies.map { company ->
+            if (company.id != targetId) return@map company
+            found = true
+            company.copy(
+                name = safeName,
+                eik = eik.trim(),
+                updatedAtMs = maxOf(company.updatedAtMs, now),
+            )
+        }
+        if (found) {
+            save(
+                context = context.applicationContext,
+                config = config,
+                companies = companies,
+                updatedAtMs = now,
+            )
+        }
+        return found
     }
 
     fun read(context: Context, config: AppConfig): CachedTopicCompanies? {
