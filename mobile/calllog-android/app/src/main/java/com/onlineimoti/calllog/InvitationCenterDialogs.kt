@@ -89,10 +89,9 @@ internal object InvitationCenterDialogs {
                         activity.runOnUiThread {
                             if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                             result.onSuccess { session ->
-                                CompanyAccountApi.applySession(activity.applicationContext, session)
                                 Toast.makeText(
                                     activity,
-                                    "Присъедини се към ${session.organizationName.ifBlank { "фирмата" }}.",
+                                    "Успешно присъединяване към ${session.organizationName.ifBlank { "фирмата" }}. Токънът е сменен автоматично.",
                                     Toast.LENGTH_LONG,
                                 ).show()
                                 activity.recreate()
