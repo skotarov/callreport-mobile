@@ -84,22 +84,20 @@ internal object CompanyEditDialog {
                         nameInput.isEnabled = false
                         eikInput.isEnabled = false
                         Thread {
-                            val result = runCatching {
-                                CompanyManagementApi.update(
-                                    ConfigStore.load(activity.applicationContext),
-                                    company.id,
-                                    name,
-                                    eik,
-                                )
-                            }
+                            val result = AccountMutationOutbox.enqueueCompanyUpdate(
+                                context = activity.applicationContext,
+                                companyId = company.id,
+                                name = name,
+                                eik = eik,
+                            )
                             activity.runOnUiThread {
                                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                                 result.onSuccess {
                                     dialog.dismiss()
                                     Toast.makeText(
                                         activity,
-                                        "Данните на фирмата са обновени.",
-                                        Toast.LENGTH_SHORT,
+                                        "Данните са записани. При нужда ще се синхронизират автоматично.",
+                                        Toast.LENGTH_LONG,
                                     ).show()
                                     onSaved()
                                 }.onFailure { error ->
