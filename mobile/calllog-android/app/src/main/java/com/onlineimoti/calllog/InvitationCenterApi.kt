@@ -20,6 +20,8 @@ internal object InvitationCenterApi {
         val role: String,
         val createdAtMs: Long,
         val expiresAtMs: Long,
+        val alreadyMember: Boolean,
+        val currentRole: String,
     )
 
     fun listReceived(context: Context): Result<List<Invitation>> = request(
@@ -121,6 +123,8 @@ internal object InvitationCenterApi {
             role = item.optString("role").trim(),
             createdAtMs = item.optLong("created_at_ms", 0L),
             expiresAtMs = item.optLong("expires_at_ms", 0L),
+            alreadyMember = item.optBoolean("already_member", false),
+            currentRole = item.optString("current_role").trim(),
         )
     }
 
