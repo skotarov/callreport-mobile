@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_registration_edit_profile">Промени</string>
+    <string name="settings_registration_refresh">Обнови</string>
 </resources>
