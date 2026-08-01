@@ -29,13 +29,12 @@ internal object ProfileNameApi {
 
     /** Called only by [AccountMutationWorker] after its network constraint is met. */
     internal fun updateRemote(
-        context: Context,
+        config: AppConfig,
         displayName: String,
     ): Result<CompanyAccountApi.ProfileUser> = runCatching {
         val safeName = displayName.trim()
         require(safeName.isNotBlank()) { "Въведи име." }
         require(safeName.length <= 120) { "Името е прекалено дълго." }
-        val config = ConfigStore.load(context.applicationContext)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
         require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
 
