@@ -9,7 +9,7 @@ import com.google.android.material.button.MaterialButton
 import com.onlineimoti.calllog.databinding.SettingsGroupRegistrationBinding
 import java.util.WeakHashMap
 
-/** Makes company identity readable inline and removes the owner-only information modal entry point. */
+/** Makes company identity readable inline and keeps rare destructive actions unobtrusive. */
 internal object RegistrationCompanyDetailsUi {
     private val installedLists = WeakHashMap<LinearLayout, Boolean>()
 
@@ -56,6 +56,7 @@ internal object RegistrationCompanyDetailsUi {
             details.setPadding(0, dp(activity, 5), 0, 0)
             details.setLineSpacing(0f, 1.12f)
             removeInformationButtons(activity, row)
+            compactDeleteButton(activity, row)
         }
     }
 
@@ -67,6 +68,26 @@ internal object RegistrationCompanyDetailsUi {
                 group.removeViewAt(index)
             } else if (child is ViewGroup) {
                 removeInformationButtons(activity, child)
+            }
+        }
+    }
+
+    private fun compactDeleteButton(activity: AppCompatActivity, group: ViewGroup) {
+        val label = activity.getString(R.string.settings_registration_company_delete)
+        for (index in 0 until group.childCount) {
+            val child = group.getChildAt(index)
+            if (child is MaterialButton && child.text?.toString() == label) {
+                child.layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { marginStart = dp(activity, 6) }
+                child.minimumWidth = 0
+                child.minimumHeight = dp(activity, 36)
+                child.textSize = 12f
+                child.setPadding(dp(activity, 10), 0, dp(activity, 10), 0)
+                child.requestLayout()
+            } else if (child is ViewGroup) {
+                compactDeleteButton(activity, child)
             }
         }
     }
