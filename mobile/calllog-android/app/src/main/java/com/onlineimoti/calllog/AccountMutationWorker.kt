@@ -25,7 +25,7 @@ class AccountMutationWorker(
                 batch.forEach { operation ->
                     when (operation.kind) {
                         AccountMutationOutbox.Kind.PROFILE_NAME -> {
-                            val serverUser = ProfileNameApi.update(
+                            val serverUser = ProfileNameApi.updateRemote(
                                 applicationContext,
                                 operation.name,
                             ).getOrThrow()
