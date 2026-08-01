@@ -134,10 +134,19 @@ internal object RegistrationCompaniesController {
                 gravity = Gravity.END
             }
             ownerActions.addView(MaterialButton(activity).apply {
+                text = "Редактирай"
+                isAllCaps = false
+                setOnClickListener {
+                    CompanyEditDialog.show(activity, company) {
+                        refresh(activity, binding)
+                    }
+                }
+            }, actionParams(activity))
+            ownerActions.addView(MaterialButton(activity).apply {
                 setText(R.string.settings_registration_company_information)
                 isAllCaps = false
                 setOnClickListener { showCompanyInfo(activity, company) }
-            }, actionParams(activity))
+            }, actionParams(activity, 6))
             ownerActions.addView(MaterialButton(activity).apply {
                 setText(R.string.settings_registration_company_delete)
                 isAllCaps = false
