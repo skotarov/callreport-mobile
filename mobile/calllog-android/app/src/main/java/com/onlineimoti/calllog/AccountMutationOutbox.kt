@@ -32,7 +32,7 @@ internal object AccountMutationOutbox {
         COMPANY_UPDATE("company_update");
 
         companion object {
-            fun fromWireName(value: String): Kind? = entries.firstOrNull { it.wireName == value }
+            fun fromWireName(value: String): Kind? = values().firstOrNull { it.wireName == value }
         }
     }
 
@@ -54,7 +54,6 @@ internal object AccountMutationOutbox {
         val scope = currentScope(appContext)
         require(scope.isNotBlank()) { "Първо влез в профила." }
 
-        CompanySessionStore.updateUserName(appContext, safeName)
         enqueue(
             appContext,
             Operation(
@@ -65,6 +64,7 @@ internal object AccountMutationOutbox {
                 updatedAtMs = System.currentTimeMillis(),
             ),
         )
+        CompanySessionStore.updateUserName(appContext, safeName)
     }
 
     fun enqueueCompanyUpdate(
@@ -84,14 +84,6 @@ internal object AccountMutationOutbox {
         val scope = currentScope(appContext)
         require(scope.isNotBlank()) { "Първо влез в профила." }
 
-        val config = ConfigStore.load(appContext)
-        CallReportTopicCompaniesCache.updateCompany(
-            context = appContext,
-            config = config,
-            companyId = safeCompanyId,
-            name = safeName,
-            eik = safeEik,
-        )
         enqueue(
             appContext,
             Operation(
@@ -103,6 +95,13 @@ internal object AccountMutationOutbox {
                 eik = safeEik,
                 updatedAtMs = System.currentTimeMillis(),
             ),
+        )
+        CallReportTopicCompaniesCache.updateCompany(
+            context = appContext,
+            config = ConfigStore.load(appContext),
+            companyId = safeCompanyId,
+            name = safeName,
+            eik = safeEik,
         )
     }
 
@@ -150,12 +149,24 @@ internal object AccountMutationOutbox {
         }
     }
 
-    internal fun acknowledge(context: Context, operationIds: Collection<String>) {
-        if (operationIds.isEmpty()) return
-        val ids = operationIds.toSet()
+    /**
+     * Removes only the revision that was actually confirmed. If the user saved a
+     * newer value while the request was in flight, that newer operation stays queued.
+     */
+    internal fun acknowledgeConfirmed(context: Context, confirmed: Operation): Boolean {
+        var removed = false
         synchronized(lock) {
-            writeLocked(context, readLocked(context).filterNot { it.id in ids })
+            val updated = readLocked(context).filterNot { current ->
+                val shouldRemove = current.id == confirmed.id &&
+                    current.updatedAtMs <= confirmed.updatedAtMs
+                if (shouldRemove) removed = true
+                shouldRemove
+            }
+            check(writeLocked(context, updated)) {
+                "Потвърдената промяна не можа да бъде премахната от локалната опашка."
+            }
         }
+        return removed
     }
 
     internal fun recordFailure(context: Context, message: String) {
@@ -172,9 +183,19 @@ internal object AccountMutationOutbox {
             .commit()
     }
 
-    private fun enqueue(context: Context, operation: Operation) {
+    private fun enqueue(context: Context, requested: Operation) {
         synchronized(lock) {
-            val operations = readLocked(context)
+            val existing = readLocked(context)
+            val previousRevision = existing
+                .firstOrNull { it.id == requested.id }
+                ?.updatedAtMs
+                ?: 0L
+            // A strictly increasing revision prevents an in-flight confirmation from
+            // deleting a newer edit that happened within the same millisecond.
+            val operation = requested.copy(
+                updatedAtMs = maxOf(requested.updatedAtMs, previousRevision + 1L),
+            )
+            val operations = existing
                 .filterNot { it.id == operation.id }
                 .toMutableList()
             operations += operation
