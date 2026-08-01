@@ -2,7 +2,7 @@ package com.onlineimoti.calllog
 
 import android.content.Context
 
-/** Persists authenticated profile access across token rotation and membership changes. */
+/** Persists authenticated profile access and the latest joined-company context. */
 internal object CompanyAccountSessionPersistence {
     fun apply(context: Context, session: CompanyAccountApi.Session) {
         val appContext = context.applicationContext
@@ -16,8 +16,6 @@ internal object CompanyAccountSessionPersistence {
             CompanySessionStore.loadStored(appContext),
             session.copy(accessToken = incomingToken),
         )
-        val sameAuthenticatedSession = current.accessToken.trim() == incomingToken &&
-            CompanySessionStore.isCurrent(appContext, incomingToken)
 
         ConfigStore.save(
             appContext,
@@ -27,13 +25,7 @@ internal object CompanyAccountSessionPersistence {
                 accessToken = incomingToken,
             ),
         )
-
-        if (sameAuthenticatedSession) {
-            CompanySessionStore.updateProfile(appContext, mergedSession.user())
-            CrmContactSyncStore.refreshAsync(appContext, force = true)
-        } else {
-            CompanySessionStore.save(appContext, mergedSession)
-        }
+        CompanySessionStore.save(appContext, mergedSession)
     }
 
     fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
