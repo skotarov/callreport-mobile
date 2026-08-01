@@ -26,6 +26,13 @@ internal object CompanyAccountSessionPersistence {
             ),
         )
         CompanySessionStore.save(appContext, mergedSession)
+
+        // A server refresh may still contain the old value while an offline edit is
+        // queued. Keep the optimistic local value visible until the worker confirms it.
+        AccountMutationOutbox.pendingProfileName(appContext)?.let { pendingName ->
+            CompanySessionStore.updateUserName(appContext, pendingName)
+        }
+        AccountMutationOutbox.schedulePending(appContext, replace = true)
     }
 
     fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
