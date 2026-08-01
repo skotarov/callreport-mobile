@@ -45,14 +45,6 @@
             </LinearLayout>
 
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/settings_profile_companies_description"
-                android:textColor="@color/calllog_muted_text"
-                android:textSize="14sp" />
-
-            <TextView
                 android:id="@+id/registrationCurrentProfileText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
