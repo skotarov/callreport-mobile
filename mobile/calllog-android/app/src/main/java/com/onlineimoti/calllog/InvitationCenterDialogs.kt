@@ -91,7 +91,7 @@ internal object InvitationCenterDialogs {
                             result.onSuccess { session ->
                                 Toast.makeText(
                                     activity,
-                                    "Успешно присъединяване към ${session.organizationName.ifBlank { "фирмата" }}. Токънът е сменен автоматично.",
+                                    "Успешно присъединяване към ${session.organizationName.ifBlank { "фирмата" }}. Профилът остава активен.",
                                     Toast.LENGTH_LONG,
                                 ).show()
                                 activity.recreate()
