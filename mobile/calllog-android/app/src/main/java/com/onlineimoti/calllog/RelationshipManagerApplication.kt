@@ -7,5 +7,6 @@ class RelationshipManagerApplication : Application() {
         super.onCreate()
         PhoneCountrySettingsStore.load(this)
         ProfileServerControlsUi.register(this)
+        AccountMutationOutbox.schedulePending(this)
     }
 }
