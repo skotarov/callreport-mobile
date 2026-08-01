@@ -259,6 +259,7 @@ internal object InvitationCenterDialogs {
             setTextColor(ContextCompat.getColor(activity, R.color.calllog_muted_text))
             setPadding(0, dp(activity, 4), 0, 0)
         })
+        InvitationMembershipIndicator.add(activity, row, invitation)
         val action = MaterialButton(activity).apply {
             text = if (incoming) "Присъедини се" else "Откажи"
             isAllCaps = false
