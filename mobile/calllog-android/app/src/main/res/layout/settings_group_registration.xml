@@ -66,9 +66,9 @@
                 android:layout_marginTop="8dp"
                 android:gravity="center_vertical"
                 android:minHeight="48dp"
-                android:text="@string/settings_registration_profile_license"
+                android:text="@string/settings_registration_edit_profile"
                 android:visibility="gone"
-                app:icon="@drawable/ic_settings_registration"
+                app:icon="@drawable/ic_profile_edit"
                 app:iconGravity="textStart"
                 app:iconPadding="12dp"
                 app:iconTint="@color/calllog_text"
@@ -136,14 +136,6 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/settings_registration_companies_description"
-                android:textColor="@color/calllog_muted_text"
-                android:textSize="14sp" />
-
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/registrationCreateCompanyButton"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -154,7 +146,7 @@
                 android:gravity="center_vertical"
                 android:minHeight="50dp"
                 android:text="@string/settings_registration_create_company"
-                app:icon="@drawable/ic_settings_application"
+                app:icon="@drawable/ic_company_add"
                 app:iconGravity="textStart"
                 app:iconPadding="12dp"
                 app:iconTint="@color/calllog_text"
