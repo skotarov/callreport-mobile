@@ -38,7 +38,9 @@ internal object HistoryBackgroundLoader {
 
     fun cachedLocal(context: Context, phone: String): HistoryLocalSnapshot? {
         val rawSnapshot = HistorySnapshotCache.readLocal(context.applicationContext, phone) ?: return null
-        val companyScopeAvailable = ContactServerCompanyScope.isAvailable(context, phone)
+        val crmEnabled = CrmContactSyncStore.isEnabled(context, phone)
+        val unknownNumber = !crmEnabled && !rawSnapshot.contactExists
+        val companyScopeAvailable = ContactServerCompanyScopePolicy.isAvailable(crmEnabled, unknownNumber)
         val snapshot = rawSnapshot.copy(companyScopeAvailable = companyScopeAvailable)
         val key = HomeCallPageLoader.noteKey(phone)
         if (key.isNotBlank()) {
