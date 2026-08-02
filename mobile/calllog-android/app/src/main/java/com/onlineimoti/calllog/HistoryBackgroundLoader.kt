@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import java.util.concurrent.ConcurrentHashMap
 
 /** Data read from Android providers and local stores away from the UI thread. */
 internal data class HistoryLocalSnapshot(
@@ -28,8 +29,31 @@ internal data class HistoryPreparedSnapshot(
 )
 
 internal object HistoryBackgroundLoader {
-    fun cachedLocal(context: Context, phone: String): HistoryLocalSnapshot? =
-        HistorySnapshotCache.readLocal(context.applicationContext, phone)
+    private data class CachedHistoryCompanyScope(
+        val context: Context,
+        val companies: List<CallReportHistoryCompany>,
+    )
+
+    private val stagedCachedCompanyScopes = ConcurrentHashMap<String, CachedHistoryCompanyScope>()
+
+    fun cachedLocal(context: Context, phone: String): HistoryLocalSnapshot? {
+        val rawSnapshot = HistorySnapshotCache.readLocal(context.applicationContext, phone) ?: return null
+        val companyScopeAvailable = ContactServerCompanyScope.isAvailable(context, phone)
+        val snapshot = rawSnapshot.copy(companyScopeAvailable = companyScopeAvailable)
+        val key = HomeCallPageLoader.noteKey(phone)
+        if (key.isNotBlank()) {
+            val companies = if (companyScopeAvailable) cachedHistoryCompanies(context) else emptyList()
+            if (companies.isEmpty()) {
+                stagedCachedCompanyScopes.remove(key)
+            } else {
+                stagedCachedCompanyScopes[key] = CachedHistoryCompanyScope(
+                    context = context.applicationContext,
+                    companies = companies,
+                )
+            }
+        }
+        return snapshot
+    }
 
     fun loadLocal(context: Context, phone: String): HistoryLocalSnapshot {
         if (phone.isBlank()) return HistoryLocalSnapshot()
@@ -56,7 +80,7 @@ internal object HistoryBackgroundLoader {
         return snapshot
     }
 
-    /** Fast local-only presentation used before Android providers and the server are refreshed. */
+    /** Fast cache-first presentation used before Android providers and the server are refreshed. */
     fun prepareCachedLocal(phone: String, snapshot: HistoryLocalSnapshot): HistoryPreparedSnapshot {
         if (phone.isBlank()) return HistoryPreparedSnapshot()
         val local = FilteredFullLogLocalData(
@@ -65,9 +89,26 @@ internal object HistoryBackgroundLoader {
             notes = snapshot.callNotes,
         )
         val localRows = FilteredFullLogLoader.cachedLocalRows(phone, local)
+        val key = HomeCallPageLoader.noteKey(phone)
+        val cachedScope = if (snapshot.companyScopeAvailable && key.isNotBlank()) {
+            stagedCachedCompanyScopes.remove(key)
+        } else {
+            null
+        }
+        val cachedCompanyNotes = cachedScope?.let { scope ->
+            companyMainNotes(
+                context = scope.context,
+                phone = phone,
+                serverLoaded = false,
+                companies = scope.companies,
+                events = emptyList(),
+            )
+        }.orEmpty()
         return HistoryPreparedSnapshot(
             rows = localRows.filter { row -> row.kind != CallReportHistoryRowKind.PHONE },
             fullLogEntries = FilteredFullLogLoader.groupedEntries(localRows),
+            companyMainNotes = cachedCompanyNotes,
+            hasCompanyMainNoteScope = cachedCompanyNotes.isNotEmpty(),
         )
     }
 
