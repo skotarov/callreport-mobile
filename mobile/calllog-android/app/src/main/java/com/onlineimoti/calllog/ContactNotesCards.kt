@@ -20,12 +20,13 @@ internal class ContactNotesCards(
         onClick: () -> Unit,
         authorName: String = "",
         editable: Boolean = true,
+        pending: Boolean = false,
     ): LinearLayout {
-        val colors = NoteUiStyle.General
+        val colors = if (pending) NoteUiStyle.Pending else NoteUiStyle.General
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(10), dp(12), dp(10))
-            if (!muted) background = roundedRect(colors.background, dp(12), colors.border, dp(1))
+            if (!muted || pending) background = roundedRect(colors.background, dp(12), colors.border, dp(1))
             isClickable = editable
             isFocusable = editable
             if (editable) setOnClickListener { onClick() }
@@ -39,7 +40,7 @@ internal class ContactNotesCards(
                     text = authorName
                     textSize = 12.5f
                     typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(activity.getColor(R.color.callreport_icon_background))
+                    setTextColor(if (pending) colors.metaText else activity.getColor(R.color.callreport_icon_background))
                     setPadding(0, 0, 0, dp(5))
                 })
             }
@@ -47,7 +48,9 @@ internal class ContactNotesCards(
                 text = textValue
                 textSize = 14.5f
                 setTextColor(if (muted) colors.mutedText else colors.text)
-                if (serverConfirmed) setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_cloud_note, 0, 0, 0)
+                if (serverConfirmed && !pending) {
+                    setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_cloud_note, 0, 0, 0)
+                }
                 compoundDrawablePadding = dp(6)
             })
             if (syncStatusText.isNotBlank()) {
@@ -58,7 +61,7 @@ internal class ContactNotesCards(
                         if (syncStatusText.startsWith("Синхронизацията не е потвърдена:")) {
                             Color.rgb(185, 28, 28)
                         } else {
-                            Color.rgb(100, 116, 139)
+                            NoteUiStyle.Pending.metaText
                         }
                     )
                     setPadding(0, dp(6), 0, 0)
@@ -99,8 +102,13 @@ internal class ContactNotesCards(
         }
     }
 
-    fun callNoteCard(note: ContactCallNote, serverConfirmed: Boolean, onClick: () -> Unit): LinearLayout {
-        val colors = NoteUiStyle.Call
+    fun callNoteCard(
+        note: ContactCallNote,
+        serverConfirmed: Boolean,
+        onClick: () -> Unit,
+        pending: Boolean = false,
+    ): LinearLayout {
+        val colors = if (pending) NoteUiStyle.Pending else NoteUiStyle.Call
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(10), dp(12), dp(10))
@@ -121,7 +129,9 @@ internal class ContactNotesCards(
                 ).filter { it.isNotBlank() }.joinToString(" • ")
                 textSize = 12.5f
                 setTextColor(colors.metaText)
-                if (serverConfirmed) setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_cloud_note, 0)
+                if (serverConfirmed && !pending) {
+                    setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_cloud_note, 0)
+                }
                 compoundDrawablePadding = dp(6)
             })
             addView(TextView(activity).apply {
