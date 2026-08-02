@@ -46,6 +46,7 @@ class HomeRefreshRenderPolicyTest {
         assertFalse(HomeRefreshRenderPolicy.consumeForceRebuild())
     }
 
+    // Rendering must follow the actual attached rows, not only retained data equality.
     @Test
     fun unchangedDataDoesNotRebuildAnExistingPage() {
         assertFalse(
