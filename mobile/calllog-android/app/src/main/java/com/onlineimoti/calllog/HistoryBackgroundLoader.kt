@@ -84,6 +84,12 @@ internal object HistoryBackgroundLoader {
         if (phone.isBlank()) return HistoryPreparedSnapshot()
         if (remoteEnabled && serverLoaded) reconcileServerConfirmation(context, phone, history)
         val scopedServerLoaded = remoteEnabled && serverLoaded
+        val companyScopeAvailable = remoteEnabled && ContactServerCompanyScope.isAvailable(context, phone)
+        val scopedCompanies = when {
+            !companyScopeAvailable -> emptyList()
+            scopedServerLoaded -> history.principal.companies
+            else -> cachedHistoryCompanies(context)
+        }
         val principal = if (remoteEnabled) history.principal else CallReportHistoryPrincipal()
         val notesTimelineEvents = if (remoteEnabled) notesAndSms(history.events) else emptyList()
         val localTimeline = FilteredFullLogLocalData(
@@ -109,11 +115,36 @@ internal object HistoryBackgroundLoader {
                 local = localTimeline,
                 serverEvents = history.events,
             ),
-            companyMainNotes = companyMainNotes(context, phone, scopedServerLoaded, history),
+            companyMainNotes = companyMainNotes(
+                context = context,
+                phone = phone,
+                serverLoaded = scopedServerLoaded,
+                companies = scopedCompanies,
+                events = history.events,
+            ),
             unscopedServerMainNote = unscopedServerMainNote(phone, scopedServerLoaded, history),
-            hasCompanyMainNoteScope = scopedServerLoaded && history.principal.companies.isNotEmpty(),
+            hasCompanyMainNoteScope = scopedCompanies.isNotEmpty(),
             confirmedLocalServerNote = ServerRecordIndex.hasConfirmedNoteForPhone(context, phone, localNotes),
         )
+    }
+
+    private fun cachedHistoryCompanies(context: Context): List<CallReportHistoryCompany> {
+        val config = ConfigStore.load(context)
+        if (!CallReportRemoteAccess.isReady(config)) return emptyList()
+        return CallReportTopicCompaniesCache.read(context.applicationContext, config)
+            ?.companies
+            .orEmpty()
+            .asSequence()
+            .filter { company -> company.id.isNotBlank() }
+            .distinctBy { company -> company.id }
+            .map { company ->
+                CallReportHistoryCompany(
+                    id = company.id,
+                    name = company.name.ifBlank { company.id },
+                )
+            }
+            .sortedBy { company -> company.name.lowercase() }
+            .toList()
     }
 
     private fun reconcileServerConfirmation(
@@ -139,28 +170,32 @@ internal object HistoryBackgroundLoader {
         context: Context,
         phone: String,
         serverLoaded: Boolean,
-        history: CallReportHistoryLookupResult,
+        companies: List<CallReportHistoryCompany>,
+        events: List<CallReportHistoryEvent>,
     ): List<CallReportCompanyMainNote> {
-        if (!serverLoaded || history.principal.companies.isEmpty()) return emptyList()
+        if (companies.isEmpty()) return emptyList()
         val phoneKey = HomeCallPageLoader.noteKey(phone)
         val latestByCompany = mutableMapOf<String, CallReportHistoryEvent>()
-        history.events.forEach { event ->
-            if (!event.communicationType.equals("note", ignoreCase = true)) return@forEach
-            if (event.companyId.isBlank() || HomeCallPageLoader.noteKey(event.phone) != phoneKey) return@forEach
-            if (!CallReportServerNoteClassifier.isExplicitGeneralNote(event)) return@forEach
-            val current = latestByCompany[event.companyId]
-            if (current == null || event.updatedAtMs >= current.updatedAtMs) latestByCompany[event.companyId] = event
+        if (serverLoaded) {
+            events.forEach { event ->
+                if (!event.communicationType.equals("note", ignoreCase = true)) return@forEach
+                if (event.companyId.isBlank() || HomeCallPageLoader.noteKey(event.phone) != phoneKey) return@forEach
+                if (!CallReportServerNoteClassifier.isExplicitGeneralNote(event)) return@forEach
+                val current = latestByCompany[event.companyId]
+                if (current == null || event.updatedAtMs >= current.updatedAtMs) latestByCompany[event.companyId] = event
+            }
         }
-        return history.principal.companies.map { company ->
+        return companies.map { company ->
             val remote = latestByCompany[company.id]
             val pending = CallReportCompanyGeneralNotePending.isPending(context, phone, company.id)
             val cached = CallReportCompanyGeneralNoteStore.noteFor(context, phone, company.id)
-            if (!pending && remote == null && cached.isNotBlank()) {
+            if (serverLoaded && !pending && remote == null && cached.isNotBlank()) {
                 CallReportCompanyGeneralNoteStore.saveOrDelete(context, phone, company.id, "")
             }
             val note = when {
                 pending && cached.isNotBlank() -> cached
                 remote != null -> remote.note
+                !serverLoaded && cached.isNotBlank() -> cached
                 else -> ""
             }
             CallReportCompanyMainNote(
