@@ -18,7 +18,7 @@
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:inputType="number"
-            android:text="20" />
+            android:text="10" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
