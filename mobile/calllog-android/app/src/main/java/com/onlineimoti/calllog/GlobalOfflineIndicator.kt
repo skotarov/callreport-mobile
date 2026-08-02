@@ -26,6 +26,7 @@ import java.util.WeakHashMap
 internal object GlobalOfflineIndicator {
     private const val INDICATOR_SIZE_DP = 34
     private const val INDICATOR_TOP_MARGIN_DP = 6
+    private const val ACCOUNT_STATE_REFRESH_MS = 1_000L
 
     private data class InstalledIndicator(
         val decor: ViewGroup,
@@ -36,16 +37,21 @@ internal object GlobalOfflineIndicator {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val resumedActivities = linkedSetOf<Activity>()
     private val indicators = WeakHashMap<Activity, InstalledIndicator>()
+    private val accountStateRefresh = object : Runnable {
+        override fun run() {
+            if (resumedActivities.isEmpty()) return
+            resumedActivities.toList().forEach(::update)
+            mainHandler.postDelayed(this, ACCOUNT_STATE_REFRESH_MS)
+        }
+    }
 
     private var registered = false
     private var internetValidated = true
-    private lateinit var application: Application
     private lateinit var connectivityManager: ConnectivityManager
 
     fun register(app: Application) {
         if (registered) return
         registered = true
-        application = app
         connectivityManager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         internetValidated = hasValidatedInternet()
 
@@ -54,12 +60,18 @@ internal object GlobalOfflineIndicator {
             override fun onActivityStarted(activity: Activity) = Unit
 
             override fun onActivityResumed(activity: Activity) {
+                val wasEmpty = resumedActivities.isEmpty()
                 resumedActivities += activity
                 activity.window.decorView.post { update(activity) }
+                if (wasEmpty) {
+                    mainHandler.removeCallbacks(accountStateRefresh)
+                    mainHandler.postDelayed(accountStateRefresh, ACCOUNT_STATE_REFRESH_MS)
+                }
             }
 
             override fun onActivityPaused(activity: Activity) {
                 resumedActivities -= activity
+                if (resumedActivities.isEmpty()) mainHandler.removeCallbacks(accountStateRefresh)
             }
 
             override fun onActivityStopped(activity: Activity) = Unit
@@ -67,6 +79,7 @@ internal object GlobalOfflineIndicator {
 
             override fun onActivityDestroyed(activity: Activity) {
                 resumedActivities -= activity
+                if (resumedActivities.isEmpty()) mainHandler.removeCallbacks(accountStateRefresh)
                 remove(activity)
             }
         })
