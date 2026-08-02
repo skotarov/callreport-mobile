@@ -43,6 +43,13 @@ internal object HomeRefreshRenderPolicy {
         return requested
     }
 
+    /** Same data still needs a rebuild when Android no longer has rendered rows. */
+    fun shouldRebuildPage(
+        dataUnchanged: Boolean,
+        forceRender: Boolean,
+        hasRenderedContent: Boolean,
+    ): Boolean = forceRender || !dataUnchanged || !hasRenderedContent
+
     @Synchronized
     fun clear() {
         keepExistingRowsOnce = false

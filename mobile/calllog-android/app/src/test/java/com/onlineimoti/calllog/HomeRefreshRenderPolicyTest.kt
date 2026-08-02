@@ -45,4 +45,33 @@ class HomeRefreshRenderPolicyTest {
         assertFalse(HomeRefreshRenderPolicy.consumeKeepExistingRows())
         assertFalse(HomeRefreshRenderPolicy.consumeForceRebuild())
     }
+
+    // Rendering must follow the actual attached rows, not only retained data equality.
+    @Test
+    fun unchangedDataDoesNotRebuildAnExistingPage() {
+        assertFalse(
+            HomeRefreshRenderPolicy.shouldRebuildPage(
+                dataUnchanged = true,
+                forceRender = false,
+                hasRenderedContent = true,
+            ),
+        )
+    }
+
+    @Test
+    fun unchangedDataRebuildsWhenRenderedRowsAreMissing() {
+        assertTrue(
+            HomeRefreshRenderPolicy.shouldRebuildPage(
+                dataUnchanged = true,
+                forceRender = false,
+                hasRenderedContent = false,
+            ),
+        )
+    }
+
+    @Test
+    fun changedOrForcedDataAlwaysRebuilds() {
+        assertTrue(HomeRefreshRenderPolicy.shouldRebuildPage(false, false, true))
+        assertTrue(HomeRefreshRenderPolicy.shouldRebuildPage(true, true, true))
+    }
 }
