@@ -64,12 +64,14 @@ internal class HomeSmsRowRenderer(
             afterBody = { textColumn ->
                 notesUi.addGeneralContactNote(
                     column = textColumn,
+                    phone = call.number,
                     contactNote = contactNote,
                     highlightQuery = highlightQuery,
                     visible = showGeneralContactNote,
                 )
                 notesUi.addCompanyGeneralNotes(
                     column = textColumn,
+                    phone = call.number,
                     labels = companyGeneralNoteLabels,
                     highlightQuery = highlightQuery,
                     visible = showGeneralContactNote,
