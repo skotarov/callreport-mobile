@@ -142,7 +142,14 @@ internal object HistoryBackgroundLoader {
             else -> cachedHistoryCompanies(context, config)
         }
         val principal = if (remoteEnabled) history.principal else CallReportHistoryPrincipal()
-        val notesTimelineEvents = if (remoteEnabled) notesAndSms(history.events) else emptyList()
+        val pendingEvents = if (remoteEnabled) {
+            CompanyCallNoteOutbox.pendingEvents(context.applicationContext, listOf(phone)) +
+                CallReportNoteOutbox.pendingExistingServerEvents(context.applicationContext, listOf(phone))
+        } else {
+            emptyList()
+        }
+        val effectiveEvents = overlayPendingEvents(history.events, pendingEvents)
+        val notesTimelineEvents = if (remoteEnabled) notesAndSms(effectiveEvents) else emptyList()
         val localTimeline = FilteredFullLogLocalData(
             calls = localCalls,
             sms = localSms,
@@ -164,7 +171,7 @@ internal object HistoryBackgroundLoader {
                 remoteEnabled = remoteEnabled,
                 principal = principal,
                 local = localTimeline,
-                serverEvents = history.events,
+                serverEvents = effectiveEvents,
             ),
             companyMainNotes = companyMainNotes(
                 context = context,
@@ -177,6 +184,36 @@ internal object HistoryBackgroundLoader {
             hasCompanyMainNoteScope = scopedCompanies.isNotEmpty(),
             confirmedLocalServerNote = ServerRecordIndex.hasConfirmedNoteForPhone(context, phone, localNotes),
         )
+    }
+
+    private fun overlayPendingEvents(
+        serverEvents: List<CallReportHistoryEvent>,
+        pendingEvents: List<CallReportHistoryEvent>,
+    ): List<CallReportHistoryEvent> {
+        if (pendingEvents.isEmpty()) return serverEvents
+        val merged = linkedMapOf<String, CallReportHistoryEvent>()
+        (serverEvents + pendingEvents).forEach { event ->
+            val key = event.clientEventId.trim()
+                .ifBlank { event.serverId.trim() }
+                .ifBlank {
+                    listOf(
+                        HomeCallPageLoader.noteKey(event.phone),
+                        event.communicationType,
+                        event.direction,
+                        event.occurredAtMs.toString(),
+                        event.companyId,
+                    ).joinToString("|")
+                }
+            val current = merged[key]
+            val changedAt = maxOf(event.updatedAtMs, event.createdAtMs, event.occurredAtMs)
+            val currentChangedAt = current?.let {
+                maxOf(it.updatedAtMs, it.createdAtMs, it.occurredAtMs)
+            } ?: Long.MIN_VALUE
+            if (current == null || changedAt >= currentChangedAt) merged[key] = event
+        }
+        return merged.values.sortedByDescending {
+            maxOf(it.updatedAtMs, it.createdAtMs, it.occurredAtMs)
+        }
     }
 
     private fun cachedHistoryCompanies(context: Context): List<CallReportHistoryCompany> =
