@@ -2,7 +2,6 @@ package com.onlineimoti.calllog
 
 import android.app.Activity
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.SpannableString
@@ -19,27 +18,38 @@ internal class TimelineNotesUi(
 ) {
     fun addGeneralContactNote(
         column: LinearLayout,
+        phone: String,
         contactNote: String?,
         highlightQuery: String,
         visible: Boolean,
     ) {
         if (!visible) return
-        val colors = NoteUiStyle.General
+        val pendingLocal = CallReportNoteOutbox.isGeneralPending(activity, phone) ||
+            CallReportDeferredCompanyAssignmentStore.isGeneralPending(activity, phone)
         HomeGeneralNoteBundle.entries(contactNote).forEach { entry ->
+            val pending = pendingLocal && !entry.fromServer
+            val colors = if (pending) NoteUiStyle.Pending else NoteUiStyle.General
             addGeneralNoteRow(
                 column = column,
                 text = SearchTextHighlighter.highlightedText(entry.text, highlightQuery, colors.text),
                 colors = colors,
                 maxLines = 3,
-                drawableRes = if (entry.fromServer) R.drawable.ic_cloud_note else R.drawable.ic_note_lines,
-                tintDrawable = entry.fromServer,
+                drawableRes = when {
+                    pending -> 0
+                    entry.fromServer -> R.drawable.ic_cloud_note
+                    else -> R.drawable.ic_note_lines
+                },
+                tintDrawable = entry.fromServer && !pending,
+                pending = pending,
+                syncStatusText = if (pending) activity.getString(R.string.dynamic_note_pending_server_sync) else "",
             )
         }
     }
 
-    /** Adds every company-scoped main note to the same shared yellow container. */
+    /** Adds every company-scoped main note, keeping pending rows separate and gray. */
     fun addCompanyGeneralNotes(
         column: LinearLayout,
+        phone: String,
         labels: List<HomeCompanyScopeLabel>?,
         highlightQuery: String,
         visible: Boolean,
@@ -48,7 +58,12 @@ internal class TimelineNotesUi(
         labels.orEmpty()
             .filter { it.generalNote.isNotBlank() }
             .forEach { label ->
-                val colors = NoteUiStyle.General
+                val pending = CallReportTopicNoteOutbox.isGeneralPending(
+                    activity,
+                    phone,
+                    label.companyId,
+                )
+                val colors = if (pending) NoteUiStyle.Pending else NoteUiStyle.General
                 val companyName = label.companyName.ifBlank { label.companyId }
                 val visibleNote = ServerNoteVisuals.withoutPrefix(label.generalNote)
                 addGeneralNoteRow(
@@ -56,11 +71,13 @@ internal class TimelineNotesUi(
                     text = companyScopedText(companyName, visibleNote, highlightQuery, colors.text),
                     colors = colors,
                     maxLines = 3,
+                    pending = pending,
+                    syncStatusText = if (pending) activity.getString(R.string.dynamic_note_pending_server_sync) else "",
                 )
             }
     }
 
-    /** All notes attached to one exact call share one blue container. */
+    /** All notes attached to one exact call share one blue or pending-gray container. */
     fun addCallNote(
         column: LinearLayout,
         call: PhoneCallRecord,
@@ -71,8 +88,25 @@ internal class TimelineNotesUi(
     ) {
         val notes = dedupeCallNotes(callNote?.expandedNotes().orEmpty())
         if (notes.isEmpty()) return
-        val colors = NoteUiStyle.Call
-        val container = callNotesContainer(column, colors)
+        val genericLocalNote = ContactCallNote(
+            note = notes.first().text,
+            callAt = call.startedAt,
+            savedAt = notes.maxOfOrNull { it.updatedAtMs } ?: call.startedAt,
+            direction = call.direction,
+            durationSeconds = call.durationSeconds,
+            clientNoteId = LocalNotesFileStore.clientNoteIdForCall(call.number, call.startedAt, call.direction),
+        )
+        val pendingStatus = statusForCall(call) ?: when {
+            CallReportNoteOutbox.isCallPending(activity, call.number, genericLocalNote) ->
+                activity.getString(R.string.dynamic_note_pending_server_sync)
+            notes.any { note ->
+                CallReportNoteOutbox.isClientEventPending(activity, note.serverClientEventId)
+            } -> activity.getString(R.string.dynamic_note_pending_server_sync)
+            else -> null
+        }
+        val pending = pendingStatus != null
+        val colors = if (pending) NoteUiStyle.Pending else NoteUiStyle.Call
+        val container = callNotesContainer(column, colors, pending)
         notes.forEach { note ->
             val companyName = companyNameFor(note.companyId, companyLabels)
             val textValue = note.text.trim()
@@ -84,18 +118,18 @@ internal class TimelineNotesUi(
                     companyScopedText(companyName, textValue, highlightQuery, colors.text)
                 },
                 colors = colors,
-                cloudDrawableRes = if (note.fromServer && note.companyId.isBlank()) {
+                cloudDrawableRes = if (!pending && note.fromServer && note.companyId.isBlank()) {
                     R.drawable.ic_cloud_note
                 } else {
                     0
                 },
             )
         }
-        statusForCall(call)?.let { status ->
+        pendingStatus?.let { status ->
             column.addView(TextView(activity).apply {
                 text = status
                 textSize = 11.5f
-                setTextColor(Color.rgb(146, 64, 14))
+                setTextColor(NoteUiStyle.Pending.metaText)
                 setPadding(dp(8), dp(4), dp(8), 0)
             })
         }
@@ -108,8 +142,10 @@ internal class TimelineNotesUi(
         maxLines: Int,
         drawableRes: Int = 0,
         tintDrawable: Boolean = false,
+        pending: Boolean = false,
+        syncStatusText: String = "",
     ) {
-        val container = generalNotesContainer(column, colors)
+        val container = generalNotesContainer(column, colors, pending)
         val rowKey = "$drawableRes:${text.toString().trim()}"
         for (index in 0 until container.childCount) {
             if (container.getChildAt(index).tag == rowKey) return
@@ -135,6 +171,18 @@ internal class TimelineNotesUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
         })
+        if (syncStatusText.isNotBlank()) {
+            val statusTag = "pending:$rowKey"
+            if ((0 until container.childCount).none { container.getChildAt(it).tag == statusTag }) {
+                container.addView(TextView(activity).apply {
+                    tag = statusTag
+                    this.text = syncStatusText
+                    textSize = 11.5f
+                    setTextColor(NoteUiStyle.Pending.metaText)
+                    setPadding(0, 0, 0, dp(3))
+                })
+            }
+        }
     }
 
     private fun addCallNoteRow(
@@ -171,12 +219,22 @@ internal class TimelineNotesUi(
     private fun generalNotesContainer(
         column: LinearLayout,
         colors: NoteCardColors,
-    ): LinearLayout = sharedContainer(column, colors, GENERAL_NOTES_CONTAINER_TAG)
+        pending: Boolean,
+    ): LinearLayout = sharedContainer(
+        column,
+        colors,
+        if (pending) GENERAL_PENDING_NOTES_CONTAINER_TAG else GENERAL_NOTES_CONTAINER_TAG,
+    )
 
     private fun callNotesContainer(
         column: LinearLayout,
         colors: NoteCardColors,
-    ): LinearLayout = sharedContainer(column, colors, CALL_NOTES_CONTAINER_TAG)
+        pending: Boolean,
+    ): LinearLayout = sharedContainer(
+        column,
+        colors,
+        if (pending) CALL_PENDING_NOTES_CONTAINER_TAG else CALL_NOTES_CONTAINER_TAG,
+    )
 
     private fun sharedContainer(
         column: LinearLayout,
@@ -258,6 +316,8 @@ internal class TimelineNotesUi(
 
     private companion object {
         const val GENERAL_NOTES_CONTAINER_TAG = "relationship_manager_timeline_general_notes"
+        const val GENERAL_PENDING_NOTES_CONTAINER_TAG = "relationship_manager_timeline_general_pending_notes"
         const val CALL_NOTES_CONTAINER_TAG = "relationship_manager_timeline_call_notes"
+        const val CALL_PENDING_NOTES_CONTAINER_TAG = "relationship_manager_timeline_call_pending_notes"
     }
 }
