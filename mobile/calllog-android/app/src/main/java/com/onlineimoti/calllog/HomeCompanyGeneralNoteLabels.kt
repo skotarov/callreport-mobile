@@ -34,7 +34,11 @@ internal object HomeCompanyGeneralNoteLabels {
         if (requestedPhones.isEmpty()) return HomeCompanyScopeSnapshot()
 
         val requestedPhoneKeys = requestedPhones.mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it) }
-        val result = CallReportHistoryLookupClient.lookupMany(config, requestedPhones)
+        val result = CallReportHistoryLookupClient.lookupMany(
+            config = config,
+            phones = requestedPhones,
+            context = context.applicationContext,
+        )
         val serverBackedPhoneKeys = result.events
             .asSequence()
             .filter { event ->
