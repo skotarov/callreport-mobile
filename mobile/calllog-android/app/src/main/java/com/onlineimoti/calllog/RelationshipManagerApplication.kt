@@ -7,6 +7,7 @@ class RelationshipManagerApplication : Application() {
         super.onCreate()
         PhoneCountrySettingsStore.load(this)
         ProfileServerControlsUi.register(this)
+        GlobalOfflineIndicator.register(this)
         AccountMutationOutbox.schedulePending(this)
     }
 }
