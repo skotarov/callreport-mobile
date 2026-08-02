@@ -60,12 +60,14 @@ internal class HomeCrmContactRowRenderer(
                 addView(numberView(contact.number, highlightQuery))
                 notesUi.addGeneralContactNote(
                     column = this,
+                    phone = contact.number,
                     contactNote = contactNote,
                     highlightQuery = highlightQuery,
                     visible = true,
                 )
                 notesUi.addCompanyGeneralNotes(
                     column = this,
+                    phone = contact.number,
                     labels = companyLabels,
                     highlightQuery = highlightQuery,
                     visible = true,
@@ -75,12 +77,25 @@ internal class HomeCrmContactRowRenderer(
                     call = contact,
                     callNote = latestCallNote,
                     highlightQuery = highlightQuery,
-                    statusForCall = { null },
+                    statusForCall = ::noteSyncStatus,
                     companyLabels = companyLabels,
                 )
             })
         })
         return card
+    }
+
+    private fun noteSyncStatus(call: PhoneCallRecord): String? {
+        if (CallReportDeferredCompanyAssignmentStore.isCallPending(activity, call.number, call.direction, call.startedAt)) {
+            return activity.getString(R.string.dynamic_note_pending_company_choice)
+        }
+        if (CompanyCallNoteOutbox.isCallPending(activity, call.number, call.direction, call.startedAt)) {
+            return activity.getString(R.string.dynamic_note_pending_server_sync)
+        }
+        if (!CallReportTopicNoteOutbox.isCallPending(activity, call.number, call.direction, call.startedAt)) return null
+        val failure = CallReportTopicNoteOutbox.lastFailure(activity)
+        return if (failure.isBlank()) activity.getString(R.string.dynamic_note_pending_server_sync)
+        else activity.getString(R.string.dynamic_note_pending_server_sync_failed, failure)
     }
 
     private fun dialButton(number: String): ImageButton = ImageButton(activity).apply {
