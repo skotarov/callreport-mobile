@@ -127,11 +127,19 @@ internal object HistoryBackgroundLoader {
         if (phone.isBlank()) return HistoryPreparedSnapshot()
         if (remoteEnabled && serverLoaded) reconcileServerConfirmation(context, phone, history)
         val scopedServerLoaded = remoteEnabled && serverLoaded
+        val config = ConfigStore.load(context)
+        if (scopedServerLoaded) {
+            HistoryCompanyScopeCache.save(
+                context = context.applicationContext,
+                config = config,
+                companies = history.principal.companies,
+            )
+        }
         val companyScopeAvailable = remoteEnabled && ContactServerCompanyScope.isAvailable(context, phone)
         val scopedCompanies = when {
             !companyScopeAvailable -> emptyList()
             scopedServerLoaded -> history.principal.companies
-            else -> cachedHistoryCompanies(context)
+            else -> cachedHistoryCompanies(context, config)
         }
         val principal = if (remoteEnabled) history.principal else CallReportHistoryPrincipal()
         val notesTimelineEvents = if (remoteEnabled) notesAndSms(history.events) else emptyList()
@@ -171,9 +179,17 @@ internal object HistoryBackgroundLoader {
         )
     }
 
-    private fun cachedHistoryCompanies(context: Context): List<CallReportHistoryCompany> {
-        val config = ConfigStore.load(context)
+    private fun cachedHistoryCompanies(context: Context): List<CallReportHistoryCompany> =
+        cachedHistoryCompanies(context, ConfigStore.load(context))
+
+    private fun cachedHistoryCompanies(
+        context: Context,
+        config: AppConfig,
+    ): List<CallReportHistoryCompany> {
         if (!CallReportRemoteAccess.isReady(config)) return emptyList()
+        HistoryCompanyScopeCache.read(context.applicationContext, config)?.let { companies ->
+            return companies
+        }
         return CallReportTopicCompaniesCache.read(context.applicationContext, config)
             ?.companies
             .orEmpty()
