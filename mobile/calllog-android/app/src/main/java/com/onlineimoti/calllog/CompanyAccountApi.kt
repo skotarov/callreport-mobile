@@ -50,6 +50,15 @@ internal object CompanyAccountApi {
         val session: Session?,
     )
 
+    data class ContactVerification(
+        val user: ProfileUser,
+        val mergeRequired: Boolean = false,
+        val mergeToken: String = "",
+        val existingProfileName: String = "",
+        val existingProfileEmail: String = "",
+        val existingProfilePhone: String = "",
+    )
+
     fun requestRegistrationOtp(
         context: Context,
         email: String,
@@ -129,12 +138,34 @@ internal object CompanyAccountApi {
         context: Context,
         challengeId: String,
         code: String,
-    ): Result<ProfileUser> = requestJson(
+    ): Result<ContactVerification> = requestJson(
         context,
         JSONObject()
             .put("action", "verify_contact_otp")
             .put("challenge_id", challengeId.trim())
             .put("code", code.trim()),
+        authenticated = true,
+    ).map { response ->
+        val merge = response.optJSONObject("merge")
+        ContactVerification(
+            user = parseUser(response.optJSONObject("user")),
+            mergeRequired = response.optBoolean("merge_required", false),
+            mergeToken = response.optString("merge_token").trim()
+                .ifBlank { merge?.optString("token").orEmpty().trim() },
+            existingProfileName = merge?.optString("existing_profile_name").orEmpty().trim(),
+            existingProfileEmail = merge?.optString("existing_profile_email").orEmpty().trim(),
+            existingProfilePhone = merge?.optString("existing_profile_phone").orEmpty().trim(),
+        )
+    }
+
+    fun mergeProfiles(
+        context: Context,
+        mergeToken: String,
+    ): Result<ProfileUser> = requestJson(
+        context,
+        JSONObject()
+            .put("action", "merge_profiles")
+            .put("merge_token", mergeToken.trim()),
         authenticated = true,
     ).map { parseUser(it.optJSONObject("user")) }
 
@@ -276,7 +307,9 @@ internal object CompanyAccountApi {
             channel = response.optString("channel").trim(),
             destinationHint = response.optString("destination_hint").trim(),
             expiresAtMs = response.optLong("expires_at_ms", 0L),
-            debugCode = response.optString("debug_code").trim(), remainingSeconds = response.optLong("remaining_seconds", -1L), reused = response.optBoolean("reused", false),
+            debugCode = response.optString("debug_code").trim(),
+            remainingSeconds = response.optLong("remaining_seconds", -1L),
+            reused = response.optBoolean("reused", false),
         )
     }
 
