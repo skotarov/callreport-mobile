@@ -58,10 +58,16 @@ internal object CallReportHistoryLookupClient {
         context: Context? = null,
     ): CallReportHistoryLookupResult {
         if (!isReady(config) || phone.isBlank()) return CallReportHistoryLookupResult()
-        // Keep the single-contact History screen compatible with older server code:
-        // it is known to work with GET ?phone=..., while POST/batch support may be absent.
-        val result = lookupSinglePhoneVariantsOrNull(config, phone, limit, context)
-            ?: CallReportHistoryLookupResult()
+        // A non-null live result means at least one GET succeeded, including a valid
+        // empty response. Only a total transport failure may fall back to disk.
+        val live = lookupSinglePhoneVariantsOrNull(config, phone, limit, context)
+        val result = if (live != null) {
+            context?.let { CallReportHistoryDiskCache.save(it, config, listOf(phone), live) }
+            live
+        } else {
+            context?.let { CallReportHistoryDiskCache.read(it, config, listOf(phone)) }
+                ?: CallReportHistoryLookupResult()
+        }
         updateGeneralNoteServerPresence(phone, result.events)
         return result
     }
@@ -73,8 +79,8 @@ internal object CallReportHistoryLookupClient {
 
     /**
      * Same lookup as [lookupMany], but distinguishes a real successful empty response
-     * from a total network failure. Home uses this to keep its last-known note cache
-     * visible when the server is temporarily unreachable.
+     * from a total network failure. On total failure it returns the last successful
+     * durable result when one exists, so Home and History never collapse offline.
      */
     fun lookupManyOrNull(
         config: AppConfig,
@@ -102,11 +108,18 @@ internal object CallReportHistoryLookupClient {
             lookupSinglePhoneVariantsOrNull(config, phone, DEFAULT_LIMIT, context)
         }
 
-        // A non-null batch is an authoritative successful response even when empty.
-        // If the batch failed entirely, at least one successful single-phone GET is
-        // required before an empty/partial result may replace Home's last-known cache.
-        if (batch == null && singleResults.isEmpty()) return null
+        // A non-null batch is authoritative even when empty. If every live request
+        // failed, read the last successful per-phone result without overwriting it.
+        if (batch == null && singleResults.isEmpty()) {
+            val cached = context?.let { CallReportHistoryDiskCache.read(it, config, originalPhones) }
+            cached?.let { result ->
+                originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result.events) }
+            }
+            return cached
+        }
+
         val result = mergeResults(listOfNotNull(batch) + singleResults)
+        context?.let { CallReportHistoryDiskCache.save(it, config, originalPhones, result) }
         originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result.events) }
         return result
     }
