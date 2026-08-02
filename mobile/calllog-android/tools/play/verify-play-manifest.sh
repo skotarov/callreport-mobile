@@ -6,7 +6,7 @@ IFS=$'\n\t'
 readonly APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$APP_DIR"
-./gradlew --no-daemon :app:processReleaseMainManifest
+gradle --no-daemon :app:processReleaseMainManifest
 
 manifest="$(find app/build/intermediates -type f -path '*release*' -name AndroidManifest.xml \
   | grep -E '/(merged_manifest|merged_manifests)/' \
