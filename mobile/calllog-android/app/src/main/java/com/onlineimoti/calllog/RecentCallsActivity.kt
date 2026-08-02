@@ -39,6 +39,7 @@ class RecentCallsActivity : AppCompatActivity() {
             return
         }
 
+        val pageSize = ConfigStore.homeCallPageSize(this)
         val calls = if (isFiltered) {
             // A filtered contact timeline contains both phone calls and SMS messages, ordered together by date.
             HomeCallPageLoader.calls(
@@ -46,10 +47,10 @@ class RecentCallsActivity : AppCompatActivity() {
                 activePhoneFilter = phoneFilter,
                 searchQuery = "",
                 pageIndex = 0,
-                pageSize = 50,
+                pageSize = pageSize,
             )
         } else {
-            PhoneCallReader.recentCalls(this, limit = 20)
+            PhoneCallReader.recentCalls(this, limit = pageSize)
         }
         if (calls.isEmpty()) {
             binding.recentCallsStatusText.text = if (isFiltered) {

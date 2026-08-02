@@ -53,6 +53,12 @@ internal class HomeEdgePagingController(
                 HomeLoadingFooterUi.hide(binding.homeCallsContainer)
             }
         },
+        // Supplemental note/name renders may briefly rebuild the current page while
+        // the next page is still loading. Keep the bottom spinner visible until the
+        // edge controller confirms that the new page is stable.
+        onLoadingStillPending = {
+            HomeLoadingFooterUi.show(binding.homeCallsContainer)
+        },
     )
 
     init {

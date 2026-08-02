@@ -20,6 +20,7 @@ internal class EdgePageScrollController(
     private val loadAtBottomOnly: Boolean = false,
     private val loadingIndicatorLeadMs: Long = 0L,
     private val onLoadingChanged: (Boolean) -> Unit = {},
+    private val onLoadingStillPending: () -> Unit = {},
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var scrollView: ScrollView? = null
@@ -66,6 +67,7 @@ internal class EdgePageScrollController(
     private val readyCheck = object : Runnable {
         override fun run() {
             if (!pendingNext) return
+            onLoadingStillPending()
             val scroll = scrollView
             val list = content
             val visiblePageCount = list?.let(HomePagedListUi::visiblePageCount) ?: 0
