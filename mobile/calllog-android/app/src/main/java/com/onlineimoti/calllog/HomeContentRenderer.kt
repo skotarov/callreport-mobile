@@ -193,17 +193,24 @@ internal class HomeContentRenderer(
         currentServerBackedPhoneKeys = serverBackedKeys
         binding.fullLogProgress.visibility = View.GONE
         renderStatusAndPagination(pageSize)
-        if (unchanged && !forceRender) {
+
+        val automaticPaging = PageLoadingModeStore.usesPrefetch(activity)
+        val page = HomePagedListUi.page(
+            binding.homeCallsContainer,
+            automaticPaging,
+            pageIndex(),
+        )
+        val hasRenderedContent = if (automaticPaging) {
+            page.childCount > 0
+        } else {
+            HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0
+        }
+        if (!HomeRefreshRenderPolicy.shouldRebuildPage(unchanged, forceRender, hasRenderedContent)) {
             HomeLoadingFooterUi.hide(binding.homeCallsContainer)
             return
         }
 
-        val page = HomePagedListUi.page(
-            binding.homeCallsContainer,
-            PageLoadingModeStore.usesPrefetch(activity),
-            pageIndex(),
-        )
-        val patched = !forceRender && calls == previousCalls && page.childCount > 0 && patchChangedRows(
+        val patched = !forceRender && calls == previousCalls && hasRenderedContent && patchChangedRows(
             page = page,
             calls = calls,
             previousContactNotes = previousContactNotes,

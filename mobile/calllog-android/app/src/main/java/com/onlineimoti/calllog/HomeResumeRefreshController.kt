@@ -36,7 +36,7 @@ internal class HomeResumeRefreshController private constructor(
     }
 
     private val reloadAfterSettingsRunnable = Runnable {
-        if (activity.isFinishing || activity.isDestroyed || !activity.hasWindowFocus()) return@Runnable
+        if (activity.isFinishing || activity.isDestroyed) return@Runnable
         if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0) return@Runnable
 
         // The call model may still contain rows even though Android has lost the

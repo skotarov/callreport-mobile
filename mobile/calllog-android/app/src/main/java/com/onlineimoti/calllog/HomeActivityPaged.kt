@@ -263,6 +263,7 @@ class HomeActivity : FontScaledAppCompatActivity() {
         }
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        HomeResumeRefreshController.install(this, binding)
         edgePaging.bind()
         noteSavedReceiver.register()
         callLogObserver.register()
