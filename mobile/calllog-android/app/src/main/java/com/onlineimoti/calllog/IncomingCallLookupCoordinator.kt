@@ -152,7 +152,12 @@ internal class IncomingCallLookupCoordinator(
     private fun loadHistoryRows() {
         val attempt = runCatching {
             PostCallLookupRemoteRows.fromHistory(
-                history = CallReportHistoryLookupClient.lookup(config, phone, limit = POPUP_HISTORY_LIMIT),
+                history = CallReportHistoryLookupClient.lookup(
+                    config = config,
+                    phone = phone,
+                    limit = POPUP_HISTORY_LIMIT,
+                    context = appContext,
+                ),
                 phone = phone,
             )
         }

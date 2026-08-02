@@ -44,10 +44,17 @@ internal object CallReportHistoryDiskCache {
                     .sortedByDescending(::changedAt)
                     .take(MAX_EVENTS_PER_PHONE)
                     .toList()
+                val companyMainNotes = result.companyMainNotes
+                    .asSequence()
+                    .filter { note -> HomeCallPageLoader.noteKey(note.phone) == phoneKey }
+                    .sortedByDescending { it.updatedAtMs }
+                    .take(MAX_EVENTS_PER_PHONE)
+                    .toList()
                 updated[phoneKey] = CachedPhoneHistory(
                     savedAtMs = now,
                     principal = result.principal,
                     events = events,
+                    companyMainNotes = companyMainNotes,
                 )
             }
             writeLocked(appContext, scope, trim(updated))
@@ -73,6 +80,7 @@ internal object CallReportHistoryDiskCache {
             var found = false
             var principal = CallReportHistoryPrincipal()
             val events = mutableListOf<CallReportHistoryEvent>()
+            val companyMainNotes = mutableListOf<CallReportHistoryCompanyMainNote>()
             val expiredKeys = linkedSetOf<String>()
 
             requestedKeys.forEach { phoneKey ->
@@ -89,6 +97,7 @@ internal object CallReportHistoryDiskCache {
                     principal = entry.principal
                 }
                 events += entry.events
+                companyMainNotes += entry.companyMainNotes
             }
 
             if (expiredKeys.isNotEmpty()) {
@@ -99,6 +108,7 @@ internal object CallReportHistoryDiskCache {
             CallReportHistoryLookupResult(
                 principal = principal,
                 events = dedupe(events),
+                companyMainNotes = dedupeCompanyMainNotes(companyMainNotes),
             )
         }
     }
@@ -122,6 +132,26 @@ internal object CallReportHistoryDiskCache {
             if (current == null || changedAt(event) >= changedAt(current)) latest[key] = event
         }
         return latest.values.sortedByDescending(::changedAt)
+    }
+
+    private fun dedupeCompanyMainNotes(
+        notes: List<CallReportHistoryCompanyMainNote>,
+    ): List<CallReportHistoryCompanyMainNote> {
+        val latest = linkedMapOf<String, CallReportHistoryCompanyMainNote>()
+        notes.forEach { note ->
+            val key = note.serverId.trim()
+                .ifBlank { note.clientEventId.trim() }
+                .ifBlank {
+                    listOf(
+                        HomeCallPageLoader.noteKey(note.phone),
+                        note.companyId,
+                        note.note.hashCode().toString(),
+                    ).joinToString("|")
+                }
+            val current = latest[key]
+            if (current == null || note.updatedAtMs >= current.updatedAtMs) latest[key] = note
+        }
+        return latest.values.sortedByDescending { it.updatedAtMs }
     }
 
     private fun trim(entries: Map<String, CachedPhoneHistory>): Map<String, CachedPhoneHistory> {
@@ -165,6 +195,7 @@ internal object CallReportHistoryDiskCache {
         put("saved_at_ms", savedAtMs)
         put("principal", principal.toJson())
         put("events", JSONArray().apply { events.forEach { put(it.toJson()) } })
+        put("company_main_notes", JSONArray().apply { companyMainNotes.forEach { put(it.toJson()) } })
     }
 
     private fun JSONObject.toCachedPhoneHistory(): CachedPhoneHistory? {
@@ -177,7 +208,13 @@ internal object CallReportHistoryDiskCache {
                 source.optJSONObject(index)?.toHistoryEvent()?.let(::add)
             }
         }
-        return CachedPhoneHistory(savedAtMs, principal, events)
+        val companyMainNotes = buildList {
+            val source = optJSONArray("company_main_notes") ?: return@buildList
+            for (index in 0 until source.length()) {
+                source.optJSONObject(index)?.toCompanyMainNote()?.let(::add)
+            }
+        }
+        return CachedPhoneHistory(savedAtMs, principal, events, companyMainNotes)
     }
 
     private fun CallReportHistoryPrincipal.toJson(): JSONObject = JSONObject().apply {
@@ -248,6 +285,32 @@ internal object CallReportHistoryDiskCache {
         )
     }
 
+    private fun CallReportHistoryCompanyMainNote.toJson(): JSONObject = JSONObject().apply {
+        put("server_id", serverId)
+        put("client_event_id", clientEventId)
+        put("phone", phone)
+        put("company_id", companyId)
+        put("company_name", companyName)
+        put("note", note)
+        put("updated_at_ms", updatedAtMs)
+    }
+
+    private fun JSONObject.toCompanyMainNote(): CallReportHistoryCompanyMainNote? {
+        val phone = optString("phone").trim()
+        val companyId = optString("company_id").trim()
+        val note = optString("note").trim()
+        if (HomeCallPageLoader.noteKey(phone).isBlank() || companyId.isBlank() || note.isBlank()) return null
+        return CallReportHistoryCompanyMainNote(
+            serverId = optString("server_id").trim(),
+            clientEventId = optString("client_event_id").trim(),
+            phone = phone,
+            companyId = companyId,
+            companyName = optString("company_name").trim().ifBlank { companyId },
+            note = note,
+            updatedAtMs = optLong("updated_at_ms", 0L),
+        )
+    }
+
     private fun scopeFor(context: Context, config: AppConfig): String? {
         val baseUrl = config.baseUrl.trim().trimEnd('/').lowercase()
         if (baseUrl.isBlank()) return null
@@ -270,5 +333,6 @@ internal object CallReportHistoryDiskCache {
         val savedAtMs: Long,
         val principal: CallReportHistoryPrincipal,
         val events: List<CallReportHistoryEvent>,
+        val companyMainNotes: List<CallReportHistoryCompanyMainNote>,
     )
 }

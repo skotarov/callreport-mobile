@@ -38,9 +38,21 @@ internal data class CallReportHistoryEvent(
     val companyId: String = "",
 )
 
+internal data class CallReportHistoryCompanyMainNote(
+    val serverId: String = "",
+    val clientEventId: String = "",
+    val phone: String = "",
+    val companyId: String = "",
+    val companyName: String = "",
+    val note: String = "",
+    val updatedAtMs: Long = 0L,
+)
+
 internal data class CallReportHistoryLookupResult(
     val principal: CallReportHistoryPrincipal = CallReportHistoryPrincipal(),
     val events: List<CallReportHistoryEvent> = emptyList(),
+    /** Dedicated server general notes returned outside history_items. */
+    val companyMainNotes: List<CallReportHistoryCompanyMainNote> = emptyList(),
 )
 
 internal object CallReportHistoryLookupClient {
@@ -68,7 +80,7 @@ internal object CallReportHistoryLookupClient {
             context?.let { CallReportHistoryDiskCache.read(it, config, listOf(phone)) }
                 ?: CallReportHistoryLookupResult()
         }
-        updateGeneralNoteServerPresence(phone, result.events)
+        updateGeneralNoteServerPresence(phone, result)
         return result
     }
 
@@ -113,14 +125,14 @@ internal object CallReportHistoryLookupClient {
         if (batch == null && singleResults.isEmpty()) {
             val cached = context?.let { CallReportHistoryDiskCache.read(it, config, originalPhones) }
             cached?.let { result ->
-                originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result.events) }
+                originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result) }
             }
             return cached
         }
 
         val result = mergeResults(listOfNotNull(batch) + singleResults)
         context?.let { CallReportHistoryDiskCache.save(it, config, originalPhones, result) }
-        originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result.events) }
+        originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result) }
         return result
     }
 
@@ -189,7 +201,23 @@ internal object CallReportHistoryLookupClient {
                 }
             seen.add(stableKey)
         }.sortedByDescending { event -> maxOf(event.updatedAtMs, event.createdAtMs, event.occurredAtMs) }
-        return CallReportHistoryLookupResult(principal, events)
+        val seenMainNotes = linkedSetOf<String>()
+        val companyMainNotes = results
+            .flatMap { it.companyMainNotes }
+            .filter { note ->
+                val stableKey = note.serverId
+                    .ifBlank { note.clientEventId }
+                    .ifBlank {
+                        listOf(
+                            phoneKey(note.phone),
+                            note.companyId,
+                            note.note.hashCode().toString(),
+                        ).joinToString("|")
+                    }
+                seenMainNotes.add(stableKey)
+            }
+            .sortedByDescending { it.updatedAtMs }
+        return CallReportHistoryLookupResult(principal, events, companyMainNotes)
     }
 
     private fun request(
@@ -232,7 +260,7 @@ internal object CallReportHistoryLookupClient {
                 if (status !in 200..299) throw IllegalStateException("HTTP $status")
                 val json = JSONObject(body)
                 if (!json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "History lookup failed"))
-                return parse(json)
+                return parsePayload(json)
             } catch (error: Throwable) {
                 ServerConnectionNotifier.notifyFailure(context, config, error)
                 throw error
@@ -245,10 +273,16 @@ internal object CallReportHistoryLookupClient {
     private fun isReady(config: AppConfig): Boolean =
         config.remoteEnabled && config.baseUrl.isNotBlank() && config.accessToken.isNotBlank()
 
-    private fun updateGeneralNoteServerPresence(phone: String, events: List<CallReportHistoryEvent>) {
+    private fun updateGeneralNoteServerPresence(phone: String, result: CallReportHistoryLookupResult) {
         val key = phoneKey(phone)
         if (key.isBlank()) return
-        if (events.any { event -> phoneKey(event.phone) == key && CallReportServerNoteClassifier.isGeneralNote(event) }) {
+        val foundInHistory = result.events.any { event ->
+            phoneKey(event.phone) == key && CallReportServerNoteClassifier.isGeneralNote(event)
+        }
+        val foundInDedicatedItems = result.companyMainNotes.any { note ->
+            phoneKey(note.phone) == key && note.note.trim().isNotBlank()
+        }
+        if (foundInHistory || foundInDedicatedItems) {
             generalNoteServerPhones.add(key)
         } else {
             generalNoteServerPhones.remove(key)
@@ -267,7 +301,7 @@ internal object CallReportHistoryLookupClient {
 
     private fun phoneKey(phone: String): String = HomeCallPageLoader.noteKey(phone)
 
-    private fun parse(json: JSONObject): CallReportHistoryLookupResult {
+    internal fun parsePayload(json: JSONObject): CallReportHistoryLookupResult {
         val principalJson = json.optJSONObject("principal") ?: json.optJSONObject("authenticated_principal")
         val companies = buildList {
             val source = principalJson?.optJSONArray("companies")
@@ -285,6 +319,39 @@ internal object CallReportHistoryLookupClient {
             brokerName = principalJson?.optString("broker_name").orEmpty().trim(),
             companies = companies,
         )
+        val companyNames = companies.associate { it.id to it.name }
+        val companyMainNotes = buildList {
+            val items = json.optJSONArray("company_main_note_items")
+                ?: json.optJSONArray("company_main_notes_all")
+            if (items != null) {
+                for (index in 0 until items.length()) {
+                    val item = items.optJSONObject(index) ?: continue
+                    if (item.optBoolean("deleted", false)) continue
+                    val phone = item.text("phone", "number")
+                    val companyId = item.text("company_id")
+                    val note = item.text("note", "notes", "text")
+                    if (phone.isBlank() || companyId.isBlank() || note.isBlank()) continue
+                    val updatedAt = item.numberMs("updated_at_ms", "updated_at", "occurred_at_ms", "occurred_at")
+                    add(
+                        CallReportHistoryCompanyMainNote(
+                            serverId = item.text("id", "server_id", "note_id"),
+                            clientEventId = item.text("client_event_id"),
+                            phone = phone,
+                            companyId = companyId,
+                            companyName = item.text("company_name").ifBlank {
+                                companyNames[companyId].orEmpty().ifBlank { companyId }
+                            },
+                            note = note,
+                            updatedAtMs = updatedAt,
+                        ),
+                    )
+                }
+            }
+        }.distinctBy { note ->
+            note.serverId
+                .ifBlank { note.clientEventId }
+                .ifBlank { "${phoneKey(note.phone)}|${note.companyId}|${note.note.hashCode()}" }
+        }.sortedByDescending { it.updatedAtMs }
         val events = buildList {
             val items = json.optJSONArray("history_items") ?: json.optJSONArray("items")
             if (items != null) {
@@ -314,7 +381,7 @@ internal object CallReportHistoryLookupClient {
                 }
             }
         }
-        return CallReportHistoryLookupResult(principal, events)
+        return CallReportHistoryLookupResult(principal, events, companyMainNotes)
     }
 
     private fun JSONObject.text(vararg keys: String): String {
