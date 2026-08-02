@@ -1,0 +1,32 @@
+name: Export Source Inspection
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip -qr /tmp/relationship-manager-source.zip . \
+            -x '.git/*' \
+            -x '**/build/*' \
+            -x '**/.gradle/*'
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: relationship-manager-source-inspection
+          path: /tmp/relationship-manager-source.zip
+          if-no-files-found: error
+          retention-days: 1
