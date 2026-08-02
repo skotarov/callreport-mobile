@@ -1,9 +1,9 @@
 name: Export Source Inspection
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/popup-server-general-notes
+      - main
 
 permissions:
   contents: read
