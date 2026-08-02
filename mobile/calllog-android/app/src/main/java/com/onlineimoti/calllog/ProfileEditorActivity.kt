@@ -287,19 +287,56 @@ internal class ProfileEditorActivity : AppCompatActivity() {
             val result = CompanyAccountApi.verifyContactOtp(applicationContext, challenge.id, code)
             runOnUiThread {
                 showLoading(false)
-                result.onSuccess { user ->
-                    CompanyAccountApi.applyProfileUser(applicationContext, user)
-                    profile = CompanySessionStore.load(this)
-                    renderProfile(overwriteInputs = true)
-                    setStatus(
-                        if (channel == "email") "Имейлът е сменен и потвърден." else "Телефонът е сменен и потвърден.",
-                        success = true,
+                result.onSuccess { verification ->
+                    if (verification.mergeRequired) {
+                        if (verification.mergeToken.isBlank()) {
+                            setStatus("Сървърът не върна валидно потвърждение за обединяване.")
+                            return@onSuccess
+                        }
+                        ProfileMergeDialog.show(this, verification, channel) {
+                            mergeProfiles(verification.mergeToken)
+                        }
+                        return@onSuccess
+                    }
+                    applyVerifiedContact(
+                        verification.user,
+                        if (channel == "email") {
+                            "Имейлът е сменен и потвърден."
+                        } else {
+                            "Телефонът е сменен и потвърден."
+                        },
                     )
                 }.onFailure { error ->
                     setStatus(error.message ?: "Кодът не е приет. Старият контакт остава непроменен.")
                 }
             }
         }
+    }
+
+    private fun mergeProfiles(mergeToken: String) {
+        setStatus("")
+        showLoading(true)
+        executor.execute {
+            val result = CompanyAccountApi.mergeProfiles(applicationContext, mergeToken)
+            runOnUiThread {
+                showLoading(false)
+                result.onSuccess { user ->
+                    applyVerifiedContact(
+                        user,
+                        "Профилите са обединени. Текущият вход остава активен.",
+                    )
+                }.onFailure { error ->
+                    setStatus(error.message ?: "Профилите не можаха да бъдат обединени.")
+                }
+            }
+        }
+    }
+
+    private fun applyVerifiedContact(user: CompanyAccountApi.ProfileUser, message: String) {
+        CompanyAccountApi.applyProfileUser(applicationContext, user)
+        profile = CompanySessionStore.load(this)
+        renderProfile(overwriteInputs = true)
+        setStatus(message, success = true)
     }
 
     private fun showOtpDialog(
