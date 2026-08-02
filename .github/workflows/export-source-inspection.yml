@@ -1,0 +1,32 @@
+name: Export Source Inspection
+
+on:
+  push:
+    branches:
+      - agent/popup-server-general-notes
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare source archive
+        run: |
+          zip -r relationship-manager-source-inspection.zip \
+            AGENTS.md \
+            mobile/calllog-android/app/src/main \
+            mobile/calllog-android/app/src/test \
+            mobile/calllog-android/app/build.gradle.kts \
+            mobile/calllog-android/settings.gradle.kts
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: relationship-manager-source-inspection
+          path: relationship-manager-source-inspection.zip
+          retention-days: 1
