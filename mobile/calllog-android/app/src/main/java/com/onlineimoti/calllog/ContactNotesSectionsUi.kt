@@ -45,6 +45,7 @@ internal class ContactNotesSectionsUi(
                 serverConfirmed = companyNote.confirmedByServer,
                 syncStatusText = if (companyNote.pending) activity.getString(R.string.history_pending_server_sync) else "",
                 onClick = { onEditCompany(companyNote.companyId) },
+                pending = companyNote.pending,
             )
             val isLastCompany = index == companyNotes.lastIndex
             if (isLastCompany && companyPhaseBar != null) {
@@ -63,14 +64,22 @@ internal class ContactNotesSectionsUi(
         onEditCompany: (String) -> Unit,
     ) {
         val generalNote = ContactNoteReader.generalNoteForPhone(activity, phone)
+        val pendingCompanyChoice = CallReportDeferredCompanyAssignmentStore.isGeneralPending(activity, phone)
+        val pendingServerSync = CallReportNoteOutbox.isGeneralPending(activity, phone)
+        val pending = pendingCompanyChoice || pendingServerSync
         section.addView(companyNameLabel(activity.getString(R.string.note_local_company)))
         section.addView(
             cards.generalNoteCard(
                 textValue = generalNote.ifBlank { activity.getString(R.string.dynamic_notes_add_general) },
                 muted = generalNote.isBlank(),
                 serverConfirmed = false,
-                syncStatusText = "",
+                syncStatusText = when {
+                    pendingCompanyChoice -> activity.getString(R.string.dynamic_note_pending_company_choice)
+                    pendingServerSync -> activity.getString(R.string.history_pending_server_sync)
+                    else -> ""
+                },
                 onClick = { onEditCompany(ContactNoteTopicState.LOCAL_COMPANY_ID) },
+                pending = pending,
             )
         )
     }
@@ -95,9 +104,35 @@ internal class ContactNotesSectionsUi(
                 addView(cards.addCallNoteButton(latestCall) { onAddLatestCallNote(latestCall.toContactCallNote()) })
             }
             callNotes.forEach { note ->
-                addView(cards.callNoteCard(note, ServerRecordIndex.isCallNoteConfirmed(activity, phone, note)) { onEditCallNote(note) })
+                addView(
+                    cards.callNoteCard(
+                        note = note,
+                        serverConfirmed = ServerRecordIndex.isCallNoteConfirmed(activity, phone, note),
+                        onClick = { onEditCallNote(note) },
+                        pending = isCallNotePending(phone, note),
+                    ),
+                )
             }
         })
+    }
+
+    private fun isCallNotePending(phone: String, note: ContactCallNote): Boolean {
+        return CallReportDeferredCompanyAssignmentStore.isCallPending(
+            activity,
+            phone,
+            note.direction,
+            note.callAt,
+        ) || CompanyCallNoteOutbox.isCallPending(
+            activity,
+            phone,
+            note.direction,
+            note.callAt,
+        ) || CallReportTopicNoteOutbox.isCallPending(
+            activity,
+            phone,
+            note.direction,
+            note.callAt,
+        ) || CallReportNoteOutbox.isCallPending(activity, phone, note)
     }
 
     private fun sectionContainer(): LinearLayout = LinearLayout(activity).apply {
