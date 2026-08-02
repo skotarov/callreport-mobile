@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/** Protects the default-10 migration without overriding later manual choices. */
 class ConfigStorePageSizeTest {
     @Test
     fun defaultPageSizeIsTen() {
