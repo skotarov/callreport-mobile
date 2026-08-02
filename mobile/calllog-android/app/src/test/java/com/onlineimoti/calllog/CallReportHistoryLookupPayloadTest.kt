@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/** Verifies the dedicated server-general-note payload used by the ringing popup. */
 class CallReportHistoryLookupPayloadTest {
     @Test
     fun parsesDedicatedCompanyMainNotesAlongsideHistoryItems() {
