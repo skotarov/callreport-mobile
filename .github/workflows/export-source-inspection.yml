@@ -18,24 +18,27 @@ jobs:
           ref: agent/popup-server-general-notes
           fetch-depth: 0
 
-      - name: Verify and apply prepared patch
+      - name: Reconstruct and apply verified patch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cat > /tmp/part-checksums <<'CHECKSUMS'
-          87eb4221b5d97664536c954a3b954b01f21a1ebf2b92a11af5a21df8785caa63  .github/popup-fix-parts/part00
-          5fcc2a855c9dd54d380fa6b4e7812877e0a9805115c68a0c623076051b6f4952  .github/popup-fix-parts/part01
-          2165421bc0fb3e0584991bb9f14cf0f8465195481bc58e90ecbb30d3047ec74d  .github/popup-fix-parts/part020
-          aaf72d8a4ce8d41c07bfe5580842c9d816e7cbc71bf88f67c7fd1e4db3224fe3  .github/popup-fix-parts/part021
-          7c37bdda87be62bef7c9ad9769504367cf8ab7cd3752a132773669102726cd4c  .github/popup-fix-parts/part030
-          7fd797c1d11389a978ce16bd7546cab86b093e208299e6091f95c1dfb27fa288  .github/popup-fix-parts/part031
-          aa1aa71a00191d43a6d7995a411e3ba94e4eeacf373e2418291da96ebcea1386  .github/popup-fix-parts/part040
-          3ce0c7008806fae3b57309dece0935c292af5b89dd6fbd656d96d5a5be71dc27  .github/popup-fix-parts/part041
-          99d2f898cdc5855eb20a91dcbe781975d9cef4137576e3061a9294dd7a4912ef  .github/popup-fix-parts/part050
-          eb43ef24991b70825a102de84cc77615b3e0c8d8207e54c5e4887d28bc3e75bc  .github/popup-fix-parts/part051
-          e967421ef5e996bfcdc2fb9775e0e8eb18409b46d6eb3c7e99481c9f4099aee0  .github/popup-fix-parts/part06
-          CHECKSUMS
-          sha256sum --check /tmp/part-checksums
-          cat .github/popup-fix-parts/part* | base64 --decode > /tmp/popup-fix.patch
+          : > /tmp/popup-fix.patch.gz
+          for sha in \
+            380ee5c5a7b0803c60704c331c37ac5d6b467892 \
+            e664e82dbdf1502e91ef57ef37a8ac72199fab8b \
+            f9ff03637d6c871026d8afbb245c747644ef51a2 \
+            31f1686ebf258b644aaa98321be6414588bb3029
+          do
+            curl -fsSL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/git/blobs/$sha" \
+              | python -c 'import base64,json,sys; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)["content"]))' \
+              >> /tmp/popup-fix.patch.gz
+          done
+          echo 'c6f23f8571891829f6f609a6ddff6af27709c1b658e71e92674ba2a55eae4dc3  /tmp/popup-fix.patch.gz' | sha256sum --check
+          gzip -dc /tmp/popup-fix.patch.gz > /tmp/popup-fix.patch
           echo 'e1010daeb8b5732c9a46a8a623cd4d1900edf70a77f03e0ef87d68da05ba025a  /tmp/popup-fix.patch' | sha256sum --check
           git apply --check /tmp/popup-fix.patch
           git apply /tmp/popup-fix.patch
