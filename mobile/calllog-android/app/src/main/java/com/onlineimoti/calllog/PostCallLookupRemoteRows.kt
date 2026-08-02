@@ -32,7 +32,8 @@ internal object PostCallLookupRemoteRows {
     fun load(context: Context, phone: String): List<PostCallLookupRemoteRow> {
         val appContext = context.applicationContext
         if (!shouldLookup(appContext, phone)) return emptyList()
-        val history = CallReportHistoryLookupClient.lookup(ConfigStore.load(appContext), phone)
+        val config = ConfigStore.load(appContext)
+        val history = CallReportHistoryLookupClient.lookup(config, phone, context = appContext)
         return fromHistory(history, phone)
     }
 
@@ -50,28 +51,50 @@ internal object PostCallLookupRemoteRows {
             event.note.trim().isNotBlank() &&
                 HomeCallPageLoader.noteKey(event.phone) == phoneKey
         }
-        if (relevantNotes.isEmpty()) return emptyList()
-
-        val latestMainNoteByCompany = mutableMapOf<String, CallReportHistoryEvent>()
-        relevantNotes.filter(::isMainNote).forEach { event ->
-            val scopeKey = event.companyId.ifBlank { LEGACY_SERVER_LABEL }
-            val current = latestMainNoteByCompany[scopeKey]
-            if (current == null || eventTimestamp(event) >= eventTimestamp(current)) {
-                latestMainNoteByCompany[scopeKey] = event
+        val dedicatedMainRows = history.companyMainNotes
+            .asSequence()
+            .filter { note ->
+                note.note.trim().isNotBlank() && HomeCallPageLoader.noteKey(note.phone) == phoneKey
             }
-        }
-
-        val mainRows = latestMainNoteByCompany.values
-            .sortedByDescending(::eventTimestamp)
+            .sortedByDescending { it.updatedAtMs }
             .take(MAX_GENERAL_NOTES)
-            .map { event ->
+            .map { note ->
                 PostCallLookupRemoteRow(
                     kind = PostCallLookupRemoteRow.Kind.GENERAL_NOTE,
-                    companyName = companyNameFor(event, companyNames),
-                    note = compact(event.note),
-                    occurredAtMs = eventTimestamp(event),
+                    companyName = note.companyName.ifBlank {
+                        companyNames[note.companyId].orEmpty().ifBlank {
+                            note.companyId.ifBlank { LEGACY_SERVER_LABEL }
+                        }
+                    },
+                    note = compact(note.note),
+                    occurredAtMs = note.updatedAtMs,
                 )
             }
+            .toList()
+
+        val mainRows = if (dedicatedMainRows.isNotEmpty()) {
+            dedicatedMainRows
+        } else {
+            val latestMainNoteByCompany = mutableMapOf<String, CallReportHistoryEvent>()
+            relevantNotes.filter(::isMainNote).forEach { event ->
+                val scopeKey = event.companyId.ifBlank { LEGACY_SERVER_LABEL }
+                val current = latestMainNoteByCompany[scopeKey]
+                if (current == null || eventTimestamp(event) >= eventTimestamp(current)) {
+                    latestMainNoteByCompany[scopeKey] = event
+                }
+            }
+            latestMainNoteByCompany.values
+                .sortedByDescending(::eventTimestamp)
+                .take(MAX_GENERAL_NOTES)
+                .map { event ->
+                    PostCallLookupRemoteRow(
+                        kind = PostCallLookupRemoteRow.Kind.GENERAL_NOTE,
+                        companyName = companyNameFor(event, companyNames),
+                        note = compact(event.note),
+                        occurredAtMs = eventTimestamp(event),
+                    )
+                }
+        }
 
         val latestConversation = relevantNotes
             .asSequence()
@@ -92,15 +115,8 @@ internal object PostCallLookupRemoteRows {
         }
     }
 
-    private fun isMainNote(event: CallReportHistoryEvent): Boolean {
-        if (event.clientEventId.contains(":topic:general:") || event.clientEventId.contains(":note:general:")) {
-            return true
-        }
-        // Do not classify a legacy phone row with no direction/duration as a
-        // main note. It is still a concrete conversation record.
-        return event.communicationType.equals("note", ignoreCase = true) &&
-            event.direction.isBlank() && event.durationSeconds <= 0L
-    }
+    private fun isMainNote(event: CallReportHistoryEvent): Boolean =
+        CallReportServerNoteClassifier.isGeneralNote(event)
 
     private fun companyNameFor(
         event: CallReportHistoryEvent,
