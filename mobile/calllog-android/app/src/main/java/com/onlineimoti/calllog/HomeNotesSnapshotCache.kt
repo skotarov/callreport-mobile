@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.MessageDigest
 
 /**
  * Durable last-known Home note state.
@@ -22,7 +23,6 @@ internal object HomeNotesSnapshotCache {
     fun mergeCached(context: Context, data: HomeRenderData): HomeRenderData {
         if (data.calls.isEmpty()) return data
         val snapshot = synchronized(lock) { read(context) } ?: return data
-        val remoteReady = CallReportRemoteAccess.isReady(ConfigStore.load(context.applicationContext))
         val phoneKeys = data.calls
             .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
             .filterTo(linkedSetOf()) { it.isNotBlank() }
@@ -31,9 +31,7 @@ internal object HomeNotesSnapshotCache {
         return data.copy(
             contactNotesByNumber = linkedMapOf<String, String>().apply {
                 snapshot.contactNotesByNumber.forEach { (key, value) ->
-                    if (key !in phoneKeys) return@forEach
-                    val visibleValue = if (remoteReady) value else HomeGeneralNoteBundle.withoutServer(value)
-                    if (visibleValue.isNotBlank()) put(key, visibleValue)
+                    if (key in phoneKeys && value.isNotBlank()) put(key, value)
                 }
                 data.contactNotesByNumber.forEach(::put)
             },
@@ -45,8 +43,7 @@ internal object HomeNotesSnapshotCache {
             },
             callNotesByCall = linkedMapOf<String, HomeCallNote>().apply {
                 snapshot.callNotesByCall.forEach { (key, value) ->
-                    if (key !in callKeys) return@forEach
-                    visibleCallNote(value, remoteReady)?.let { put(key, it) }
+                    if (key in callKeys) put(key, value)
                 }
                 data.callNotesByCall.forEach(::put)
             },
@@ -210,13 +207,6 @@ internal object HomeNotesSnapshotCache {
         return result
     }
 
-    private fun visibleCallNote(note: HomeCallNote, remoteReady: Boolean): HomeCallNote? {
-        if (remoteReady) return note
-        val localNotes = note.expandedNotes().filterNot { it.fromServer }
-        if (localNotes.isEmpty()) return null
-        return localNotes.first().copy(relatedNotes = localNotes.drop(1))
-    }
-
     private fun read(context: Context): Snapshot? {
         val raw = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_SNAPSHOT, "")
@@ -260,8 +250,18 @@ internal object HomeNotesSnapshotCache {
     }
 
     private fun accountKey(context: Context): String {
-        val config = ConfigStore.load(context.applicationContext)
-        return "${config.baseUrl.trim()}#${config.accessToken.trim()}".hashCode().toString()
+        val appContext = context.applicationContext
+        val config = ConfigStore.load(appContext)
+        val baseUrl = config.baseUrl.trim().trimEnd('/').lowercase()
+        val stableProfile = CompanySessionStore.profileScopeKey(appContext).ifBlank {
+            CompanySessionStore.loadStored(appContext)?.let { snapshot ->
+                snapshot.userEmail.trim().lowercase()
+                    .ifBlank { PhoneNormalizer.key(snapshot.userPhone) }
+            }.orEmpty()
+        }.ifBlank { config.accessToken.trim() }
+        return MessageDigest.getInstance("SHA-256")
+            .digest("$baseUrl|$stableProfile".toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private fun jsonStringMap(values: Map<String, String>) = JSONObject().apply {
