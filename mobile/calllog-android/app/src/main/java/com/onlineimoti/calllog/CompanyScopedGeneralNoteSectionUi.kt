@@ -86,6 +86,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
                 onClick = { onEditCompany(companyId) },
                 authorName = if (multiAuthor) companyNote.authorBrokerName.trim() else "",
                 editable = companyNote.editable,
+                pending = companyNote.pending,
             )
             if (phaseBarForCompany != null && companyNote == lastVisibleNote) {
                 (card.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = dp(2)
@@ -118,6 +119,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
                     serverConfirmed = false,
                     syncStatusText = if (pending) activity.getString(R.string.dynamic_note_pending_company_choice) else "",
                     onClick = { onEditCompany(ContactNoteTopicState.LOCAL_COMPANY_ID) },
+                    pending = pending,
                 ),
             )
         }
