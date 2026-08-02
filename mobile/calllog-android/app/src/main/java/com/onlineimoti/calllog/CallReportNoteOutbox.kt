@@ -161,6 +161,11 @@ internal object CallReportNoteOutbox {
         return isPending(context, ServerRecordIndex.generalNoteEventId(context, phone))
     }
 
+    fun isClientEventPending(context: Context, clientEventId: String): Boolean {
+        val id = clientEventId.trim()
+        return id.isNotBlank() && isPending(context, id)
+    }
+
     fun lastFailure(context: Context): String = context.applicationContext
         .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         .getString(KEY_LAST_FAILURE, "")
