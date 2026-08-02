@@ -1,0 +1,2 @@
+CI-only verification of main commit 03e4b81ec64d80be6388304bb3d36b1589ceabed for offline note/cache and Home resume fixes.
+This file has no runtime effect.
