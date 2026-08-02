@@ -21,7 +21,8 @@ internal class CallReportHistoryNoteRowUi(
     ): View {
         val foreignRecord = remoteEnabled && row.authorIsOtherBroker
         val readOnlyNote = row.kind == CallReportHistoryRowKind.NOTE && !row.editable
-        val colors = colorsFor(row, readOnlyNote)
+        val pending = pendingState(phone, row, remoteEnabled, foreignRecord)
+        val colors = colorsFor(row, readOnlyNote, pending.any)
         return buildRowContent(
             phone = phone,
             row = row,
@@ -32,6 +33,7 @@ internal class CallReportHistoryNoteRowUi(
             readOnlyNote = readOnlyNote,
             textColor = colors.third,
             includeMeta = true,
+            pending = pending,
         ).apply {
             background = roundedRect(colors.first, dp(12), colors.second, dp(1))
             layoutParams = LinearLayout.LayoutParams(
@@ -41,11 +43,7 @@ internal class CallReportHistoryNoteRowUi(
         }
     }
 
-    /**
-     * Notes attached to one exact call share one blue card. The call metadata is
-     * shown once; company badges and note texts separate the individual notes
-     * without borders or divider lines that would make them look like new calls.
-     */
+    /** Notes attached to one exact call share one card and one pending state. */
     fun createGroup(
         phone: String,
         rows: List<CallReportHistoryRow>,
@@ -54,13 +52,17 @@ internal class CallReportHistoryNoteRowUi(
         companyNames: Map<String, String>,
     ): View {
         val first = rows.first()
+        val pendingByRow = rows.associateWith { row ->
+            pendingState(phone, row, remoteEnabled, foreignRecord = false)
+        }
+        val groupColors = if (pendingByRow.values.any { it.any }) NoteUiStyle.Pending else NoteUiStyle.Call
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = roundedRect(
-                NoteUiStyle.Call.background,
+                groupColors.background,
                 dp(12),
-                NoteUiStyle.Call.border,
+                groupColors.border,
                 dp(1),
             )
             layoutParams = LinearLayout.LayoutParams(
@@ -70,6 +72,7 @@ internal class CallReportHistoryNoteRowUi(
 
             addView(shared.metaView(first))
             rows.forEachIndexed { index, row ->
+                val pending = pendingByRow.getValue(row)
                 addView(
                     buildRowContent(
                         phone = phone,
@@ -79,10 +82,10 @@ internal class CallReportHistoryNoteRowUi(
                         companyNames = companyNames,
                         foreignRecord = false,
                         readOnlyNote = false,
-                        textColor = NoteUiStyle.Call.text,
+                        textColor = if (pending.any) NoteUiStyle.Pending.text else groupColors.text,
                         includeMeta = false,
+                        pending = pending,
                     ).apply {
-                        // A little breathing room is enough; intentionally no line.
                         setPadding(0, if (index == 0) 0 else dp(2), 0, 0)
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -104,69 +107,77 @@ internal class CallReportHistoryNoteRowUi(
         readOnlyNote: Boolean,
         textColor: Int,
         includeMeta: Boolean,
-    ): LinearLayout {
-        val serverConfirmed = shared.isServerConfirmed(phone, row)
-        val localNote = row.localNote
-        val pendingGenericSync =
-            !foreignRecord && remoteEnabled && row.kind == CallReportHistoryRowKind.NOTE &&
-                localNote?.let { CallReportNoteOutbox.isCallPending(activity, phone, it) } == true
-        val pendingNewCompanySync =
-            !foreignRecord && remoteEnabled && row.kind == CallReportHistoryRowKind.NOTE &&
-                CompanyCallNoteOutbox.isCallPending(
-                    activity,
-                    phone,
-                    localNote?.direction ?: row.direction,
-                    localNote?.callAt ?: row.timeMs,
-                )
-        val pendingLegacyCompanySync =
-            !foreignRecord && remoteEnabled && row.kind == CallReportHistoryRowKind.NOTE &&
-                localNote?.let {
-                    CallReportTopicNoteOutbox.isCallPending(activity, phone, it.direction, it.callAt)
-                } == true
-        val pendingCompanySync = pendingNewCompanySync || pendingLegacyCompanySync
-        val pendingCompanyChoice =
-            !foreignRecord && row.kind == CallReportHistoryRowKind.NOTE &&
-                localNote?.let {
-                    CallReportDeferredCompanyAssignmentStore.isCallPending(
-                        activity, phone, it.direction, it.callAt,
-                    )
-                } == true
-
-        return LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            if (includeMeta) setPadding(dp(12), dp(10), dp(12), dp(10))
-            if (readOnlyNote) {
-                val author = row.authorName.ifBlank { "друг потребител" }
-                contentDescription = "Неактивна бележка. Записал: $author."
-                isClickable = false
-                isFocusable = false
-                isLongClickable = false
-                setOnClickListener(null)
-            } else if (row.kind == CallReportHistoryRowKind.NOTE && row.editable) {
-                isClickable = true
-                isFocusable = true
-                setOnClickListener {
-                    onEditCallNote(editableNote(phone, row, remoteEnabled))
-                }
+        pending: PendingState,
+    ): LinearLayout = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        if (includeMeta) setPadding(dp(12), dp(10), dp(12), dp(10))
+        if (readOnlyNote) {
+            val author = row.authorName.ifBlank { "друг потребител" }
+            contentDescription = "Неактивна бележка. Записал: $author."
+            isClickable = false
+            isFocusable = false
+            isLongClickable = false
+            setOnClickListener(null)
+        } else if (row.kind == CallReportHistoryRowKind.NOTE && row.editable) {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                onEditCallNote(editableNote(phone, row, remoteEnabled))
             }
-
-            if (includeMeta) addView(shared.metaView(row, muted = readOnlyNote))
-            shared.companyLabel(row.companyId, companyNames, muted = readOnlyNote)?.let(::addView)
-            if (row.text.isNotBlank()) addView(shared.noteText(row.text, textColor))
-            when {
-                pendingCompanyChoice -> addView(shared.pendingCompanyChoiceText())
-                pendingCompanySync -> addView(
-                    shared.pendingSyncText(
-                        if (pendingNewCompanySync) "" else CallReportTopicNoteOutbox.lastFailure(activity),
-                    ),
-                )
-                pendingGenericSync && !serverConfirmed -> addView(
-                    shared.pendingSyncText(CallReportNoteOutbox.lastFailure(activity)),
-                )
-            }
-            if (readOnlyNote) addView(shared.authorText(row.authorName.ifBlank { "друг потребител" }))
-            if (!foreignRecord && remoteEnabled && row.serverNewer) addView(shared.serverNewerText())
         }
+
+        if (includeMeta) addView(shared.metaView(row, muted = readOnlyNote || pending.any))
+        shared.companyLabel(row.companyId, companyNames, muted = readOnlyNote || pending.any)?.let(::addView)
+        if (row.text.isNotBlank()) addView(shared.noteText(row.text, textColor))
+        when {
+            pending.companyChoice -> addView(shared.pendingCompanyChoiceText())
+            pending.companySync -> addView(
+                shared.pendingSyncText(
+                    if (pending.newCompanySync) "" else CallReportTopicNoteOutbox.lastFailure(activity),
+                ),
+            )
+            pending.genericSync -> addView(
+                shared.pendingSyncText(CallReportNoteOutbox.lastFailure(activity)),
+            )
+        }
+        if (readOnlyNote) addView(shared.authorText(row.authorName.ifBlank { "друг потребител" }))
+        if (!foreignRecord && remoteEnabled && row.serverNewer) addView(shared.serverNewerText())
+    }
+
+    private fun pendingState(
+        phone: String,
+        row: CallReportHistoryRow,
+        remoteEnabled: Boolean,
+        foreignRecord: Boolean,
+    ): PendingState {
+        if (foreignRecord || row.kind != CallReportHistoryRowKind.NOTE) return PendingState()
+        val localNote = row.localNote
+        val serverConfirmed = shared.isServerConfirmed(phone, row)
+        val genericSync = remoteEnabled && !serverConfirmed &&
+            localNote?.let { CallReportNoteOutbox.isCallPending(activity, phone, it) } == true
+        val newCompanySync = remoteEnabled && CompanyCallNoteOutbox.isCallPending(
+            activity,
+            phone,
+            localNote?.direction ?: row.direction,
+            localNote?.callAt ?: row.timeMs,
+        )
+        val legacyCompanySync = remoteEnabled && localNote?.let {
+            CallReportTopicNoteOutbox.isCallPending(activity, phone, it.direction, it.callAt)
+        } == true
+        val companyChoice = localNote?.let {
+            CallReportDeferredCompanyAssignmentStore.isCallPending(
+                activity,
+                phone,
+                it.direction,
+                it.callAt,
+            )
+        } == true
+        return PendingState(
+            genericSync = genericSync,
+            newCompanySync = newCompanySync,
+            legacyCompanySync = legacyCompanySync,
+            companyChoice = companyChoice,
+        )
     }
 
     private fun editableNote(
@@ -211,11 +222,17 @@ internal class CallReportHistoryNoteRowUi(
     private fun colorsFor(
         row: CallReportHistoryRow,
         readOnlyNote: Boolean,
+        pending: Boolean,
     ): Triple<Int, Int, Int> = when {
         readOnlyNote -> Triple(
             CallReportHistorySharedUi.FOREIGN_BACKGROUND,
             CallReportHistorySharedUi.FOREIGN_BORDER,
             CallReportHistorySharedUi.FOREIGN_TEXT,
+        )
+        pending -> Triple(
+            NoteUiStyle.Pending.background,
+            NoteUiStyle.Pending.border,
+            NoteUiStyle.Pending.text,
         )
         row.kind == CallReportHistoryRowKind.NOTE -> Triple(
             NoteUiStyle.Call.background,
@@ -223,5 +240,15 @@ internal class CallReportHistoryNoteRowUi(
             NoteUiStyle.Call.text,
         )
         else -> Triple(Color.WHITE, Color.rgb(226, 232, 240), Color.rgb(30, 41, 59))
+    }
+
+    private data class PendingState(
+        val genericSync: Boolean = false,
+        val newCompanySync: Boolean = false,
+        val legacyCompanySync: Boolean = false,
+        val companyChoice: Boolean = false,
+    ) {
+        val companySync: Boolean get() = newCompanySync || legacyCompanySync
+        val any: Boolean get() = genericSync || companySync || companyChoice
     }
 }
