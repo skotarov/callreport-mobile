@@ -70,7 +70,20 @@ internal class CallReportMergedHistoryController(
         val requestedSignature = HistorySnapshotCache.remoteSignature(config)
         if (requestedSignature != remoteSignature) {
             remoteSignature = requestedSignature
-            if (serverLoaded || serverHistory != CallReportHistoryLookupResult()) {
+            val cached = if (requestedSignature.isNotBlank()) {
+                CallReportHistoryDiskCache.read(
+                    activity.applicationContext,
+                    config,
+                    listOf(phone),
+                )
+            } else {
+                null
+            }
+            if (cached != null) {
+                serverHistory = cached
+                serverLoaded = true
+                serverDataDirty = true
+            } else if (serverLoaded || serverHistory != CallReportHistoryLookupResult()) {
                 serverLoaded = false
                 serverHistory = CallReportHistoryLookupResult()
                 serverDataDirty = true
@@ -93,7 +106,13 @@ internal class CallReportMergedHistoryController(
         serverBusyToken = token
         val requestedPhone = phone
         loadExecutor.execute {
-            val result = runCatching { CallReportHistoryLookupClient.lookup(config, requestedPhone) }
+            val result = runCatching {
+                CallReportHistoryLookupClient.lookup(
+                    config = config,
+                    phone = requestedPhone,
+                    context = activity.applicationContext,
+                )
+            }
             handler.post {
                 finishServerBusy(token)
                 if (
@@ -256,9 +275,15 @@ internal class CallReportMergedHistoryController(
         HomeBusyTooltipUi.clear(activity)
     }
 
-    /** Wait for all source loads, then publish one coherent snapshot. */
+    /**
+     * A last successful cached server snapshot may be rendered while a live request
+     * is still running. Wait only when no server snapshot exists at all.
+     */
     private fun prepareWhenDataReady(phone: String) {
-        if (phone.isBlank() || phone != activePhone || localLoading || serverLoading) return
+        if (
+            phone.isBlank() || phone != activePhone || localLoading ||
+            (serverLoading && !serverLoaded)
+        ) return
         if (!localDataDirty && !serverDataDirty) {
             publishIfNeeded()
             return
@@ -373,7 +398,8 @@ internal class CallReportMergedHistoryController(
         serverLoaded = false
         localDataDirty = false
         serverDataDirty = false
-        remoteSignature = HistorySnapshotCache.remoteSignature(ConfigStore.load(activity))
+        val config = ConfigStore.load(activity)
+        remoteSignature = HistorySnapshotCache.remoteSignature(config)
         applyLocalSnapshot(HistoryLocalSnapshot())
         serverHistory = CallReportHistoryLookupResult()
         prepared = HistoryPreparedSnapshot()
@@ -383,17 +409,32 @@ internal class CallReportMergedHistoryController(
         rowsUi.resetPage()
         fullLogUi.resetPage()
 
+        val appContext = activity.applicationContext
         val memoryState = HistorySnapshotCache.memoryState(phone)
-        val cachedLocal = memoryState?.local ?: HistoryBackgroundLoader.cachedLocal(activity.applicationContext, phone)
+        val cachedLocal = memoryState?.local ?: HistoryBackgroundLoader.cachedLocal(appContext, phone)
         if (cachedLocal != null) applyLocalSnapshot(cachedLocal)
+
         if (memoryState != null && memoryState.remoteSignature == remoteSignature) {
             serverHistory = memoryState.serverHistory
             serverLoaded = memoryState.serverLoaded && remoteSignature.isNotBlank()
             prepared = memoryState.prepared
-        } else if (cachedLocal != null) {
-            prepared = HistoryBackgroundLoader.prepareCachedLocal(phone, cachedLocal)
+        } else {
+            val cachedServer = if (remoteSignature.isNotBlank()) {
+                CallReportHistoryDiskCache.read(appContext, config, listOf(phone))
+            } else {
+                null
+            }
+            if (cachedServer != null) {
+                serverHistory = cachedServer
+                serverLoaded = true
+                serverDataDirty = true
+            }
+            if (cachedLocal != null) {
+                prepared = HistoryBackgroundLoader.prepareCachedLocal(phone, cachedLocal)
+            }
         }
-        if (cachedLocal != null) {
+
+        if (cachedLocal != null || serverLoaded) {
             HistorySnapshotCache.putMemory(
                 phone,
                 HistoryCachedState(
