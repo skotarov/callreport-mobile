@@ -33,12 +33,16 @@ internal object HomeCompanyGeneralNoteLabels {
             .take(MAX_VISIBLE_PHONE_LOOKUPS)
         if (requestedPhones.isEmpty()) return HomeCompanyScopeSnapshot()
 
+        val appContext = context.applicationContext
         val requestedPhoneKeys = requestedPhones.mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it) }
         val result = CallReportHistoryLookupClient.lookupMany(
             config = config,
             phones = requestedPhones,
-            context = context.applicationContext,
+            context = appContext,
         )
+        val companies = result.principal.companies.ifEmpty {
+            cachedCompanies(appContext, config)
+        }
         val serverBackedPhoneKeys = result.events
             .asSequence()
             .filter { event ->
@@ -47,7 +51,7 @@ internal object HomeCompanyGeneralNoteLabels {
             }
             .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.phone) }
             .filterTo(linkedSetOf()) { it.isNotBlank() && it in requestedPhoneKeys }
-        val companiesById = result.principal.companies.associate { it.id to it.name }
+        val companiesById = companies.associate { it.id to it.name }
         val labelsByPhone = linkedMapOf<String, LinkedHashMap<String, MutableScopeLabel>>()
         val confirmedGeneralScopes = linkedSetOf<String>()
 
@@ -78,7 +82,7 @@ internal object HomeCompanyGeneralNoteLabels {
         for (phone in requestedPhones) {
             val phoneKey = HomeCallPageLoader.noteKey(phone)
             if (phoneKey.isBlank()) continue
-            for (company in result.principal.companies) {
+            for (company in companies) {
                 val localNote = CallReportCompanyGeneralNoteStore.noteFor(context, phone, company.id)
                 val decision = CompanyGeneralNoteCachePolicy.decide(
                     localNote = localNote,
@@ -100,7 +104,7 @@ internal object HomeCompanyGeneralNoteLabels {
         }
 
         val phaseRequests = requestedPhones.flatMap { phone ->
-            result.principal.companies.map { company -> PhaseRequest(phone, company.id) }
+            companies.map { company -> PhaseRequest(phone, company.id) }
         }
         if (phaseRequests.isNotEmpty()) {
             val executor = Executors.newFixedThreadPool(minOf(MAX_PARALLEL_PHASE_LOOKUPS, phaseRequests.size))
@@ -161,6 +165,27 @@ internal object HomeCompanyGeneralNoteLabels {
             labelsByPhoneKey = labelsByPhoneKey,
             serverBackedPhoneKeys = serverBackedPhoneKeys,
         )
+    }
+
+    private fun cachedCompanies(
+        context: Context,
+        config: AppConfig,
+    ): List<CallReportHistoryCompany> {
+        HistoryCompanyScopeCache.read(context, config)?.takeIf { it.isNotEmpty() }?.let { return it }
+        return CallReportTopicCompaniesCache.read(context, config)
+            ?.companies
+            .orEmpty()
+            .asSequence()
+            .filter { it.id.isNotBlank() }
+            .distinctBy { it.id }
+            .map { company ->
+                CallReportHistoryCompany(
+                    id = company.id,
+                    name = company.name.ifBlank { company.id },
+                )
+            }
+            .sortedBy { it.name.lowercase() }
+            .toList()
     }
 
     private fun scopeKey(phoneKey: String, companyId: String) = "$phoneKey|${companyId.trim()}"
