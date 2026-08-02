@@ -24,10 +24,14 @@ jobs:
           cat > /tmp/part-checksums <<'CHECKSUMS'
           87eb4221b5d97664536c954a3b954b01f21a1ebf2b92a11af5a21df8785caa63  .github/popup-fix-parts/part00
           5fcc2a855c9dd54d380fa6b4e7812877e0a9805115c68a0c623076051b6f4952  .github/popup-fix-parts/part01
-          35059252574d60dfef3fe33f1bc341c496b5cef6caab14a903ff643d532f4763  .github/popup-fix-parts/part02
-          6397edca5ea451ce30a8454b6a622ce3253a6688971d7abf53d8e2cf091f9109  .github/popup-fix-parts/part03
-          68d7f669fc44cbcc3d689bfa285a3457dedc0312e9704be8b292bd59aa05cd5b  .github/popup-fix-parts/part04
-          7a23ff3e42b06f8c91ec33bf7cc39af34ef0474602a55442dc92a0c75630d47f  .github/popup-fix-parts/part05
+          2165421bc0fb3e0584991bb9f14cf0f8465195481bc58e90ecbb30d3047ec74d  .github/popup-fix-parts/part020
+          aaf72d8a4ce8d41c07bfe5580842c9d816e7cbc71bf88f67c7fd1e4db3224fe3  .github/popup-fix-parts/part021
+          7c37bdda87be62bef7c9ad9769504367cf8ab7cd3752a132773669102726cd4c  .github/popup-fix-parts/part030
+          7fd797c1d11389a978ce16bd7546cab86b093e208299e6091f95c1dfb27fa288  .github/popup-fix-parts/part031
+          aa1aa71a00191d43a6d7995a411e3ba94e4eeacf373e2418291da96ebcea1386  .github/popup-fix-parts/part040
+          3ce0c7008806fae3b57309dece0935c292af5b89dd6fbd656d96d5a5be71dc27  .github/popup-fix-parts/part041
+          99d2f898cdc5855eb20a91dcbe781975d9cef4137576e3061a9294dd7a4912ef  .github/popup-fix-parts/part050
+          eb43ef24991b70825a102de84cc77615b3e0c8d8207e54c5e4887d28bc3e75bc  .github/popup-fix-parts/part051
           e967421ef5e996bfcdc2fb9775e0e8eb18409b46d6eb3c7e99481c9f4099aee0  .github/popup-fix-parts/part06
           CHECKSUMS
           sha256sum --check /tmp/part-checksums
