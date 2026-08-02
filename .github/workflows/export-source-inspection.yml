@@ -21,6 +21,16 @@ jobs:
       - name: Verify and apply prepared patch
         run: |
           set -euo pipefail
+          cat > /tmp/part-checksums <<'CHECKSUMS'
+          87eb4221b5d97664536c954a3b954b01f21a1ebf2b92a11af5a21df8785caa63  .github/popup-fix-parts/part00
+          5fcc2a855c9dd54d380fa6b4e7812877e0a9805115c68a0c623076051b6f4952  .github/popup-fix-parts/part01
+          35059252574d60dfef3fe33f1bc341c496b5cef6caab14a903ff643d532f4763  .github/popup-fix-parts/part02
+          6397edca5ea451ce30a8454b6a622ce3253a6688971d7abf53d8e2cf091f9109  .github/popup-fix-parts/part03
+          68d7f669fc44cbcc3d689bfa285a3457dedc0312e9704be8b292bd59aa05cd5b  .github/popup-fix-parts/part04
+          7a23ff3e42b06f8c91ec33bf7cc39af34ef0474602a55442dc92a0c75630d47f  .github/popup-fix-parts/part05
+          e967421ef5e996bfcdc2fb9775e0e8eb18409b46d6eb3c7e99481c9f4099aee0  .github/popup-fix-parts/part06
+          CHECKSUMS
+          sha256sum --check /tmp/part-checksums
           cat .github/popup-fix-parts/part* | base64 --decode > /tmp/popup-fix.patch
           echo 'e1010daeb8b5732c9a46a8a623cd4d1900edf70a77f03e0ef87d68da05ba025a  /tmp/popup-fix.patch' | sha256sum --check
           git apply --check /tmp/popup-fix.patch
