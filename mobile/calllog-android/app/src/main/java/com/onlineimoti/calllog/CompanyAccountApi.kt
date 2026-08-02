@@ -130,7 +130,8 @@ internal object CompanyAccountApi {
         JSONObject()
             .put("action", "request_contact_otp")
             .put("channel", channel)
-            .put("value", normalizeOtpValue(value, channel)),
+            .put("value", normalizeOtpValue(value, channel))
+            .put("supports_profile_merge", true),
         authenticated = true,
     ).map(::parseChallenge)
 
