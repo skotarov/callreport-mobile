@@ -26,4 +26,13 @@ internal object NoteUiStyle {
         background = Color.rgb(224, 246, 255),
         border = Color.rgb(125, 211, 252),
     )
+
+    /** A locally saved note that has not yet been confirmed by the server. */
+    val Pending = NoteCardColors(
+        text = Color.rgb(71, 85, 105),
+        mutedText = Color.rgb(100, 116, 139),
+        metaText = Color.rgb(100, 116, 139),
+        background = Color.rgb(241, 245, 249),
+        border = Color.rgb(203, 213, 225),
+    )
 }
