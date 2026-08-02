@@ -1,0 +1,156 @@
+name: Apply Empty Call Log Resume Fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out working branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-empty-call-log-resume-20260803
+          fetch-depth: 0
+
+      - name: Apply verified Android patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/empty-call-log-resume.patch <<'PATCH'
+          diff --git a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeActivityPaged.kt b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeActivityPaged.kt
+          index 502c0dd..0000000 100644
+          --- a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeActivityPaged.kt
+          +++ b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeActivityPaged.kt
+          @@ -250,6 +250,7 @@ class HomeActivity : FontScaledAppCompatActivity() {
+                   binding = ActivityHomeBinding.inflate(layoutInflater)
+                   setContentView(binding.root)
+          +        HomeResumeRefreshController.install(this, binding)
+                   edgePaging.bind()
+                   noteSavedReceiver.register()
+                   callLogObserver.register()
+          diff --git a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeContentRenderer.kt b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeContentRenderer.kt
+          index 0166cdd..0000000 100644
+          --- a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeContentRenderer.kt
+          +++ b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeContentRenderer.kt
+          @@ -190,15 +190,25 @@ internal class HomeContentRenderer(
+                   currentServerBackedPhoneKeys = serverBackedKeys
+                   binding.fullLogProgress.visibility = View.GONE
+                   renderStatusAndPagination(pageSize)
+          -        if (unchanged && !forceRender) {
+          +
+          +        val automaticPaging = PageLoadingModeStore.usesPrefetch(activity)
+          +        val page = HomePagedListUi.page(
+          +            binding.homeCallsContainer,
+          +            automaticPaging,
+          +            pageIndex(),
+          +        )
+          +        val hasRenderedContent = if (automaticPaging) {
+          +            page.childCount > 0
+          +        } else {
+          +            HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0
+          +        }
+          +        if (!HomeRefreshRenderPolicy.shouldRebuildPage(unchanged, forceRender, hasRenderedContent)) {
+                       HomeLoadingFooterUi.hide(binding.homeCallsContainer)
+                       return
+                   }
+          
+          -        val page = HomePagedListUi.page(
+          -            binding.homeCallsContainer,
+          -            PageLoadingModeStore.usesPrefetch(activity),
+          -            pageIndex(),
+          -        )
+          -        val patched = !forceRender && calls == previousCalls && page.childCount > 0 && patchChangedRows(
+          +        val patched = !forceRender && calls == previousCalls && hasRenderedContent && patchChangedRows(
+                       page = page,
+                       calls = calls,
+                       previousContactNotes = previousContactNotes,
+          diff --git a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeRefreshRenderPolicy.kt b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeRefreshRenderPolicy.kt
+          index 2f13565..0000000 100644
+          --- a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeRefreshRenderPolicy.kt
+          +++ b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeRefreshRenderPolicy.kt
+          @@ -38,6 +38,14 @@ internal object HomeRefreshRenderPolicy {
+                   return requested
+               }
+          
+          +    /** Same data still needs a rebuild when Android no longer has rendered rows. */
+          +    fun shouldRebuildPage(
+          +        dataUnchanged: Boolean,
+          +        forceRender: Boolean,
+          +        hasRenderedContent: Boolean,
+          +    ): Boolean = forceRender || !dataUnchanged || !hasRenderedContent
+          +
+               @Synchronized
+               fun clear() {
+                   keepExistingRowsOnce = false
+          diff --git a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeResumeRefreshController.kt b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeResumeRefreshController.kt
+          index a38e318..0000000 100644
+          --- a/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeResumeRefreshController.kt
+          +++ b/mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/HomeResumeRefreshController.kt
+          @@ -35,7 +35,7 @@ internal class HomeResumeRefreshController private constructor(
+               }
+          
+               private val reloadAfterSettingsRunnable = Runnable {
+          -        if (activity.isFinishing || activity.isDestroyed || !activity.hasWindowFocus()) return@Runnable
+          +        if (activity.isFinishing || activity.isDestroyed) return@Runnable
+                   if (HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0) return@Runnable
+          
+                   // The call model may still contain rows even though Android has lost the
+          diff --git a/mobile/calllog-android/app/src/test/java/com/onlineimoti/calllog/HomeRefreshRenderPolicyTest.kt b/mobile/calllog-android/app/src/test/java/com/onlineimoti/calllog/HomeRefreshRenderPolicyTest.kt
+          index 9c0cfec..0000000 100644
+          --- a/mobile/calllog-android/app/src/test/java/com/onlineimoti/calllog/HomeRefreshRenderPolicyTest.kt
+          +++ b/mobile/calllog-android/app/src/test/java/com/onlineimoti/calllog/HomeRefreshRenderPolicyTest.kt
+          @@ -39,4 +39,31 @@ class HomeRefreshRenderPolicyTest {
+                   assertFalse(HomeRefreshRenderPolicy.consumeKeepExistingRows())
+                   assertFalse(HomeRefreshRenderPolicy.consumeForceRebuild())
+               }
+          +
+          +    @Test
+          +    fun unchangedDataDoesNotRebuildAnExistingPage() {
+          +        assertFalse(
+          +            HomeRefreshRenderPolicy.shouldRebuildPage(
+          +                dataUnchanged = true,
+          +                forceRender = false,
+          +                hasRenderedContent = true,
+          +            ),
+          +        )
+          +    }
+          +
+          +    @Test
+          +    fun unchangedDataRebuildsWhenRenderedRowsAreMissing() {
+          +        assertTrue(
+          +            HomeRefreshRenderPolicy.shouldRebuildPage(
+          +                dataUnchanged = true,
+          +                forceRender = false,
+          +                hasRenderedContent = false,
+          +            ),
+          +        )
+          +    }
+          +
+          +    @Test
+          +    fun changedOrForcedDataAlwaysRebuilds() {
+          +        assertTrue(HomeRefreshRenderPolicy.shouldRebuildPage(false, false, true))
+          +        assertTrue(HomeRefreshRenderPolicy.shouldRebuildPage(true, true, true))
+          +    }
+           }
+          PATCH
+          sed -i 's/^          //' /tmp/empty-call-log-resume.patch
+          git apply --check /tmp/empty-call-log-resume.patch
+          git apply /tmp/empty-call-log-resume.patch
+
+      - name: Commit clean Android change
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-empty-call-log-resume-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Recover empty Call Log after returning to Home'
+          git push origin HEAD:agent/fix-empty-call-log-resume-20260803
