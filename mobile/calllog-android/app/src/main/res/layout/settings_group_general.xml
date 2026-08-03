@@ -39,14 +39,10 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <include
-            android:id="@+id/languageSettingsSection"
-            layout="@layout/section_language_settings" />
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="14dp"
             android:text="@string/font_scale_title"
             android:textColor="@color/calllog_text"
             android:textSize="15sp"
@@ -82,6 +78,14 @@
                 android:text="@string/font_scale_largest"
                 android:textColor="@color/calllog_text"
                 android:textSize="15sp" />
+
+            <RadioButton
+                android:id="@+id/fontScaleExtraLargeRadio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/font_scale_extra_large"
+                android:textColor="@color/calllog_text"
+                android:textSize="15sp" />
         </RadioGroup>
 
         <TextView
@@ -92,6 +96,10 @@
             android:text="@string/font_scale_description"
             android:textColor="@color/calllog_muted_text"
             android:textSize="12sp" />
+
+        <include
+            android:id="@+id/languageSettingsSection"
+            layout="@layout/section_language_settings" />
 
         <TextView
             android:layout_width="match_parent"
