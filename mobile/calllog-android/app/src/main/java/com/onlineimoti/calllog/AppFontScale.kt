@@ -11,17 +11,19 @@ import androidx.appcompat.app.AppCompatActivity
 object AppFontScaleStore {
     private const val PREFS = "relationship_manager_font_scale"
     private const val KEY_MULTIPLIER = "multiplier"
-    const val SMALL = 1.0f
-    const val NORMAL = 1.15f
-    const val LARGE = 1.3f
-    /** Legacy aliases retained so older code paths and stored values remain safe. */
-    const val LARGER = NORMAL
-    const val LARGEST = LARGE
+    const val VERY_SMALL = 1.0f
+    const val SMALL = 1.15f
+    const val NORMAL = 1.3f
+    const val LARGE = 1.45f
+    const val DEFAULT = NORMAL
+    /** Legacy aliases retain their historical numeric values. */
+    const val LARGER = SMALL
+    const val LARGEST = NORMAL
 
     fun loadMultiplier(context: Context): Float {
         return normalize(context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getFloat(KEY_MULTIPLIER, NORMAL))
+            .getFloat(KEY_MULTIPLIER, DEFAULT))
     }
 
     fun saveMultiplier(context: Context, multiplier: Float) {
@@ -33,21 +35,22 @@ object AppFontScaleStore {
     }
 
     fun normalize(value: Float): Float = when {
-        value >= 1.225f -> LARGE
-        value > 1.075f -> NORMAL
-        else -> SMALL
+        value >= 1.375f -> LARGE
+        value >= 1.225f -> NORMAL
+        value > 1.075f -> SMALL
+        else -> VERY_SMALL
     }
 }
 
 /**
- * App-only text scaling. It exposes Small, Normal, and Large. Normal is the
- * middle/default profile installed with the app, while Small maps to the phone's
- * unmodified text size.
+ * App-only text scaling. It exposes Very small, Small, Normal, and Large.
+ * Normal is the default profile, while Very small maps to the phone's unmodified
+ * text size.
  */
 object AppFontScale {
     fun wrap(base: Context): Context {
         val scale = AppFontScaleStore.loadMultiplier(base)
-        if (scale == AppFontScaleStore.SMALL) return base
+        if (scale == AppFontScaleStore.VERY_SMALL) return base
         val configuration = Configuration(base.resources.configuration).apply {
             fontScale = (fontScale * scale).coerceIn(0.5f, AppFontScaleStore.LARGE)
         }
@@ -56,7 +59,7 @@ object AppFontScale {
 }
 
 open class FontScaledAppCompatActivity : AppCompatActivity() {
-    private var appliedScale = AppFontScaleStore.NORMAL
+    private var appliedScale = AppFontScaleStore.DEFAULT
 
     override fun attachBaseContext(newBase: Context) {
         appliedScale = AppFontScaleStore.loadMultiplier(newBase)
@@ -82,7 +85,7 @@ open class FontScaledAppCompatActivity : AppCompatActivity() {
 }
 
 open class FontScaledActivity : Activity() {
-    private var appliedScale = AppFontScaleStore.NORMAL
+    private var appliedScale = AppFontScaleStore.DEFAULT
 
     override fun attachBaseContext(newBase: Context) {
         appliedScale = AppFontScaleStore.loadMultiplier(newBase)
