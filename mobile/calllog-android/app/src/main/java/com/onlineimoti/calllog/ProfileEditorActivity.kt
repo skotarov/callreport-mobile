@@ -293,8 +293,8 @@ internal class ProfileEditorActivity : AppCompatActivity() {
                             setStatus("Сървърът не върна валидно потвърждение за обединяване.")
                             return@onSuccess
                         }
-                        ProfileMergeDialog.show(this, verification, channel) {
-                            mergeProfiles(verification.mergeToken)
+                        ProfileMergeDialog.show(this, verification, channel) { selectedName ->
+                            mergeProfiles(verification.mergeToken, selectedName)
                         }
                         return@onSuccess
                     }
@@ -313,17 +313,21 @@ internal class ProfileEditorActivity : AppCompatActivity() {
         }
     }
 
-    private fun mergeProfiles(mergeToken: String) {
+    private fun mergeProfiles(mergeToken: String, selectedDisplayName: String) {
         setStatus("")
         showLoading(true)
         executor.execute {
-            val result = CompanyAccountApi.mergeProfiles(applicationContext, mergeToken)
+            val result = CompanyAccountApi.mergeProfiles(
+                applicationContext,
+                mergeToken,
+                selectedDisplayName,
+            )
             runOnUiThread {
                 showLoading(false)
                 result.onSuccess { user ->
                     applyVerifiedContact(
                         user,
-                        "Профилите са обединени. Текущият вход остава активен.",
+                        "Профилите са обединени, а другият профил е изтрит. Текущият вход остава активен.",
                     )
                 }.onFailure { error ->
                     setStatus(error.message ?: "Профилите не можаха да бъдат обединени.")
