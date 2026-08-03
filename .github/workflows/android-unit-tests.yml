@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 .agent/run_note_author_patch.py
+          python3 .agent/apply_note_author_id_direct.py
 
       - name: Commit clean Android changes
         shell: bash
