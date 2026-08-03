@@ -220,6 +220,7 @@ internal object CallReportHistoryDiskCache {
     private fun CallReportHistoryPrincipal.toJson(): JSONObject = JSONObject().apply {
         put("broker_id", brokerId)
         put("broker_name", brokerName)
+        put("profile_id", profileId)
         put("companies", JSONArray().apply {
             companies.forEach { company ->
                 put(JSONObject().apply {
@@ -233,6 +234,7 @@ internal object CallReportHistoryDiskCache {
     private fun JSONObject.toPrincipal(): CallReportHistoryPrincipal = CallReportHistoryPrincipal(
         brokerId = optString("broker_id").trim(),
         brokerName = optString("broker_name").trim(),
+        profileId = optString("profile_id").trim(),
         companies = buildList {
             val source = optJSONArray("companies") ?: return@buildList
             for (index in 0 until source.length()) {
@@ -260,6 +262,9 @@ internal object CallReportHistoryDiskCache {
         put("author_broker_id", authorBrokerId)
         put("author_broker_name", authorBrokerName)
         put("company_id", companyId)
+        put("author_profile_id", authorProfileId)
+        isMine?.let { put("is_mine", it) }
+        canEdit?.let { put("can_edit", it) }
     }
 
     private fun JSONObject.toHistoryEvent(): CallReportHistoryEvent? {
@@ -282,7 +287,24 @@ internal object CallReportHistoryDiskCache {
             authorBrokerId = optString("author_broker_id").trim(),
             authorBrokerName = optString("author_broker_name").trim(),
             companyId = optString("company_id").trim(),
+            authorProfileId = optString("author_profile_id").trim(),
+            isMine = optionalBoolean("is_mine"),
+            canEdit = optionalBoolean("can_edit"),
         )
+    }
+
+    private fun JSONObject.optionalBoolean(key: String): Boolean? {
+        if (!has(key) || isNull(key)) return null
+        return when (val value = opt(key)) {
+            is Boolean -> value
+            is Number -> value.toInt() != 0
+            is String -> when (value.trim().lowercase()) {
+                "1", "true", "yes" -> true
+                "0", "false", "no" -> false
+                else -> null
+            }
+            else -> null
+        }
     }
 
     private fun CallReportHistoryCompanyMainNote.toJson(): JSONObject = JSONObject().apply {

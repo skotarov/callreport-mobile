@@ -60,6 +60,7 @@ internal object CompanyAccountSessionPersistence {
             PhoneNormalizer.key(remembered.userPhone) == incomingPhoneKey
 
         return incoming.copy(
+            userId = incoming.userId.trim().ifBlank { remembered.userId },
             userName = incoming.userName.trim().ifBlank { remembered.userName },
             userEmail = email,
             userPhone = phone,

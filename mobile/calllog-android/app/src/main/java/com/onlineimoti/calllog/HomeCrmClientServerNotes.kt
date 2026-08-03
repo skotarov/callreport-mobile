@@ -65,7 +65,7 @@ internal object HomeCrmClientServerNotes {
                 authorName = event.authorBrokerName.trim(),
                 companyId = event.companyId.trim(),
                 serverClientEventId = event.clientEventId.trim(),
-                editable = !isOtherBrokerAuthor(event, history.principal),
+                editable = CallReportAuthorIdentityPolicy.canEdit(event, history.principal),
             )
             val bucket = byRowAndScope.getOrPut(key) { linkedMapOf() }
             val current = bucket[scope]
@@ -112,18 +112,5 @@ internal object HomeCrmClientServerNotes {
         return event.communicationType.equals("note", ignoreCase = true) &&
             event.note.trim().isNotBlank() &&
             !CallReportServerNoteClassifier.isExplicitGeneralNote(event)
-    }
-
-    private fun isOtherBrokerAuthor(
-        event: CallReportHistoryEvent,
-        principal: CallReportHistoryPrincipal,
-    ): Boolean {
-        val authorId = event.authorBrokerId.trim()
-        val authorName = event.authorBrokerName.trim()
-        val currentId = principal.brokerId.trim()
-        val currentName = principal.brokerName.trim()
-        if (authorId.isNotBlank() && currentId.isNotBlank()) return authorId != currentId
-        if (authorName.isNotBlank() && currentName.isNotBlank()) return !authorName.equals(currentName, ignoreCase = true)
-        return false
     }
 }

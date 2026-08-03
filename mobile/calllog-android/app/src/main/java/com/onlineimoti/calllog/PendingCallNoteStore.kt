@@ -12,6 +12,8 @@ internal data class PendingCallNote(
     val note: String,
     /** Selected company for a call note that is waiting for the call-log row. */
     val companyId: String = "",
+    val authorProfileId: String = "",
+    val authorName: String = "",
 )
 
 internal object PendingCallNoteStore {
@@ -33,6 +35,8 @@ internal object PendingCallNoteStore {
         sessionStartedAt: Long,
         text: String,
         companyId: String = "",
+        authorProfileId: String = "",
+        authorName: String = "",
     ): Boolean {
         val key = phoneKey(phone)
         if (key.isBlank()) return false
@@ -43,6 +47,9 @@ internal object PendingCallNoteStore {
             return true
         }
         val now = System.currentTimeMillis()
+        val session = CompanySessionStore.load(context.applicationContext)
+        val resolvedAuthorId = authorProfileId.trim().ifBlank { session?.userId.orEmpty() }
+        val resolvedAuthorName = authorName.trim().ifBlank { session?.userName.orEmpty() }
         val record = JSONObject().apply {
             put("phone", phone)
             put("direction", direction)
@@ -50,6 +57,8 @@ internal object PendingCallNoteStore {
             put("saved_at", now)
             put("note", trimmed)
             if (companyId.trim().isNotBlank()) put("company_id", companyId.trim())
+            if (resolvedAuthorId.isNotBlank()) put("author_profile_id", resolvedAuthorId)
+            if (resolvedAuthorName.isNotBlank()) put("author_name", resolvedAuthorName)
         }
         prefs.edit().putString(key, record.toString()).apply()
         return true
@@ -76,6 +85,8 @@ internal object PendingCallNoteStore {
             savedAt = savedAt,
             note = note,
             companyId = json.optString("company_id").trim(),
+            authorProfileId = json.optString("author_profile_id").trim(),
+            authorName = json.optString("author_name").trim(),
         )
     }
 
@@ -118,6 +129,8 @@ internal object PendingCallNoteStore {
                 durationSeconds = call.durationSeconds,
                 actionIssuedAt = 0L,
                 companyId = pending.companyId,
+                authorProfileId = pending.authorProfileId,
+                authorName = pending.authorName,
             )
         } else {
             CallNoteWriter.writeCallOrGeneral(

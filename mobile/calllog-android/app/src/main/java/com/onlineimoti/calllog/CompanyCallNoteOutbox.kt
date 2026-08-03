@@ -28,6 +28,8 @@ internal data class QueuedCompanyCallNote(
     val note: String,
     val contactName: String,
     val updatedAtMs: Long,
+    val authorProfileId: String = "",
+    val authorName: String = "",
 ) {
     fun toHistoryEvent(): CallReportHistoryEvent = CallReportHistoryEvent(
         clientEventId = clientEventId,
@@ -41,6 +43,10 @@ internal data class QueuedCompanyCallNote(
         createdAtMs = updatedAtMs,
         updatedAtMs = updatedAtMs,
         companyId = companyId,
+        authorProfileId = authorProfileId,
+        authorBrokerName = authorName,
+        isMine = true,
+        canEdit = true,
     )
 
     fun toSyncEvent(context: Context): CallReportTopicSyncEvent = CallReportTopicSyncEvent(
@@ -72,6 +78,8 @@ internal object CompanyCallNoteOutbox {
         durationSeconds: Long,
         companyId: String,
         existingClientEventId: String = "",
+        authorProfileId: String = "",
+        authorName: String = "",
     ): Boolean {
         val appContext = context.applicationContext
         val target = companyId.trim()
@@ -84,6 +92,7 @@ internal object CompanyCallNoteOutbox {
             )
             ServerRecordIndex.callNoteEventId(appContext, "$stableCallId-company-$encodedCompany")
         }
+        val session = CompanySessionStore.load(appContext)
         val operation = QueuedCompanyCallNote(
             clientEventId = eventId,
             companyId = target,
@@ -94,6 +103,8 @@ internal object CompanyCallNoteOutbox {
             note = note.trim(),
             contactName = ContactGroupFilter.resolveDisplayName(appContext, phone).orEmpty().trim(),
             updatedAtMs = System.currentTimeMillis(),
+            authorProfileId = authorProfileId.trim().ifBlank { session?.userId.orEmpty() },
+            authorName = authorName.trim().ifBlank { session?.userName.orEmpty() },
         )
         ServerRecordIndex.markPending(appContext, eventId)
         synchronized(lock) {
@@ -178,6 +189,8 @@ internal object CompanyCallNoteOutbox {
         put("note", note)
         put("contact_name", contactName)
         put("updated_at_ms", updatedAtMs)
+        if (authorProfileId.isNotBlank()) put("author_profile_id", authorProfileId)
+        if (authorName.isNotBlank()) put("author_name", authorName)
     }
 
     private fun JSONObject.toOperation(): QueuedCompanyCallNote? {
@@ -196,6 +209,8 @@ internal object CompanyCallNoteOutbox {
             note = optString("note"),
             contactName = optString("contact_name").trim(),
             updatedAtMs = optLong("updated_at_ms", 0L).takeIf { it > 0L } ?: System.currentTimeMillis(),
+            authorProfileId = optString("author_profile_id").trim(),
+            authorName = optString("author_name").trim(),
         )
     }
 
