@@ -2,18 +2,21 @@ package com.onlineimoti.calllog
 
 import android.app.Activity
 import android.app.Dialog
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 
-/** Modal viewer for one concrete incoming SMS opened from a notification tap. */
+/** Modal viewer for one complete SMS, opened from notifications or History rows. */
 internal class SmsMessageViewDialog(
     private val activity: Activity,
     private val dp: (Int) -> Int,
@@ -23,6 +26,9 @@ internal class SmsMessageViewDialog(
         title: String,
         body: String,
         receivedAtMs: Long,
+        direction: String = "sms_in",
+        showReplyAction: Boolean = true,
+        onEdit: (() -> Unit)? = null,
         onDismiss: (() -> Unit)? = null,
     ) {
         if (phone.isBlank() || activity.isFinishing || activity.isDestroyed) {
@@ -30,31 +36,44 @@ internal class SmsMessageViewDialog(
             return
         }
         runCatching {
-            var openingReply = false
+            var openingAnotherUi = false
             val dialog = Dialog(activity).apply { requestWindowFeature(Window.FEATURE_NO_TITLE) }
-            dialog.setContentView(content(
-                dialog = dialog,
-                phone = phone,
-                title = title.ifBlank { phone },
-                body = body,
-                receivedAtMs = receivedAtMs,
-                openReply = {
-                    openingReply = true
-                    dialog.dismiss()
-                    SmsComposeDialog(activity, dp).show(
-                        phone = phone,
-                        title = title.ifBlank { phone },
-                        onDismiss = onDismiss,
-                    )
-                },
-            ))
+            dialog.setContentView(
+                content(
+                    dialog = dialog,
+                    phone = phone,
+                    title = title.ifBlank { phone },
+                    body = body,
+                    receivedAtMs = receivedAtMs,
+                    direction = direction,
+                    showReplyAction = showReplyAction,
+                    openEdit = onEdit?.let { edit ->
+                        {
+                            openingAnotherUi = true
+                            dialog.dismiss()
+                            edit()
+                        }
+                    },
+                    openReply = {
+                        openingAnotherUi = true
+                        dialog.dismiss()
+                        SmsComposeDialog(activity, dp).show(
+                            phone = phone,
+                            title = title.ifBlank { phone },
+                            onDismiss = onDismiss,
+                        )
+                    },
+                ),
+            )
             dialog.setOnShowListener { configureWindow(dialog) }
-            dialog.setOnDismissListener { if (!openingReply) onDismiss?.invoke() }
+            dialog.setOnDismissListener { if (!openingAnotherUi) onDismiss?.invoke() }
             dialog.show()
         }.onFailure { error ->
             Toast.makeText(
                 activity,
-                error.message.orEmpty().ifBlank { "Не успях да отворя SMS." },
+                error.message.orEmpty().ifBlank {
+                    if (AppLocaleText.isBulgarian()) "Не успях да отворя SMS." else "Could not open SMS."
+                },
                 Toast.LENGTH_LONG,
             ).show()
             onDismiss?.invoke()
@@ -76,6 +95,9 @@ internal class SmsMessageViewDialog(
         title: String,
         body: String,
         receivedAtMs: Long,
+        direction: String,
+        showReplyAction: Boolean,
+        openEdit: (() -> Unit)?,
         openReply: () -> Unit,
     ): LinearLayout {
         val root = LinearLayout(activity).apply {
@@ -88,37 +110,96 @@ internal class SmsMessageViewDialog(
             text = listOf(
                 title.takeIf { it != phone },
                 phone,
+                SmsMessageDetailPolicy.directionLabel(direction),
                 PhoneCallReader.formatStartedAt(receivedAtMs),
             ).filter { !it.isNullOrBlank() }.joinToString(" • ")
             textSize = 13.5f
             setTextColor(Color.rgb(71, 85, 105))
             setPadding(0, dp(2), 0, dp(12))
         })
-        root.addView(TextView(activity).apply {
-            text = body.ifBlank { "Празно SMS" }
+
+        val bodyView = TextView(activity).apply {
+            text = body.ifBlank {
+                if (AppLocaleText.isBulgarian()) "Празно SMS" else "Empty SMS"
+            }
             textSize = 16f
             setTextColor(Color.rgb(15, 23, 42))
+            setTextIsSelectable(true)
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(203, 213, 225), dp(1))
-            layoutParams = LinearLayout.LayoutParams(
+            background = roundedRect(
+                Color.rgb(248, 250, 252),
+                dp(14),
+                Color.rgb(203, 213, 225),
+                dp(1),
+            )
+            layoutParams = ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        root.addView(
+            MaxHeightScrollView(
+                context = activity,
+                maxHeightPx = (activity.resources.displayMetrics.heightPixels * 0.56f).toInt(),
+            ).apply {
+                isFillViewport = false
+                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                addView(bodyView)
+            },
+            LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-        })
-        root.addView(Button(activity).apply {
-            text = "Отговори"
-            isAllCaps = false
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            background = roundedRect(Color.rgb(15, 23, 42), dp(13), Color.TRANSPARENT, 0)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48),
-            ).apply { topMargin = dp(16) }
-            setOnClickListener { openReply() }
-        })
+            ),
+        )
+
+        if (openEdit != null || showReplyAction) {
+            root.addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(48),
+                ).apply { topMargin = dp(16) }
+
+                if (openEdit != null) {
+                    addView(actionButton(
+                        label = if (AppLocaleText.isBulgarian()) "Редактирай" else "Edit",
+                        primary = false,
+                        onClick = openEdit,
+                    ), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
+                        if (showReplyAction) marginEnd = dp(8)
+                    })
+                }
+                if (showReplyAction) {
+                    val replyLabel = when {
+                        SmsMessageDetailPolicy.isOutgoing(direction) && AppLocaleText.isBulgarian() -> "Ново SMS"
+                        SmsMessageDetailPolicy.isOutgoing(direction) -> "New SMS"
+                        AppLocaleText.isBulgarian() -> "Отговори"
+                        else -> "Reply"
+                    }
+                    addView(actionButton(replyLabel, primary = true, onClick = openReply),
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+                }
+            })
+        }
         return root
+    }
+
+    private fun actionButton(label: String, primary: Boolean, onClick: () -> Unit): Button {
+        return Button(activity).apply {
+            text = label
+            isAllCaps = false
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(if (primary) Color.WHITE else Color.rgb(15, 23, 42))
+            background = roundedRect(
+                color = if (primary) Color.rgb(15, 23, 42) else Color.rgb(248, 250, 252),
+                radius = dp(13),
+                strokeColor = if (primary) Color.TRANSPARENT else Color.rgb(203, 213, 225),
+                strokeWidth = if (primary) 0 else dp(1),
+            )
+            setOnClickListener { onClick() }
+        }
     }
 
     private fun header(dialog: Dialog): LinearLayout = LinearLayout(activity).apply {
@@ -136,7 +217,7 @@ internal class SmsMessageViewDialog(
             textSize = 30f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(71, 85, 105))
-            contentDescription = "Затвори"
+            contentDescription = if (AppLocaleText.isBulgarian()) "Затвори" else "Close"
             isClickable = true
             isFocusable = true
             setOnClickListener { dialog.dismiss() }
@@ -150,6 +231,25 @@ internal class SmsMessageViewDialog(
             cornerRadius = radius.toFloat()
             setColor(color)
             if (strokeWidth > 0) setStroke(strokeWidth, strokeColor)
+        }
+    }
+
+    private class MaxHeightScrollView(
+        context: Context,
+        private val maxHeightPx: Int,
+    ) : ScrollView(context) {
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val originalMode = MeasureSpec.getMode(heightMeasureSpec)
+            val originalSize = MeasureSpec.getSize(heightMeasureSpec)
+            val cappedSize = if (originalMode == MeasureSpec.UNSPECIFIED) {
+                maxHeightPx
+            } else {
+                minOf(originalSize, maxHeightPx)
+            }
+            super.onMeasure(
+                widthMeasureSpec,
+                MeasureSpec.makeMeasureSpec(cappedSize, MeasureSpec.AT_MOST),
+            )
         }
     }
 }
