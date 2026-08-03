@@ -59,6 +59,7 @@ internal class CallReportHistorySmsRowUi(
                 Color.rgb(30, 41, 59)
             },
         )
+        val editableSms = row.localSms?.takeIf { !foreignRecord }
         return SmsTimelineCard.create(
             activity = activity,
             dp = dp,
@@ -87,8 +88,18 @@ internal class CallReportHistorySmsRowUi(
                     column.addView(shared.serverNewerText())
                 }
             },
-            onClick = row.localSms?.takeIf { !foreignRecord }?.let { sms ->
-                { onEditSms(sms, row.companyId) }
+            onClick = {
+                SmsMessageViewDialog(activity, dp).show(
+                    phone = row.phone,
+                    title = message.displayName.toString().trim().ifBlank { row.phone },
+                    body = row.text,
+                    receivedAtMs = row.timeMs,
+                    direction = message.direction,
+                    showReplyAction = SmsMessageDetailPolicy.canReplyTo(row.phone),
+                    onEdit = editableSms?.let { sms ->
+                        { onEditSms(sms, row.companyId) }
+                    },
+                )
             },
         )
     }
