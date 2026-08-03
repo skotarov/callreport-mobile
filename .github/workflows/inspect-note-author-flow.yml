@@ -44,6 +44,7 @@ jobs:
             cat "$file" >> "$report"
             echo >> "$report"
           done
+          perl -0pi -e 's/\n+\z/\n/' "$report"
 
       - name: Commit inspection report
         shell: bash
@@ -53,6 +54,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git diff --cached --check
           git commit -m 'Capture note author flow for inspection'
           git push origin HEAD:agent/fix-note-author-id
