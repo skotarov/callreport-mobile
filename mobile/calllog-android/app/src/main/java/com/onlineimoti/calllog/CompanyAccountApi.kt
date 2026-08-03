@@ -16,6 +16,8 @@ internal object CompanyAccountApi {
         val phone: String = "",
         val emailVerified: Boolean = false,
         val phoneVerified: Boolean = false,
+        /** Stable profile/user ID; the display name may change. */
+        val userId: String = "",
     ) {
         val profileReady: Boolean get() = emailVerified || phoneVerified
     }
@@ -29,9 +31,18 @@ internal object CompanyAccountApi {
         val userPhone: String = "",
         val emailVerified: Boolean = false,
         val phoneVerified: Boolean = false,
+        /** Stable profile/user ID returned by the authenticated server. */
+        val userId: String = "",
     ) {
         val profileReady: Boolean get() = emailVerified || phoneVerified
-        fun user(): ProfileUser = ProfileUser(userName, userEmail, userPhone, emailVerified, phoneVerified)
+        fun user(): ProfileUser = ProfileUser(
+            name = userName,
+            email = userEmail,
+            phone = userPhone,
+            emailVerified = emailVerified,
+            phoneVerified = phoneVerified,
+            userId = userId,
+        )
     }
 
     data class OtpChallenge(
@@ -320,6 +331,7 @@ internal object CompanyAccountApi {
         phone = user?.optString("phone").orEmpty().trim(),
         emailVerified = user?.optBoolean("email_verified", false) ?: false,
         phoneVerified = user?.optBoolean("phone_verified", false) ?: false,
+        userId = user?.text("profile_id", "user_id", "id").orEmpty(),
     )
 
     private fun parseSession(response: JSONObject, fallbackToken: String = ""): Session {
@@ -336,6 +348,15 @@ internal object CompanyAccountApi {
             userPhone = user.phone,
             emailVerified = user.emailVerified,
             phoneVerified = user.phoneVerified,
+            userId = user.userId,
         )
     }
+    private fun JSONObject.text(vararg keys: String): String {
+        keys.forEach { key ->
+            val value = optString(key).trim()
+            if (value.isNotBlank()) return value
+        }
+        return ""
+    }
+
 }

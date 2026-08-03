@@ -13,38 +13,7 @@ on:
       - .github/workflows/android-unit-tests.yml
       - mobile/calllog-android/**
 
-permissions:
-  contents: write
-
 jobs:
-  apply-note-author-fix:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout working branch
-        uses: actions/checkout@v4
-        with:
-          ref: agent/fix-note-author-id
-          fetch-depth: 0
-
-      - name: Apply verified identity patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 .agent/run_direct_patch.py
-
-      - name: Commit clean Android changes
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f .github/workflows/apply-note-author-id-fix.yml
-          git checkout origin/main -- .github/workflows/android-unit-tests.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'Use stable profile IDs for note ownership'
-          git push origin HEAD:agent/fix-note-author-id
-
   unit-tests:
     runs-on: ubuntu-latest
     defaults:

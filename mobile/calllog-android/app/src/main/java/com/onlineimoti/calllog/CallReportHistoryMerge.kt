@@ -86,7 +86,7 @@ internal object CallReportHistoryMerge {
                 companyId = companyId,
                 companyName = companyNameFor(companyId),
                 locallyConfirmedOnServer = localConfirmed,
-                authorIsOtherBroker = isOtherBrokerAuthor(match, principal),
+                authorIsOtherBroker = CallReportAuthorIdentityPolicy.isOtherAuthor(match, principal),
             )
         }
 
@@ -114,7 +114,7 @@ internal object CallReportHistoryMerge {
                 companyId = companyId,
                 companyName = companyNameFor(companyId),
                 locallyConfirmedOnServer = localConfirmed,
-                authorIsOtherBroker = isOtherBrokerAuthor(match, principal),
+                authorIsOtherBroker = CallReportAuthorIdentityPolicy.isOtherAuthor(match, principal),
             )
         }
 
@@ -130,7 +130,7 @@ internal object CallReportHistoryMerge {
                 ?: legacyTopicCallMatch(serverEvents, usedServerIndexes, phone, clientNoteId, note.direction, note.callAt)
                 ?: fallbackNoteMatch(serverEvents, usedServerIndexes, phone, note)
             if (match != null) markUsed(match, serverEvents, usedServerIds, usedServerIndexes)
-            val foreignAuthor = isOtherBrokerAuthor(match, principal)
+            val foreignAuthor = CallReportAuthorIdentityPolicy.isOtherAuthor(match, principal)
             val serverNewer = match != null && note.savedAt > 0L && match.updatedAtMs > note.savedAt && match.note != note.note
             val companyId = match?.companyId.orEmpty().ifBlank { note.companyId }
             rows += CallReportHistoryRow(
@@ -146,7 +146,7 @@ internal object CallReportHistoryMerge {
                 companyName = companyNameFor(companyId),
                 locallyConfirmedOnServer = localConfirmed,
                 serverNewer = serverNewer,
-                editable = !foreignAuthor,
+                editable = CallReportAuthorIdentityPolicy.canEdit(match, principal),
                 authorIsOtherBroker = foreignAuthor,
             )
         }
@@ -159,7 +159,7 @@ internal object CallReportHistoryMerge {
                 "note" -> CallReportHistoryRowKind.NOTE
                 else -> CallReportHistoryRowKind.PHONE
             }
-            val foreignAuthor = isOtherBrokerAuthor(event, principal)
+            val foreignAuthor = CallReportAuthorIdentityPolicy.isOtherAuthor(event, principal)
             rows += CallReportHistoryRow(
                 kind = kind,
                 timeMs = event.occurredAtMs.takeIf { it > 0L } ?: event.updatedAtMs,
@@ -174,31 +174,12 @@ internal object CallReportHistoryMerge {
                 // Every non-foreign timeline note returned by history_lookup has a
                 // timestamp. Its original client_event_id is preserved by the UI
                 // and server editor, so no duplicate note is inserted.
-                editable = kind == CallReportHistoryRowKind.NOTE && !foreignAuthor,
+                editable = kind == CallReportHistoryRowKind.NOTE && CallReportAuthorIdentityPolicy.canEdit(event, principal),
                 authorIsOtherBroker = foreignAuthor,
             )
         }
 
         return rows.sortedByDescending { it.timeMs }
-    }
-
-    private fun isOtherBrokerAuthor(
-        event: CallReportHistoryEvent?,
-        principal: CallReportHistoryPrincipal,
-    ): Boolean {
-        if (event == null) return false
-        val authorId = event.authorBrokerId.trim()
-        val authorName = event.authorBrokerName.trim()
-        val currentId = principal.brokerId.trim()
-        val currentName = principal.brokerName.trim()
-
-        if (authorId.isNotBlank() && currentId.isNotBlank()) {
-            return authorId != currentId
-        }
-        if (authorName.isNotBlank() && currentName.isNotBlank()) {
-            return !authorName.equals(currentName, ignoreCase = true)
-        }
-        return false
     }
 
     private fun legacyTopicCallMatch(

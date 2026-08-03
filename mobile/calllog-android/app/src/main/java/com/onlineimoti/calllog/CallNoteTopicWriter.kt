@@ -38,6 +38,8 @@ internal object CallNoteTopicWriter {
         actionIssuedAt: Long,
         companyId: String,
         existingClientEventId: String = "",
+        authorProfileId: String = "",
+        authorName: String = "",
     ): CallNoteWriteResult {
         val target = targetFor(context, phone, direction, callAt, durationSeconds, actionIssuedAt)
         if (!target.hasCall) {
@@ -48,6 +50,8 @@ internal object CallNoteTopicWriter {
                 direction = direction,
                 actionIssuedAt = actionIssuedAt,
                 companyId = companyId,
+                authorProfileId = authorProfileId,
+                authorName = authorName,
             )
         }
 
@@ -63,6 +67,8 @@ internal object CallNoteTopicWriter {
             durationSeconds = target.durationSeconds,
             companyId = companyId,
             existingClientEventId = existingClientEventId,
+            authorProfileId = authorProfileId,
+            authorName = authorName,
         )
         val result = CallNoteWriteResult(saved, false, target)
         if (!saved) return result
@@ -83,6 +89,8 @@ internal object CallNoteTopicWriter {
         direction: String,
         actionIssuedAt: Long,
         companyId: String,
+        authorProfileId: String,
+        authorName: String,
     ): CallNoteWriteResult {
         val activeSession = PendingCallNoteStore.activeSessionForPhone(context, phone)
         val shouldSavePending = activeSession != null || actionIssuedAt > 0L
@@ -103,6 +111,8 @@ internal object CallNoteTopicWriter {
             sessionStartedAt = pendingStartedAt,
             text = text,
             companyId = companyId,
+            authorProfileId = authorProfileId,
+            authorName = authorName,
         )
         if (saved) HomeCrmCompanyMembershipStore.invalidate(context, phone)
         if (saved && text.trim().isNotBlank() && activeSession == null) {

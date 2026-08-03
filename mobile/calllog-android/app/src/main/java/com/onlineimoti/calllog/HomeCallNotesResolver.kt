@@ -137,7 +137,7 @@ internal object HomeCallNotesResolver {
                     serverClientEventId = event.clientEventId.trim().ifBlank {
                         localMirror.serverClientEventId
                     },
-                    editable = !isOtherBrokerAuthor(event, principal),
+                    editable = !CallReportAuthorIdentityPolicy.isOtherAuthor(event, principal),
                     relatedNotes = emptyList(),
                 )
                 return@forEach
@@ -150,7 +150,7 @@ internal object HomeCallNotesResolver {
                 authorName = event.authorBrokerName.trim(),
                 companyId = companyId,
                 serverClientEventId = event.clientEventId.trim(),
-                editable = !isOtherBrokerAuthor(event, principal),
+                editable = !CallReportAuthorIdentityPolicy.isOtherAuthor(event, principal),
             )
             putLatest(notesByCallAndScope, callKey, scope, candidate)
         }
@@ -197,7 +197,7 @@ internal object HomeCallNotesResolver {
         principal: CallReportHistoryPrincipal,
     ): Boolean {
         if (local.fromServer || local.companyId.isNotBlank() || event.companyId.isNotBlank()) return false
-        if (isOtherBrokerAuthor(event, principal)) return false
+        if (CallReportAuthorIdentityPolicy.isOtherAuthor(event, principal)) return false
         if (sameEventId(local, event)) return true
         return normalizeNote(local.text) == normalizeNote(event.note) && local.text.isNotBlank()
     }
@@ -229,19 +229,6 @@ internal object HomeCallNotesResolver {
                 event.companyId.isNotBlank() ||
                 event.note.isNotBlank()
             )
-    }
-
-    private fun isOtherBrokerAuthor(
-        event: CallReportHistoryEvent,
-        principal: CallReportHistoryPrincipal,
-    ): Boolean {
-        val authorId = event.authorBrokerId.trim()
-        val authorName = event.authorBrokerName.trim()
-        val currentId = principal.brokerId.trim()
-        val currentName = principal.brokerName.trim()
-        if (authorId.isNotBlank() && currentId.isNotBlank()) return authorId != currentId
-        if (authorName.isNotBlank() && currentName.isNotBlank()) return !authorName.equals(currentName, ignoreCase = true)
-        return false
     }
 
     private fun claimedNoteKey(note: ContactCallNote): String =

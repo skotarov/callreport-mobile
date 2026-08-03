@@ -18,6 +18,7 @@ internal data class CallReportHistoryPrincipal(
     val brokerId: String = "",
     val brokerName: String = "",
     val companies: List<CallReportHistoryCompany> = emptyList(),
+    val profileId: String = "",
 )
 
 internal data class CallReportHistoryEvent(
@@ -36,6 +37,9 @@ internal data class CallReportHistoryEvent(
     val authorBrokerId: String = "",
     val authorBrokerName: String = "",
     val companyId: String = "",
+    val authorProfileId: String = "",
+    val isMine: Boolean? = null,
+    val canEdit: Boolean? = null,
 )
 
 internal data class CallReportHistoryCompanyMainNote(
@@ -184,7 +188,7 @@ internal object CallReportHistoryLookupClient {
         if (results.isEmpty()) return CallReportHistoryLookupResult()
         val principal = results
             .map { it.principal }
-            .firstOrNull { it.companies.isNotEmpty() || it.brokerId.isNotBlank() || it.brokerName.isNotBlank() }
+            .firstOrNull { it.companies.isNotEmpty() || it.profileId.isNotBlank() || it.brokerId.isNotBlank() || it.brokerName.isNotBlank() }
             ?: CallReportHistoryPrincipal()
         val seen = linkedSetOf<String>()
         val events = results.flatMap { it.events }.filter { event ->
@@ -260,7 +264,7 @@ internal object CallReportHistoryLookupClient {
                 if (status !in 200..299) throw IllegalStateException("HTTP $status")
                 val json = JSONObject(body)
                 if (!json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "History lookup failed"))
-                return parsePayload(json)
+                return parsePayload(json).withLocalPrincipalFallback(context)
             } catch (error: Throwable) {
                 ServerConnectionNotifier.notifyFailure(context, config, error)
                 throw error
@@ -315,9 +319,10 @@ internal object CallReportHistoryLookupClient {
             }
         }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
         val principal = CallReportHistoryPrincipal(
-            brokerId = principalJson?.optString("broker_id").orEmpty().trim(),
-            brokerName = principalJson?.optString("broker_name").orEmpty().trim(),
+            brokerId = principalJson?.text("broker_id", "employee_id").orEmpty(),
+            brokerName = principalJson?.text("broker_name", "display_name", "name").orEmpty(),
             companies = companies,
+            profileId = principalJson?.text("profile_id", "user_id", "id").orEmpty(),
         )
         val companyNames = companies.associate { it.id to it.name }
         val companyMainNotes = buildList {
@@ -373,15 +378,50 @@ internal object CallReportHistoryLookupClient {
                         contactName = item.text("contact_name", "contact"),
                         createdAtMs = createdAt,
                         updatedAtMs = updatedAt,
-                        authorBrokerId = item.text("author_broker_id", "created_by_broker_id", "note_author_broker_id"),
-                        authorBrokerName = item.text("author_broker_name", "created_by_broker_name", "note_author_broker_name", "author"),
+                        authorBrokerId = item.text("author_broker_id", "created_by_broker_id", "note_author_broker_id", "author_employee_id", "author_id"),
+                        authorBrokerName = item.text("author_name", "author_broker_name", "created_by_broker_name", "note_author_broker_name", "author"),
                         companyId = item.text("company_id"),
+                        authorProfileId = item.text(
+                            "author_profile_id",
+                            "author_user_id",
+                            "created_by_profile_id",
+                            "created_by_user_id",
+                            "note_author_profile_id",
+                        ),
+                        isMine = item.optionalBoolean("is_mine", "mine", "owned_by_current_user"),
+                        canEdit = item.optionalBoolean("can_edit", "editable"),
                     )
                     if (event.phone.isNotBlank() && event.occurredAtMs > 0L) add(event)
                 }
             }
         }
         return CallReportHistoryLookupResult(principal, events, companyMainNotes)
+    }
+
+    private fun CallReportHistoryLookupResult.withLocalPrincipalFallback(context: Context?): CallReportHistoryLookupResult {
+        val session = context?.let { CompanySessionStore.load(it) } ?: return this
+        val enriched = principal.copy(
+            profileId = principal.profileId.ifBlank { session.userId },
+            brokerName = principal.brokerName.ifBlank { session.userName },
+        )
+        return if (enriched == principal) this else copy(principal = enriched)
+    }
+
+    private fun JSONObject.optionalBoolean(vararg keys: String): Boolean? {
+        keys.forEach { key ->
+            if (!has(key) || isNull(key)) return@forEach
+            return when (val value = opt(key)) {
+                is Boolean -> value
+                is Number -> value.toInt() != 0
+                is String -> when (value.trim().lowercase()) {
+                    "1", "true", "yes", "y" -> true
+                    "0", "false", "no", "n" -> false
+                    else -> null
+                }
+                else -> null
+            }
+        }
+        return null
     }
 
     private fun JSONObject.text(vararg keys: String): String {

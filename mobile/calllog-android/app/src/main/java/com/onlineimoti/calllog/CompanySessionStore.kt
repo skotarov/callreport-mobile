@@ -8,6 +8,7 @@ internal object CompanySessionStore {
     private const val PREFS = "relationship_manager_company_session"
     private const val KEY_TOKEN_HASH = "token_hash"
     private const val KEY_USER_NAME = "user_name"
+    private const val KEY_USER_ID = "user_id"
     private const val KEY_USER_EMAIL = "user_email"
     private const val KEY_USER_PHONE = "user_phone"
     private const val KEY_EMAIL_VERIFIED = "email_verified"
@@ -23,6 +24,7 @@ internal object CompanySessionStore {
         val phoneVerified: Boolean,
         val organizationName: String,
         val organizationId: String,
+        val userId: String = "",
     ) {
         val profileReady: Boolean get() = emailVerified || phoneVerified
     }
@@ -33,6 +35,7 @@ internal object CompanySessionStore {
             .edit()
             .putString(KEY_TOKEN_HASH, hash(session.accessToken))
             .putString(KEY_USER_NAME, session.userName)
+            .putString(KEY_USER_ID, session.userId)
             .putString(KEY_USER_EMAIL, session.userEmail)
             .putString(KEY_USER_PHONE, session.userPhone)
             .putBoolean(KEY_EMAIL_VERIFIED, session.emailVerified)
@@ -48,6 +51,7 @@ internal object CompanySessionStore {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_USER_NAME, user.name)
+            .putString(KEY_USER_ID, user.userId)
             .putString(KEY_USER_EMAIL, user.email)
             .putString(KEY_USER_PHONE, user.phone)
             .putBoolean(KEY_EMAIL_VERIFIED, user.emailVerified)
@@ -84,9 +88,10 @@ internal object CompanySessionStore {
             phoneVerified = prefs.getBoolean(KEY_PHONE_VERIFIED, false),
             organizationName = prefs.getString(KEY_ORGANIZATION_NAME, "").orEmpty().trim(),
             organizationId = prefs.getString(KEY_ORGANIZATION_ID, "").orEmpty().trim(),
+            userId = prefs.getString(KEY_USER_ID, "").orEmpty().trim(),
         )
         return snapshot.takeIf {
-            it.userName.isNotBlank() || it.userEmail.isNotBlank() || it.userPhone.isNotBlank()
+            it.userId.isNotBlank() || it.userName.isNotBlank() || it.userEmail.isNotBlank() || it.userPhone.isNotBlank()
                 || it.organizationName.isNotBlank() || it.organizationId.isNotBlank()
         }
     }
@@ -97,7 +102,8 @@ internal object CompanySessionStore {
      */
     fun profileScopeKey(context: Context): String {
         val snapshot = load(context.applicationContext) ?: return ""
-        return snapshot.userEmail.trim().lowercase()
+        return snapshot.userId.trim()
+            .ifBlank { snapshot.userEmail.trim().lowercase() }
             .ifBlank { PhoneNormalizer.key(snapshot.userPhone) }
     }
 

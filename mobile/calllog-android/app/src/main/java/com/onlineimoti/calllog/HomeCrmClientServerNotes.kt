@@ -114,16 +114,5 @@ internal object HomeCrmClientServerNotes {
             !CallReportServerNoteClassifier.isExplicitGeneralNote(event)
     }
 
-    private fun isOtherBrokerAuthor(
-        event: CallReportHistoryEvent,
-        principal: CallReportHistoryPrincipal,
-    ): Boolean {
-        val authorId = event.authorBrokerId.trim()
-        val authorName = event.authorBrokerName.trim()
-        val currentId = principal.brokerId.trim()
-        val currentName = principal.brokerName.trim()
-        if (authorId.isNotBlank() && currentId.isNotBlank()) return authorId != currentId
-        if (authorName.isNotBlank() && currentName.isNotBlank()) return !authorName.equals(currentName, ignoreCase = true)
-        return false
-    }
+
 }
