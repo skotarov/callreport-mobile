@@ -65,7 +65,7 @@ internal object HomeCrmClientServerNotes {
                 authorName = event.authorBrokerName.trim(),
                 companyId = event.companyId.trim(),
                 serverClientEventId = event.clientEventId.trim(),
-                editable = !isOtherBrokerAuthor(event, history.principal),
+                editable = CallReportAuthorIdentityPolicy.canEdit(event, history.principal),
             )
             val bucket = byRowAndScope.getOrPut(key) { linkedMapOf() }
             val current = bucket[scope]
@@ -113,6 +113,4 @@ internal object HomeCrmClientServerNotes {
             event.note.trim().isNotBlank() &&
             !CallReportServerNoteClassifier.isExplicitGeneralNote(event)
     }
-
-
 }
