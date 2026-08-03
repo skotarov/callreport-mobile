@@ -39,4 +39,17 @@ event_read = add_after(
 )
 p = p[:event_read_start] + event_read + p[event_read_end:]""",
 )
+replace_block(
+    "'company pending history identity',\n)",
+    """history_event_start = p.index('    fun toHistoryEvent(): CallReportHistoryEvent = CallReportHistoryEvent(')
+history_event_end = p.index('    fun toSyncEvent(', history_event_start)
+history_event = p[history_event_start:history_event_end]
+history_event = add_after(
+    history_event,
+    '        companyId = companyId,\\n',
+    '        authorProfileId = authorProfileId,\\n        authorBrokerName = authorName,\\n        isMine = true,\\n        canEdit = true,\\n',
+    'company pending history identity scoped',
+)
+p = p[:history_event_start] + history_event + p[history_event_end:]""",
+)
 exec(compile(script, str(path), 'exec'))
