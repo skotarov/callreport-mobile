@@ -1,0 +1,50 @@
+name: Inspect Note Identity Snippets
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out working branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-note-author-id
+          fetch-depth: 1
+
+      - name: Collect identity snippets
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='mobile/calllog-android/app/src'
+          report='.agent/identity-snippets.txt'
+          mkdir -p .agent
+          {
+            echo 'IDENTITY DECLARATIONS AND USES'
+            grep -RInE --include='*.kt' --include='*.java' \
+              'broker_id|brokerId|user_id|userId|profile_id|profileId|account_id|accountId|author_broker|author_user|principal|CorporateAccess|Authenticated|current.*(user|broker|profile)' \
+              "$root/main" "$root/test" || true
+            echo
+            echo 'PENDING / OUTBOX AUTHOR FLOW'
+            grep -RInE --include='*.kt' \
+              'PendingCallNote|CallReportQueuedNote|toHistoryEvent|toSyncEvent|saveOrDelete\(|enqueueCall\(|writeCallOrGeneral\(' \
+              "$root/main" "$root/test" || true
+          } > "$report"
+          perl -0pi -e 's/\n+\z/\n/' "$report"
+
+      - name: Commit snippet report
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/inspect-note-identity-snippets.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Capture note identity snippets'
+          git push origin HEAD:agent/fix-note-author-id
