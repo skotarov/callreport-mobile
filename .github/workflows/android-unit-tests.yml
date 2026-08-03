@@ -26,7 +26,7 @@ jobs:
           ref: agent/fix-note-author-id
           fetch-depth: 0
 
-      - name: Apply exact Android changes
+      - name: Apply structural Android changes
         shell: bash
         run: |
           set -euo pipefail
@@ -37,19 +37,9 @@ jobs:
 
           store = root / 'CompanySessionStore.kt'
           text = store.read_text()
-          old = '''    fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
-              context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                  .edit()
-                  .putString(KEY_USER_NAME, user.name)
-                  .putString(KEY_USER_ID, user.userId)
-                  .putString(KEY_USER_EMAIL, user.email)
-                  .putString(KEY_USER_PHONE, user.phone)
-                  .putBoolean(KEY_EMAIL_VERIFIED, user.emailVerified)
-                  .putBoolean(KEY_PHONE_VERIFIED, user.phoneVerified)
-                  .apply()
-          }
-          '''
-          new = '''    fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
+          start = text.index('    fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {')
+          end = text.index('\n    /** Updates only the locally visible name', start)
+          method = '''    fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
               val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
               val editor = prefs.edit()
                   .putString(KEY_USER_NAME, user.name)
@@ -63,9 +53,7 @@ jobs:
               editor.apply()
           }
           '''
-          if text.count(old) != 1:
-              raise SystemExit(f'CompanySessionStore updateProfile match count: {text.count(old)}')
-          store.write_text(text.replace(old, new, 1))
+          store.write_text(text[:start] + method + text[end:])
 
           lookup = root / 'CallReportHistoryLookupClient.kt'
           text = lookup.read_text()
@@ -74,16 +62,11 @@ jobs:
           if text.count(old_broker) != 1:
               raise SystemExit(f'authorBrokerId match count: {text.count(old_broker)}')
           text = text.replace(old_broker, new_broker, 1)
-          old_profile = '''                            "created_by_user_id",
-                              "note_author_profile_id",
-          '''
-          new_profile = '''                            "created_by_user_id",
-                              "note_author_profile_id",
-                              "author_id",
-          '''
-          if text.count(old_profile) != 1:
-              raise SystemExit(f'authorProfileId match count: {text.count(old_profile)}')
-          lookup.write_text(text.replace(old_profile, new_profile, 1))
+          profile_line = '                            "note_author_profile_id",\n'
+          if text.count(profile_line) != 1:
+              raise SystemExit(f'authorProfileId line count: {text.count(profile_line)}')
+          text = text.replace(profile_line, profile_line + '                            "author_id",\n', 1)
+          lookup.write_text(text)
           PY
 
       - name: Commit clean Android changes
