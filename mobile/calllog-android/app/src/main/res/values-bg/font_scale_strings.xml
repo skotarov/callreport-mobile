@@ -1,8 +1,9 @@
 <resources>
     <string name="settings_general_section">Език и текст</string>
     <string name="font_scale_title">Големина на текста</string>
-    <string name="font_scale_normal">Малък</string>
-    <string name="font_scale_larger">Нормален</string>
-    <string name="font_scale_largest">Голям</string>
-    <string name="font_scale_description">„Нормален“ е стандартната големина, с която се инсталира приложението.</string>
+    <string name="font_scale_normal">Много малки</string>
+    <string name="font_scale_larger">Малки</string>
+    <string name="font_scale_largest">Нормални</string>
+    <string name="font_scale_extra_large">Големи</string>
+    <string name="font_scale_description">„Нормални“ е стандартната големина, с която се инсталира приложението.</string>
 </resources>
