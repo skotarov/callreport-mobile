@@ -36,6 +36,26 @@ jobs:
             capture { sub(/^          /, ""); print }
           ' .github/workflows/apply-note-author-id-fix.yml > /tmp/apply-note-author-id.py
           test -s /tmp/apply-note-author-id.py
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/apply-note-author-id.py')
+          script = path.read_text()
+          marker = "'CompanySessionStore load ID')"
+          end = script.index(marker) + len(marker)
+          start = script.rfind('p = replace_once(p,', 0, end)
+          if start < 0:
+              raise SystemExit('Could not locate strict CompanySessionStore load-ID patch')
+          replacement = '''needle = '            organizationId = prefs.getString(KEY_ORGANIZATION_ID, "").orEmpty().trim(),\\n'
+if p.count(needle) != 1:
+    raise SystemExit(f'CompanySessionStore load ID line: expected one match, found {p.count(needle)}')
+p = p.replace(
+    needle,
+    needle + '            userId = prefs.getString(KEY_USER_ID, "").orEmpty().trim(),\\n',
+    1,
+)'''
+          script = script[:start] + replacement + script[end:]
+          path.write_text(script)
+          PY
           python3 /tmp/apply-note-author-id.py
 
       - name: Commit clean Android changes
