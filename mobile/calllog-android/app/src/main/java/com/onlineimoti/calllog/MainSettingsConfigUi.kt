@@ -43,8 +43,9 @@ object MainSettingsConfigUi {
             else -> language.appLanguageSystem.isChecked = true
         }
         when (AppFontScaleStore.loadMultiplier(binding.root.context)) {
-            AppFontScaleStore.LARGE -> binding.settingsGeneralGroup.fontScaleLargestRadio.isChecked = true
-            AppFontScaleStore.NORMAL -> binding.settingsGeneralGroup.fontScaleLargerRadio.isChecked = true
+            AppFontScaleStore.LARGE -> binding.settingsGeneralGroup.fontScaleExtraLargeRadio.isChecked = true
+            AppFontScaleStore.NORMAL -> binding.settingsGeneralGroup.fontScaleLargestRadio.isChecked = true
+            AppFontScaleStore.SMALL -> binding.settingsGeneralGroup.fontScaleLargerRadio.isChecked = true
             else -> binding.settingsGeneralGroup.fontScaleNormalRadio.isChecked = true
         }
         binding.settingsGeneralGroup.nativeCountryCodeInput.setText(
