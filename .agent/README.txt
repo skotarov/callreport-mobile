@@ -1,1 +1,1 @@
-Temporary inspection branch. The workflow will replace this with a source report.
+Temporary inspection artifacts will be removed by the Android fix workflow.
