@@ -71,9 +71,10 @@ internal class MainSettingsAutoSaveController(
         binding.settingsGeneralGroup.fontScaleGroup.setOnCheckedChangeListener { _, checkedId ->
             autoSaveSettings()
             val scale = when (checkedId) {
-                binding.settingsGeneralGroup.fontScaleLargestRadio.id -> AppFontScaleStore.LARGE
-                binding.settingsGeneralGroup.fontScaleLargerRadio.id -> AppFontScaleStore.NORMAL
-                else -> AppFontScaleStore.SMALL
+                binding.settingsGeneralGroup.fontScaleExtraLargeRadio.id -> AppFontScaleStore.LARGE
+                binding.settingsGeneralGroup.fontScaleLargestRadio.id -> AppFontScaleStore.NORMAL
+                binding.settingsGeneralGroup.fontScaleLargerRadio.id -> AppFontScaleStore.SMALL
+                else -> AppFontScaleStore.VERY_SMALL
             }
             AppFontScaleStore.saveMultiplier(binding.root.context, scale)
             applyFontScaleIfChanged(scale)
