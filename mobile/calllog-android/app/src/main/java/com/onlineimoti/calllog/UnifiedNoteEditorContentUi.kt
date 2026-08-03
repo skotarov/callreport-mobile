@@ -60,7 +60,7 @@ internal class UnifiedNoteEditorContentUi(
         val input = noteInput(state)
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(16))
+            setPadding(dp(18), dp(10), dp(18), dp(10))
         }
         card.addView(titleRow(state, input, callbacks))
         card.addView(modeSwitch(state, input, callbacks))
@@ -127,7 +127,7 @@ internal class UnifiedNoteEditorContentUi(
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply { topMargin = dp(8) }
+        ).apply { topMargin = dp(4) }
         addView(modeButton(UnifiedNoteKind.GENERAL, state.kind, input, callbacks))
         addView(modeButton(UnifiedNoteKind.CALL, state.kind, input, callbacks))
     }
@@ -183,7 +183,7 @@ internal class UnifiedNoteEditorContentUi(
                     marginEnd = dp(14)
                 }
             })
-            layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(32), 1f)
         }
     }
 
@@ -195,7 +195,7 @@ internal class UnifiedNoteEditorContentUi(
         ).filter { it.isNotBlank() }.joinToString(" • ")
         textSize = 13f
         setTextColor(Color.rgb(107, 114, 128))
-        setPadding(0, dp(12), 0, 0)
+        setPadding(0, dp(6), 0, 0)
     }
 
     private fun noteInput(state: UnifiedNoteEditorState): EditText {
@@ -210,7 +210,7 @@ internal class UnifiedNoteEditorContentUi(
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             setSingleLine(false)
             gravity = Gravity.TOP or Gravity.START
-            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setPadding(dp(12), dp(7), dp(12), dp(7))
             background = roundedRect(colors.background, dp(12), colors.border, if (colors.border == Color.TRANSPARENT) 0 else dp(1))
             isFocusable = true
             isFocusableInTouchMode = true
@@ -218,7 +218,7 @@ internal class UnifiedNoteEditorContentUi(
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(12) }
+            ).apply { topMargin = dp(6) }
         }
     }
 
@@ -226,7 +226,7 @@ internal class UnifiedNoteEditorContentUi(
         LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, 0)
+            setPadding(0, dp(5), 0, 0)
             callbacks.delete?.let { action -> addView(deleteButton(action)) }
             addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
             callbacks.openHistory?.let { action ->
@@ -283,7 +283,7 @@ internal class UnifiedNoteEditorContentUi(
         gravity = Gravity.CENTER
         setTextColor(textColor)
         background = roundedRect(backgroundColor, dp(12), Color.TRANSPARENT, 0)
-        setPadding(dp(horizontalPaddingDp), dp(10), dp(horizontalPaddingDp), dp(10))
+        setPadding(dp(horizontalPaddingDp), dp(7), dp(horizontalPaddingDp), dp(7))
         setOnClickListener { action() }
     }
 
