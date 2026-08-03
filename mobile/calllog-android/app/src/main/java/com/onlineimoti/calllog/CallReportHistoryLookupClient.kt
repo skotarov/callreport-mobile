@@ -378,7 +378,7 @@ internal object CallReportHistoryLookupClient {
                         contactName = item.text("contact_name", "contact"),
                         createdAtMs = createdAt,
                         updatedAtMs = updatedAt,
-                        authorBrokerId = item.text("author_broker_id", "created_by_broker_id", "note_author_broker_id", "author_employee_id", "author_id"),
+                        authorBrokerId = item.text("author_broker_id", "created_by_broker_id", "note_author_broker_id", "author_employee_id"),
                         authorBrokerName = item.text("author_name", "author_broker_name", "created_by_broker_name", "note_author_broker_name", "author"),
                         companyId = item.text("company_id"),
                         authorProfileId = item.text(
@@ -387,6 +387,7 @@ internal object CallReportHistoryLookupClient {
                             "created_by_profile_id",
                             "created_by_user_id",
                             "note_author_profile_id",
+                            "author_id",
                         ),
                         isMine = item.optionalBoolean("is_mine", "mine", "owned_by_current_user"),
                         canEdit = item.optionalBoolean("can_edit", "editable"),

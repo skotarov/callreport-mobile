@@ -48,16 +48,18 @@ internal object CompanySessionStore {
     }
 
     fun updateProfile(context: Context, user: CompanyAccountApi.ProfileUser) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_USER_NAME, user.name)
-            .putString(KEY_USER_ID, user.userId)
-            .putString(KEY_USER_EMAIL, user.email)
-            .putString(KEY_USER_PHONE, user.phone)
-            .putBoolean(KEY_EMAIL_VERIFIED, user.emailVerified)
-            .putBoolean(KEY_PHONE_VERIFIED, user.phoneVerified)
-            .apply()
-    }
+    val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    val editor = prefs.edit()
+        .putString(KEY_USER_NAME, user.name)
+        .putString(KEY_USER_EMAIL, user.email)
+        .putString(KEY_USER_PHONE, user.phone)
+        .putBoolean(KEY_EMAIL_VERIFIED, user.emailVerified)
+        .putBoolean(KEY_PHONE_VERIFIED, user.phoneVerified)
+    // Some legacy profile-update responses omit the stable ID. Never erase
+    // the authenticated identity merely because that optional field is absent.
+    if (user.userId.isNotBlank()) editor.putString(KEY_USER_ID, user.userId)
+    editor.apply()
+}
 
     /** Updates only the locally visible name while preserving verified contact data. */
     fun updateUserName(context: Context, userName: String) {
