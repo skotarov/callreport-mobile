@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets
 /** Mobile client for OTP profile authentication and separate company creation. */
 internal object CompanyAccountApi {
     private const val AUTH_PATH = "/relationship-manager/api/auth.php"
+    private const val PROFILE_MERGE_PATH = "/relationship-manager/api/profile_merge.php"
 
     data class ProfileUser(
         val name: String = "",
@@ -173,12 +174,14 @@ internal object CompanyAccountApi {
     fun mergeProfiles(
         context: Context,
         mergeToken: String,
+        selectedDisplayName: String,
     ): Result<ProfileUser> = requestJson(
         context,
         JSONObject()
-            .put("action", "merge_profiles")
-            .put("merge_token", mergeToken.trim()),
+            .put("merge_token", mergeToken.trim())
+            .put("selected_display_name", selectedDisplayName.trim()),
         authenticated = true,
+        path = PROFILE_MERGE_PATH,
     ).map { parseUser(it.optJSONObject("user")) }
 
     fun refreshProfile(context: Context): Result<Session> = requestJson(
@@ -262,11 +265,12 @@ internal object CompanyAccountApi {
         context: Context,
         payload: JSONObject,
         authenticated: Boolean = false,
+        path: String = AUTH_PATH,
     ): Result<JSONObject> = runCatching {
         val config = ConfigStore.load(context)
         require(config.baseUrl.isNotBlank()) { "Първо задай Server URL в Настройки." }
         if (authenticated) require(config.accessToken.isNotBlank()) { "Първо влез в профила." }
-        val connection = (URL(buildEndpoint(config.baseUrl, AUTH_PATH, emptyMap())).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(buildEndpoint(config.baseUrl, path, emptyMap())).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000
