@@ -37,14 +37,11 @@ internal class ContactNoteTopicFieldUi(
             verticalSpacingPx = dp(4)
         }
         val storageTitle = TextView(context).apply {
-            text = storageTitleFor(
-                ContactNoteTopicSelector.resolvedSelectedCompanyId(state),
-                fallbackLocalOnly = state.localOnly,
-            )
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(55, 65, 81))
         }
+        radioGroup.tag = StorageTitleBinding(storageTitle)
         field.addView(storageTitle)
         if (state.usingCachedCompanies) {
             field.addView(TextView(context).apply {
@@ -66,21 +63,45 @@ internal class ContactNoteTopicFieldUi(
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = dp(5) })
 
-        ContactNoteTopicSelector.bind(context, radioGroup, state) { selectedCompanyId ->
-            storageTitle.text = storageTitleFor(selectedCompanyId, fallbackLocalOnly = state.localOnly)
-            onSelected(selectedCompanyId)
-        }
+        bind(radioGroup, state, onSelected)
         onControlReady(radioGroup)
         return field
     }
 
+    /**
+     * Rebinds both the radio choices and their storage message. Hosts must use
+     * this after an asynchronous company refresh instead of binding the selector
+     * directly, otherwise the visible choice changes while the title stays stale.
+     */
+    fun bind(
+        control: RadioGroup,
+        state: ContactNoteTopicState,
+        onSelected: (String) -> Unit,
+    ) {
+        val storageTitle = (control.tag as? StorageTitleBinding)?.title
+        storageTitle?.text = storageTitleFor(
+            ContactNoteTopicSelector.resolvedSelectedCompanyId(state),
+            fallbackLocalOnly = state.localOnly,
+        )
+        ContactNoteTopicSelector.bind(context, control, state) { selectedCompanyId ->
+            storageTitle?.text = storageTitleFor(
+                selectedCompanyId,
+                fallbackLocalOnly = state.localOnly,
+            )
+            onSelected(selectedCompanyId)
+        }
+    }
+
     private fun storageTitleFor(selectedCompanyId: String, fallbackLocalOnly: Boolean): String {
-        val local = selectedCompanyId == ContactNoteTopicState.LOCAL_COMPANY_ID ||
-            (selectedCompanyId.isBlank() && fallbackLocalOnly)
+        val destination = ContactNoteStorageDestinationPolicy.resolve(
+            selectedCompanyId = selectedCompanyId,
+            fallbackLocalOnly = fallbackLocalOnly,
+        )
         return when {
-            AppLocaleText.isBulgarian() && local -> "Тази бележка се пази само локално"
+            AppLocaleText.isBulgarian() && destination == ContactNoteStorageDestination.LOCAL ->
+                "Тази бележка се пази само локално"
             AppLocaleText.isBulgarian() -> "Бележката се пази на сървъра"
-            local -> "This note is stored only locally"
+            destination == ContactNoteStorageDestination.LOCAL -> "This note is stored only locally"
             else -> "The note is stored on the server"
         }
     }
@@ -91,6 +112,8 @@ internal class ContactNoteTopicFieldUi(
         setColor(Color.WHITE)
         setStroke(dp(1), Color.rgb(209, 213, 219))
     }
+
+    private data class StorageTitleBinding(val title: TextView)
 
     companion object {
         const val FIELD_TAG = "callreport_topic_field"

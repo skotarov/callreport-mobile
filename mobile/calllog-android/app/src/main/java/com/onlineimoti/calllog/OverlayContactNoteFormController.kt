@@ -118,7 +118,7 @@ internal class OverlayContactNoteFormController(
             handler.post {
                 topicState = loadedState
                 topicControl?.let { control ->
-                    ContactNoteTopicSelector.bind(service, control, topicState) { selected ->
+                    topicFieldUi.bind(control, topicState) { selected ->
                         topicState = topicState.copy(selectedCompanyId = selected)
                         if (draft.isGeneralNote) refreshTextForScope(selected)
                     }
