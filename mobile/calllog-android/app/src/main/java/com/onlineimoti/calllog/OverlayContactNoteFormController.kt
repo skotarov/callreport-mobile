@@ -14,38 +14,47 @@ internal class OverlayContactNoteFormController(
     private val dp: (Int) -> Int,
     private val draft: ContactNoteFormDraft,
     preferredCompanyId: String = "",
+    private val onMoveCompleted: (ContactNoteMoveResult) -> Unit = {},
 ) {
     private val topicFieldUi by lazy { ContactNoteTopicFieldUi(service, dp) }
     private var topicState = initialTopicState(preferredCompanyId)
     private var topicControl: RadioGroup? = null
     private var noteInput: EditText? = null
-    private var serverScopeTexts: Map<String, String>? = null
-    private var serverScopeTextLoading = false
+    private var serverScopeValues: Map<String, ContactNoteScopeValue>? = null
+    private var serverScopeValueLoading = false
     private var displayedScopeId = ""
-    private var displayedScopeText = ""
-    /** Updated after programmatic scope text changes and successful writes. */
+    private var displayedScopeValue = ContactNoteScopeValue()
     private var persistedText = ""
+    private var moveMode = false
+    private var moveInProgress = false
+    private var moveSourceCompanyId = ""
 
     fun addTopicFieldTo(container: LinearLayout, input: EditText) {
         noteInput = input
         persistedText = input.text?.toString().orEmpty()
+        displayedScopeId = topicState.selectedCompanyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
+        displayedScopeValue = ContactNoteScopeValue(
+            text = persistedText,
+            serverClientEventId = draft.serverClientEventId,
+            confirmedServer = draft.serverClientEventId.isNotBlank(),
+        )
         topicFieldUi.create(
             state = topicState,
-            onSelected = { selected ->
-                topicState = topicState.copy(selectedCompanyId = selected)
-                if (draft.isGeneralNote) refreshTextForScope(selected)
-            },
+            onSelected = ::selectCompany,
             onControlReady = { control -> topicControl = control },
+            moveState = moveUiState(),
+            onMoveAction = ::toggleMoveMode,
         )?.let(container::addView)
         if (draft.isGeneralNote) refreshTextForScope(topicState.selectedCompanyId)
+        else if (topicState.selectedCompanyId.isNotBlank() &&
+            topicState.selectedCompanyId != ContactNoteTopicState.LOCAL_COMPANY_ID) {
+            loadServerScopeValues()
+        }
         if (topicState.visible) loadTopics()
     }
 
-    /** Used by explicit Save: an eligible contact must deliberately choose Local or a firm. */
     fun save(noteText: String): ContactNoteFormSaveResult? {
         val topicId = if (draft.serverClientEventId.isNotBlank()) {
-            // Existing server notes are mutated by their original client_event_id;
-            // an unfinished company selector must never block that edit.
             effectiveCompanyId().ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
         } else {
             ContactNoteFormWorkflow.selectedTopicOrLocalFallback(topicState) ?: run {
@@ -56,11 +65,6 @@ internal class OverlayContactNoteFormController(
         return saveToTopic(noteText, topicId, localOnlyFallback = topicState.loadError.isNotBlank())
     }
 
-    /**
-     * Used before switching editor/modal or closing it. While the firm list is
-     * still loading or no option has been selected, preserve changed text locally
-     * and keep the existing deferred-company marker instead of losing the draft.
-     */
     fun saveForTransition(noteText: String): ContactNoteFormSaveResult {
         val explicitDestination = effectiveCompanyId()
         val strictDestination = ContactNoteFormWorkflow.selectedTopicOrLocalFallback(topicState)
@@ -81,35 +85,23 @@ internal class OverlayContactNoteFormController(
         persistedText = noteText
     }
 
-    /** Carries a concrete company across the blue/yellow overlay forms. */
     fun effectiveCompanyId(): String = topicState.selectedCompanyId.trim()
 
     private fun initialTopicState(preferredCompanyId: String): ContactNoteTopicState {
         val base = ContactNoteFormWorkflow.initialTopicState(service, draft)
         val preferred = preferredCompanyId.trim()
         if (preferred.isBlank() || !base.visible) return base
-        // A previously assigned company must remain selectable even if the CRM
-        // switch is currently off for that Android contact.
-        return base.copy(
-            loading = true,
-            localOnly = false,
-            selectedCompanyId = preferred,
-        )
+        return base.copy(loading = true, localOnly = false, selectedCompanyId = preferred)
     }
 
-    private fun saveToTopic(
-        noteText: String,
-        topicId: String,
-        localOnlyFallback: Boolean,
-    ): ContactNoteFormSaveResult {
-        return ContactNoteFormWorkflow.save(
+    private fun saveToTopic(noteText: String, topicId: String, localOnlyFallback: Boolean): ContactNoteFormSaveResult =
+        ContactNoteFormWorkflow.save(
             context = service,
             draft = draft,
             noteText = noteText,
             topicCompanyId = topicId,
             localOnlyFallback = localOnlyFallback,
         )
-    }
 
     private fun loadTopics() {
         val stateAtStart = topicState
@@ -117,64 +109,171 @@ internal class OverlayContactNoteFormController(
             val loadedState = ContactNoteFormWorkflow.loadTopics(service.applicationContext, stateAtStart)
             handler.post {
                 topicState = loadedState
-                topicControl?.let { control ->
-                    topicFieldUi.bind(control, topicState) { selected ->
-                        topicState = topicState.copy(selectedCompanyId = selected)
-                        if (draft.isGeneralNote) refreshTextForScope(selected)
-                    }
-                }
-                if (draft.isGeneralNote) refreshTextForScope(topicState.selectedCompanyId)
+                bindTopicControl()
+                refreshTextForScope(topicState.selectedCompanyId)
             }
         }.start()
     }
 
+    private fun bindTopicControl() {
+        val control = topicControl ?: return
+        topicFieldUi.bind(
+            control = control,
+            state = topicState,
+            onSelected = ::selectCompany,
+            moveState = moveUiState(),
+            onMoveAction = ::toggleMoveMode,
+        )
+    }
+
+    private fun selectCompany(selected: String) {
+        if (moveMode) {
+            moveToCompany(selected)
+            return
+        }
+        topicState = topicState.copy(selectedCompanyId = selected)
+        refreshTextForScope(selected)
+    }
+
+    private fun moveUiState(): ContactNoteMoveUiState = ContactNoteMoveUiState(
+        canMove = !moveInProgress && ContactNoteMovePolicy.canStart(
+            selectedCompanyId = topicState.selectedCompanyId,
+            value = displayedScopeValue,
+            currentText = noteInput?.text?.toString().orEmpty(),
+            companyCount = topicState.companies.size,
+        ),
+        selectingTarget = moveMode,
+        moving = moveInProgress,
+        sourceCompanyId = moveSourceCompanyId,
+    )
+
+    private fun toggleMoveMode() {
+        if (moveInProgress) return
+        if (moveMode) {
+            moveMode = false
+            moveSourceCompanyId = ""
+        } else if (moveUiState().canMove) {
+            moveMode = true
+            moveSourceCompanyId = topicState.selectedCompanyId
+        }
+        bindTopicControl()
+    }
+
+    private fun moveToCompany(targetCompanyId: String) {
+        val sourceCompanyId = moveSourceCompanyId
+        if (!ContactNoteMovePolicy.canTarget(sourceCompanyId, targetCompanyId)) {
+            Toast.makeText(service, "Избери друга фирма", Toast.LENGTH_SHORT).show()
+            bindTopicControl()
+            return
+        }
+        val input = noteInput ?: return
+        val sourceValue = displayedScopeValue
+        val targetValue = valueFor(targetCompanyId)
+        if (targetValue.text.isNotBlank() && !targetValue.confirmedServer) {
+            Toast.makeText(service, "Изчакай бележката в целевата фирма да се синхронизира", Toast.LENGTH_SHORT).show()
+            bindTopicControl()
+            return
+        }
+        val sourceText = input.text?.toString().orEmpty().trim()
+        if (!sourceValue.confirmedServer || sourceValue.serverClientEventId.isBlank() || sourceText.isBlank()) {
+            Toast.makeText(service, "Бележката още не е готова за преместване", Toast.LENGTH_SHORT).show()
+            moveMode = false
+            moveSourceCompanyId = ""
+            bindTopicControl()
+            return
+        }
+
+        moveInProgress = true
+        bindTopicControl()
+        val request = ContactNoteMoveRequest(
+            noteKind = if (draft.isGeneralNote) "main" else "call",
+            sourceCompanyId = sourceCompanyId,
+            targetCompanyId = targetCompanyId,
+            sourceClientEventId = sourceValue.serverClientEventId,
+            targetClientEventId = targetValue.serverClientEventId.takeIf { targetValue.confirmedServer }.orEmpty(),
+            phone = draft.phone,
+            sourceNote = sourceText,
+        )
+        Thread {
+            val result = runCatching { ContactNoteMoveClient.move(service.applicationContext, request) }
+            handler.post {
+                result.onSuccess { moved ->
+                    ContactNoteMoveClient.applyLocalResult(service.applicationContext, draft, sourceCompanyId, moved)
+                    Toast.makeText(
+                        service,
+                        "Бележката е преместена в ${moved.targetCompanyName.ifBlank { companyName(moved.targetCompanyId) }}",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    onMoveCompleted(moved)
+                }.onFailure { error ->
+                    moveInProgress = false
+                    moveMode = true
+                    bindTopicControl()
+                    Toast.makeText(
+                        service,
+                        error.message.orEmpty().ifBlank { "Бележката не можа да бъде преместена" },
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun companyName(companyId: String): String =
+        topicState.companies.firstOrNull { it.id == companyId }?.name.orEmpty().ifBlank { "другата фирма" }
+
     private fun refreshTextForScope(companyId: String) {
         val input = noteInput ?: return
         val safeCompanyId = companyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
-        val value = ContactNoteScopeTextResolver.textFor(
-            companyId = safeCompanyId,
-            draft = draft,
-            serverTexts = serverScopeTexts,
-            context = service,
-        )
-        replaceInputText(input, safeCompanyId, value)
-        if (safeCompanyId != ContactNoteTopicState.LOCAL_COMPANY_ID && serverScopeTexts == null) {
-            loadServerScopeTexts()
+        val value = valueFor(safeCompanyId)
+        replaceInputValue(input, safeCompanyId, value)
+        if (safeCompanyId != ContactNoteTopicState.LOCAL_COMPANY_ID && serverScopeValues == null) {
+            loadServerScopeValues()
         }
     }
 
-    private fun loadServerScopeTexts() {
-        if (serverScopeTextLoading) return
-        serverScopeTextLoading = true
+    private fun valueFor(companyId: String): ContactNoteScopeValue = ContactNoteScopeTextResolver.valueFor(
+        companyId = companyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID },
+        draft = draft,
+        serverValues = serverScopeValues,
+        context = service,
+    )
+
+    private fun loadServerScopeValues() {
+        if (serverScopeValueLoading) return
+        serverScopeValueLoading = true
         Thread {
             val values = runCatching {
-                ContactNoteScopeTextResolver.loadServerTexts(service.applicationContext, draft)
+                ContactNoteScopeTextResolver.loadServerValues(service.applicationContext, draft)
             }.getOrNull()
             handler.post {
-                serverScopeTextLoading = false
+                serverScopeValueLoading = false
                 if (values == null) return@post
-                serverScopeTexts = values
+                serverScopeValues = values
                 val input = noteInput ?: return@post
                 val selectedCompanyId = topicState.selectedCompanyId
                 if (
                     selectedCompanyId.isNotBlank() &&
                     selectedCompanyId != ContactNoteTopicState.LOCAL_COMPANY_ID &&
                     displayedScopeId == selectedCompanyId &&
-                    input.text?.toString().orEmpty() == displayedScopeText
+                    input.text?.toString().orEmpty() == displayedScopeValue.text
                 ) {
                     refreshTextForScope(selectedCompanyId)
+                } else {
+                    bindTopicControl()
                 }
             }
         }.start()
     }
 
-    private fun replaceInputText(input: EditText, companyId: String, value: String) {
-        if (input.text?.toString().orEmpty() != value) {
-            input.setText(value)
+    private fun replaceInputValue(input: EditText, companyId: String, value: ContactNoteScopeValue) {
+        if (input.text?.toString().orEmpty() != value.text) {
+            input.setText(value.text)
             input.setSelection(input.text?.length ?: 0)
         }
         displayedScopeId = companyId
-        displayedScopeText = value
-        persistedText = value
+        displayedScopeValue = value
+        persistedText = value.text
+        bindTopicControl()
     }
 }
