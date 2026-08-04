@@ -116,6 +116,8 @@ internal object ContactNoteFormWorkflow {
     ): ContactNoteFormSaveResult {
         val appContext = context.applicationContext
         val existingServerNoteId = draft.serverClientEventId.trim()
+            .takeUnless { ContactNoteMovePolicy.isLocalEventId(it) }
+            .orEmpty()
 
         // A stale UI or a direct caller cannot send an ordinary known non-CRM
         // contact to the server.
@@ -195,7 +197,7 @@ internal object ContactNoteFormWorkflow {
                 isGeneralNote = writeResult.savedAsGeneralNote || draft.isGeneralNote,
                 callAtMs = target.callAt.takeIf { it > 0L } ?: draft.callAt,
                 direction = target.direction.ifBlank { draft.direction },
-                serverClientEventId = draft.serverClientEventId,
+                serverClientEventId = existingServerNoteId,
             )
         }
 
