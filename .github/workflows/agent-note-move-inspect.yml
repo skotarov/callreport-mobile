@@ -26,6 +26,7 @@ jobs:
             ContactNoteScopeTextController.kt \
             ContactNoteScopeTextResolver.kt \
             OverlayContactNoteFormController.kt \
+            PostCallUnifiedNoteEditor.kt \
             CallReportTopicSyncClient.kt \
             CompanyCallNoteOutbox.kt \
             CallReportTopicNoteOutbox.kt \
