@@ -29,7 +29,7 @@ internal class SmsMessageViewDialog(
         receivedAtMs: Long,
         direction: String = "sms_in",
         showReplyAction: Boolean = true,
-        onEdit: (() -> Unit)? = null,
+        showCloseAction: Boolean = false,
         onDismiss: (() -> Unit)? = null,
     ) {
         if (phone.isBlank() || activity.isFinishing || activity.isDestroyed) {
@@ -48,13 +48,7 @@ internal class SmsMessageViewDialog(
                     receivedAtMs = receivedAtMs,
                     direction = direction,
                     showReplyAction = showReplyAction,
-                    openEdit = onEdit?.let { edit ->
-                        {
-                            openingAnotherUi = true
-                            dialog.dismiss()
-                            edit()
-                        }
-                    },
+                    showCloseAction = showCloseAction,
                     openReply = {
                         openingAnotherUi = true
                         dialog.dismiss()
@@ -98,7 +92,7 @@ internal class SmsMessageViewDialog(
         receivedAtMs: Long,
         direction: String,
         showReplyAction: Boolean,
-        openEdit: (() -> Unit)?,
+        showCloseAction: Boolean,
         openReply: () -> Unit,
     ): LinearLayout {
         val root = LinearLayout(activity).apply {
@@ -153,7 +147,7 @@ internal class SmsMessageViewDialog(
             ),
         )
 
-        if (openEdit != null || showReplyAction) {
+        if (showCloseAction || showReplyAction) {
             root.addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
@@ -162,14 +156,17 @@ internal class SmsMessageViewDialog(
                     dp(48),
                 ).apply { topMargin = dp(16) }
 
-                if (openEdit != null) {
-                    addView(actionButton(
-                        label = if (AppLocaleText.isBulgarian()) "Редактирай" else "Edit",
-                        primary = false,
-                        onClick = openEdit,
-                    ), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
-                        if (showReplyAction) marginEnd = dp(8)
-                    })
+                if (showCloseAction) {
+                    addView(
+                        actionButton(
+                            label = if (AppLocaleText.isBulgarian()) "Затвори" else "Close",
+                            primary = false,
+                            onClick = { dialog.dismiss() },
+                        ),
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
+                            if (showReplyAction) marginEnd = dp(8)
+                        },
+                    )
                 }
                 if (showReplyAction) {
                     val replyLabel = when {
@@ -178,8 +175,10 @@ internal class SmsMessageViewDialog(
                         AppLocaleText.isBulgarian() -> "Отговори"
                         else -> "Reply"
                     }
-                    addView(actionButton(replyLabel, primary = true, onClick = openReply),
-                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+                    addView(
+                        actionButton(replyLabel, primary = true, onClick = openReply),
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f),
+                    )
                 }
             })
         }
