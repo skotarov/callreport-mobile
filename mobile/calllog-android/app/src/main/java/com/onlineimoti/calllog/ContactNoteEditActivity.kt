@@ -105,7 +105,8 @@ class ContactNoteEditActivity : FontScaledActivity() {
                 ContactNoteScopeValue(
                     text = initialTextForScope(),
                     serverClientEventId = serverClientEventId,
-                    confirmedServer = serverClientEventId.isNotBlank(),
+                    confirmedServer = serverClientEventId.isNotBlank() &&
+                        ServerRecordIndex.isConfirmed(this, serverClientEventId),
                 )
             },
             onValueApplied = { _, value ->
@@ -316,7 +317,13 @@ class ContactNoteEditActivity : FontScaledActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 result.onSuccess { moved ->
-                    ContactNoteMoveClient.applyLocalResult(applicationContext, draft(), sourceCompanyId, moved)
+                    ContactNoteMoveClient.applyLocalResult(
+                        applicationContext,
+                        draft(),
+                        sourceCompanyId,
+                        sourceValue.serverClientEventId,
+                        moved,
+                    )
                     preferredCompanyId = moved.targetCompanyId
                     sendBroadcast(Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(packageName))
                     Toast.makeText(

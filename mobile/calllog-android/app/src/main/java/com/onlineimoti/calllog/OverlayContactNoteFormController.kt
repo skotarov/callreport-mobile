@@ -36,7 +36,8 @@ internal class OverlayContactNoteFormController(
         displayedScopeValue = ContactNoteScopeValue(
             text = persistedText,
             serverClientEventId = draft.serverClientEventId,
-            confirmedServer = draft.serverClientEventId.isNotBlank(),
+            confirmedServer = draft.serverClientEventId.isNotBlank() &&
+                ServerRecordIndex.isConfirmed(service, draft.serverClientEventId),
         )
         topicFieldUi.create(
             state = topicState,
@@ -198,7 +199,13 @@ internal class OverlayContactNoteFormController(
             val result = runCatching { ContactNoteMoveClient.move(service.applicationContext, request) }
             handler.post {
                 result.onSuccess { moved ->
-                    ContactNoteMoveClient.applyLocalResult(service.applicationContext, draft, sourceCompanyId, moved)
+                    ContactNoteMoveClient.applyLocalResult(
+                        service.applicationContext,
+                        draft,
+                        sourceCompanyId,
+                        sourceValue.serverClientEventId,
+                        moved,
+                    )
                     Toast.makeText(
                         service,
                         "Бележката е преместена в ${moved.targetCompanyName.ifBlank { companyName(moved.targetCompanyId) }}",
