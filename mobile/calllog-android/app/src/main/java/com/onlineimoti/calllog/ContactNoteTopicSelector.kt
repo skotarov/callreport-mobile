@@ -99,8 +99,16 @@ internal object ContactNoteTopicSelector {
             onSelected(selected)
         }
 
-        // Persist the resolved default immediately, so Save works without an extra tap.
-        if (selectedCompanyId.isNotBlank()) onSelected(selectedCompanyId)
+        // Apply a resolved fallback only when it differs from the state supplied by
+        // the host. Rebinding an already selected option must stay side-effect free:
+        // note editors rebind after applying text, and calling onSelected again here
+        // would recursively reload and rebind the same scope until the UI freezes.
+        if (
+            selectedCompanyId.isNotBlank() &&
+            state.selectedCompanyId.trim() != selectedCompanyId
+        ) {
+            onSelected(selectedCompanyId)
+        }
     }
 
     /**
