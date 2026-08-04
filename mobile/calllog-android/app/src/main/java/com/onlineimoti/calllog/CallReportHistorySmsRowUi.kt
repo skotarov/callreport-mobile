@@ -12,7 +12,7 @@ internal class CallReportHistorySmsRowUi(
     /** Uses the same icon, metadata, contact title and body layout as the Call Log SMS cards. */
     fun create(
         row: CallReportHistoryRow,
-        onEditSms: (SmsMessageRecord, String) -> Unit,
+        @Suppress("UNUSED_PARAMETER") onEditSms: (SmsMessageRecord, String) -> Unit,
         remoteEnabled: Boolean,
         companyNames: Map<String, String>,
     ): View {
@@ -59,7 +59,6 @@ internal class CallReportHistorySmsRowUi(
                 Color.rgb(30, 41, 59)
             },
         )
-        val editableSms = row.localSms?.takeIf { !foreignRecord }
         return SmsTimelineCard.create(
             activity = activity,
             dp = dp,
@@ -96,9 +95,7 @@ internal class CallReportHistorySmsRowUi(
                     receivedAtMs = row.timeMs,
                     direction = message.direction,
                     showReplyAction = SmsMessageDetailPolicy.canReplyTo(row.phone),
-                    onEdit = editableSms?.let { sms ->
-                        { onEditSms(sms, row.companyId) }
-                    },
+                    showCloseAction = row.localSms != null && !foreignRecord,
                 )
             },
         )
