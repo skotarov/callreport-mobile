@@ -6,7 +6,7 @@ import kotlin.math.abs
 internal data class ContactNoteScopeValue(
     val text: String = "",
     val serverClientEventId: String = "",
-    /** True only when this exact value/id was read from an authoritative server response. */
+    /** True when the exact value/id is authoritative for move operations. */
     val confirmedServer: Boolean = false,
 )
 
@@ -18,10 +18,18 @@ internal object ContactNoteScopeTextResolver {
     fun cachedValue(context: Context, draft: ContactNoteFormDraft, companyId: String): ContactNoteScopeValue {
         return when {
             companyId == ContactNoteTopicState.LOCAL_COMPANY_ID && draft.isGeneralNote -> {
-                ContactNoteScopeValue(ContactNoteReader.generalNoteForPhone(context, draft.phone))
+                ContactNoteScopeValue(
+                    text = ContactNoteReader.generalNoteForPhone(context, draft.phone),
+                    serverClientEventId = ContactNoteMovePolicy.localEventId(draft),
+                    confirmedServer = true,
+                )
             }
             companyId == ContactNoteTopicState.LOCAL_COMPANY_ID -> {
-                ContactNoteScopeValue(ContactNoteReader.callNoteForPhone(context, draft.phone, draft.callAt, draft.direction))
+                ContactNoteScopeValue(
+                    text = ContactNoteReader.callNoteForPhone(context, draft.phone, draft.callAt, draft.direction),
+                    serverClientEventId = ContactNoteMovePolicy.localEventId(draft),
+                    confirmedServer = true,
+                )
             }
             draft.isGeneralNote -> {
                 ContactNoteScopeValue(CallReportCompanyGeneralNoteStore.noteFor(context, draft.phone, companyId))
