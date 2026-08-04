@@ -23,6 +23,14 @@ class CompanyMainNoteVisibilityPolicyTest {
         pending = false,
         placeholder = true,
     )
+    private val pending = CallReportCompanyMainNote(
+        companyId = "company-c",
+        companyName = "Нова фирма",
+        note = "",
+        updatedAtMs = 2L,
+        confirmedByServer = false,
+        pending = true,
+    )
 
     @Test
     fun `without CRM keeps existing server notes but hides empty company lanes`() {
@@ -31,6 +39,17 @@ class CompanyMainNoteVisibilityPolicyTest {
             CompanyMainNoteVisibilityPolicy.visibleNotes(
                 companyScopeAvailable = false,
                 notes = listOf(existing, empty),
+            ),
+        )
+    }
+
+    @Test
+    fun `pending server note remains visible while CRM is off`() {
+        assertEquals(
+            listOf(pending),
+            CompanyMainNoteVisibilityPolicy.visibleNotes(
+                companyScopeAvailable = false,
+                notes = listOf(empty, pending),
             ),
         )
     }
