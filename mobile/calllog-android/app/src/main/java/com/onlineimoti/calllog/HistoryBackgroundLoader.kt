@@ -44,7 +44,7 @@ internal object HistoryBackgroundLoader {
         val snapshot = rawSnapshot.copy(companyScopeAvailable = companyScopeAvailable)
         val key = HomeCallPageLoader.noteKey(phone)
         if (key.isNotBlank()) {
-            val companies = if (companyScopeAvailable) cachedHistoryCompanies(context) else emptyList()
+            val companies = cachedHistoryCompanies(context)
             if (companies.isEmpty()) {
                 stagedCachedCompanyScopes.remove(key)
             } else {
@@ -92,7 +92,7 @@ internal object HistoryBackgroundLoader {
         )
         val localRows = FilteredFullLogLoader.cachedLocalRows(phone, local)
         val key = HomeCallPageLoader.noteKey(phone)
-        val cachedScope = if (snapshot.companyScopeAvailable && key.isNotBlank()) {
+        val cachedScope = if (key.isNotBlank()) {
             stagedCachedCompanyScopes.remove(key)
         } else {
             null
@@ -106,11 +106,18 @@ internal object HistoryBackgroundLoader {
                 events = emptyList(),
             )
         }.orEmpty()
+        val visibleCompanyNotes = CompanyMainNoteVisibilityPolicy.visibleNotes(
+            companyScopeAvailable = snapshot.companyScopeAvailable,
+            notes = cachedCompanyNotes,
+        )
         return HistoryPreparedSnapshot(
             rows = localRows.filter { row -> row.kind != CallReportHistoryRowKind.PHONE },
             fullLogEntries = FilteredFullLogLoader.groupedEntries(localRows),
-            companyMainNotes = cachedCompanyNotes,
-            hasCompanyMainNoteScope = cachedCompanyNotes.isNotEmpty(),
+            companyMainNotes = visibleCompanyNotes,
+            hasCompanyMainNoteScope = CompanyMainNoteVisibilityPolicy.shouldShow(
+                companyScopeAvailable = snapshot.companyScopeAvailable,
+                notes = visibleCompanyNotes,
+            ),
         )
     }
 
@@ -136,8 +143,9 @@ internal object HistoryBackgroundLoader {
             )
         }
         val companyScopeAvailable = remoteEnabled && ContactServerCompanyScope.isAvailable(context, phone)
+        // Existing server notes are readable even when this known contact is not
+        // enrolled in CRM. CRM still controls empty lanes and creation controls.
         val scopedCompanies = when {
-            !companyScopeAvailable -> emptyList()
             scopedServerLoaded -> history.principal.companies
             else -> cachedHistoryCompanies(context, config)
         }
@@ -154,6 +162,17 @@ internal object HistoryBackgroundLoader {
             calls = localCalls,
             sms = localSms,
             notes = localNotes,
+        )
+        val allCompanyMainNotes = companyMainNotes(
+            context = context,
+            phone = phone,
+            serverLoaded = scopedServerLoaded,
+            companies = scopedCompanies,
+            events = history.events,
+        )
+        val visibleCompanyMainNotes = CompanyMainNoteVisibilityPolicy.visibleNotes(
+            companyScopeAvailable = companyScopeAvailable,
+            notes = allCompanyMainNotes,
         )
         return HistoryPreparedSnapshot(
             rows = CallReportHistoryMerge.merge(
@@ -173,15 +192,12 @@ internal object HistoryBackgroundLoader {
                 local = localTimeline,
                 serverEvents = effectiveEvents,
             ),
-            companyMainNotes = companyMainNotes(
-                context = context,
-                phone = phone,
-                serverLoaded = scopedServerLoaded,
-                companies = scopedCompanies,
-                events = history.events,
-            ),
+            companyMainNotes = visibleCompanyMainNotes,
             unscopedServerMainNote = unscopedServerMainNote(phone, scopedServerLoaded, history),
-            hasCompanyMainNoteScope = scopedCompanies.isNotEmpty(),
+            hasCompanyMainNoteScope = CompanyMainNoteVisibilityPolicy.shouldShow(
+                companyScopeAvailable = companyScopeAvailable,
+                notes = visibleCompanyMainNotes,
+            ),
             confirmedLocalServerNote = ServerRecordIndex.hasConfirmedNoteForPhone(context, phone, localNotes),
         )
     }
