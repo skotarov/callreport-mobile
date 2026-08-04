@@ -21,6 +21,18 @@ internal class ContactNoteScopeTextController(
     private var displayedScopeId = ""
     private var displayedScopeValue = ContactNoteScopeValue()
 
+
+    fun currentValue(): ContactNoteScopeValue = displayedScopeValue
+
+    fun valueFor(companyId: String): ContactNoteScopeValue {
+        val safeCompanyId = companyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
+        return ContactNoteScopeTextResolver.valueFor(
+            companyId = safeCompanyId,
+            draft = draft(),
+            serverValues = serverValues ?: initialValues(),
+            context = activity,
+        )
+    }
     fun refresh(companyId: String, input: EditText) {
         val safeCompanyId = companyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
         val values = serverValues ?: initialValues()

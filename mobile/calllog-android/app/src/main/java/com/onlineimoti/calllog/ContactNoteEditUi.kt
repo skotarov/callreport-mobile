@@ -21,6 +21,7 @@ internal data class ContactNoteEditUiState(
     val willEnableServerSync: Boolean = false,
     /** Present when editing a server-only call note that has no local mirror yet. */
     val initialNoteText: String = "",
+    val move: ContactNoteMoveUiState = ContactNoteMoveUiState(),
 )
 
 /** Fullscreen host around the same editor body used by the floating overlay. */
@@ -30,6 +31,7 @@ internal class ContactNoteEditUi(
     private val onTopicSelected: (String, EditText) -> Unit,
     private val onNoteInputReady: (EditText) -> Unit,
     private val onTopicControlReady: (RadioGroup) -> Unit,
+    private val onMoveAction: () -> Unit,
     private val saveAndSwitch: (UnifiedNoteKind, String) -> Unit,
     private val saveAndClose: (String) -> Unit,
     private val deleteAndClose: () -> Unit,
@@ -65,6 +67,8 @@ internal class ContactNoteEditUi(
                     state = current.topic,
                     onSelected = { companyId -> onTopicSelected(companyId, input) },
                     onControlReady = onTopicControlReady,
+                    moveState = current.move,
+                    onMoveAction = onMoveAction,
                 )?.let(card::addView)
             },
         )

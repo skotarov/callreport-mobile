@@ -6,6 +6,8 @@ import kotlin.math.abs
 internal data class ContactNoteScopeValue(
     val text: String = "",
     val serverClientEventId: String = "",
+    /** True only when this exact value/id was read from an authoritative server response. */
+    val confirmedServer: Boolean = false,
 )
 
 /**
@@ -67,6 +69,7 @@ internal object ContactNoteScopeTextResolver {
                     notesByCompany[companyId] = ContactNoteScopeValue(
                         text = ownNote.note,
                         serverClientEventId = ownNote.clientEventId,
+                        confirmedServer = true,
                     )
                     CallReportCompanyGeneralNoteStore.saveOrDelete(
                         appContext,
@@ -87,6 +90,7 @@ internal object ContactNoteScopeTextResolver {
             val latestByCompany = mutableMapOf<String, CallReportHistoryEvent>()
             history.events.forEach { event ->
                 if (!event.communicationType.equals("note", ignoreCase = true)) return@forEach
+                if (event.canEdit != true) return@forEach
                 if (event.companyId.isBlank() || event.note.isBlank()) return@forEach
                 if (HomeCallPageLoader.noteKey(event.phone) != phoneKey) return@forEach
                 if (!sameCall(draft, event)) return@forEach
@@ -99,6 +103,7 @@ internal object ContactNoteScopeTextResolver {
                 ContactNoteScopeValue(
                     text = event.note,
                     serverClientEventId = event.clientEventId.trim(),
+                    confirmedServer = true,
                 )
             }
             val pendingValues = CompanyCallNoteOutbox.pendingEvents(appContext, listOf(draft.phone))

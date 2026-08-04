@@ -28,6 +28,10 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private var persistedEditorText = ""
     private var editorGeneration = 0
     private var scopeTextController: ContactNoteScopeTextController? = null
+    private var currentScopeValue = ContactNoteScopeValue()
+    private var moveMode = false
+    private var moveInProgress = false
+    private var moveSourceCompanyId = ""
     private val topicExecutor = Executors.newSingleThreadExecutor()
     private val saveController by lazy {
         ContactNoteEditSaveController(
@@ -71,6 +75,10 @@ class ContactNoteEditActivity : FontScaledActivity() {
             super.onBackPressed()
             return
         }
+        if (moveMode && !moveInProgress) {
+            cancelMoveMode()
+            return
+        }
         saveAndCloseIfChanged(noteInput?.text?.toString().orEmpty())
     }
 
@@ -93,12 +101,21 @@ class ContactNoteEditActivity : FontScaledActivity() {
             noteInput = { noteInput },
             isActive = { generation == editorGeneration && !isFinishing && !isDestroyed },
             initialScopeId = { preferredCompanyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID } },
-            initialValue = { ContactNoteScopeValue(initialTextForScope(), serverClientEventId) },
+            initialValue = {
+                ContactNoteScopeValue(
+                    text = initialTextForScope(),
+                    serverClientEventId = serverClientEventId,
+                    confirmedServer = serverClientEventId.isNotBlank() &&
+                        ServerRecordIndex.isConfirmed(this, serverClientEventId),
+                )
+            },
             onValueApplied = { _, value ->
+                currentScopeValue = value
                 persistedEditorText = value.text
                 serverClientEventId = value.serverClientEventId
                 storeCurrentServerEventId(value.serverClientEventId)
                 if (!isGeneralNote) initialNoteText = value.text
+                topicControl?.let(::bindTopicControl)
             },
         )
         setContentView(ContactNoteEditUi(
@@ -111,6 +128,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
                 if (topicState.visible) scopeTextController?.refresh(topicState.selectedCompanyId, input)
             },
             onTopicControlReady = { topicControl = it },
+            onMoveAction = ::toggleMoveMode,
             saveAndSwitch = ::saveAndSwitch,
             saveAndClose = ::saveAndClose,
             deleteAndClose = ::deleteSelectedNote,
@@ -173,6 +191,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         topic = topicState,
         willEnableServerSync = ContactNoteFormWorkflow.willEnableServerSync(this, draft(), topicState),
         initialNoteText = if (isGeneralNote) "" else initialNoteText,
+        move = moveUiState(),
     )
 
     private fun loadTopicCompanies(generation: Int) {
@@ -197,12 +216,20 @@ class ContactNoteEditActivity : FontScaledActivity() {
     }
 
     private fun bindTopicControl(control: RadioGroup) {
-        ContactNoteTopicFieldUi(this, ::dp).bind(control, topicState) { selected ->
-            noteInput?.let { selectTopicCompany(selected, it) }
-        }
+        ContactNoteTopicFieldUi(this, ::dp).bind(
+            control = control,
+            state = topicState,
+            onSelected = { selected -> noteInput?.let { selectTopicCompany(selected, it) } },
+            moveState = moveUiState(),
+            onMoveAction = ::toggleMoveMode,
+        )
     }
 
     private fun selectTopicCompany(selectedCompanyId: String, input: EditText) {
+        if (moveMode) {
+            moveToCompany(selectedCompanyId, input)
+            return
+        }
         val switched = ContactNoteScopeSwitchCoordinator.switch(
             currentCompanyId = topicState.selectedCompanyId,
             nextCompanyId = selectedCompanyId,
@@ -219,7 +246,112 @@ class ContactNoteEditActivity : FontScaledActivity() {
         }
     }
 
+    private fun moveUiState(): ContactNoteMoveUiState {
+        val selected = topicState.selectedCompanyId
+        val text = noteInput?.text?.toString().orEmpty()
+        return ContactNoteMoveUiState(
+            canMove = !moveInProgress && ContactNoteMovePolicy.canStart(
+                selectedCompanyId = selected,
+                value = currentScopeValue,
+                currentText = text,
+                companyCount = topicState.companies.size,
+            ),
+            selectingTarget = moveMode,
+            moving = moveInProgress,
+            sourceCompanyId = moveSourceCompanyId,
+        )
+    }
+
+    private fun toggleMoveMode() {
+        if (moveInProgress) return
+        if (moveMode) {
+            cancelMoveMode()
+            return
+        }
+        if (!moveUiState().canMove) return
+        moveMode = true
+        moveSourceCompanyId = topicState.selectedCompanyId
+        topicControl?.let(::bindTopicControl)
+    }
+
+    private fun cancelMoveMode() {
+        moveMode = false
+        moveSourceCompanyId = ""
+        topicControl?.let(::bindTopicControl)
+    }
+
+    private fun moveToCompany(targetCompanyId: String, input: EditText) {
+        val sourceCompanyId = moveSourceCompanyId
+        if (!ContactNoteMovePolicy.canTarget(sourceCompanyId, targetCompanyId)) {
+            Toast.makeText(this, "Избери друга фирма", Toast.LENGTH_SHORT).show()
+            topicControl?.let(::bindTopicControl)
+            return
+        }
+        val sourceValue = currentScopeValue
+        val targetValue = scopeTextController?.valueFor(targetCompanyId) ?: ContactNoteScopeValue()
+        if (targetValue.text.isNotBlank() && !targetValue.confirmedServer) {
+            Toast.makeText(this, "Изчакай бележката в целевата фирма да се синхронизира", Toast.LENGTH_SHORT).show()
+            topicControl?.let(::bindTopicControl)
+            return
+        }
+        val sourceText = input.text?.toString().orEmpty().trim()
+        if (!sourceValue.confirmedServer || sourceValue.serverClientEventId.isBlank() || sourceText.isBlank()) {
+            Toast.makeText(this, "Бележката още не е готова за преместване", Toast.LENGTH_SHORT).show()
+            cancelMoveMode()
+            return
+        }
+
+        moveInProgress = true
+        topicControl?.let(::bindTopicControl)
+        val request = ContactNoteMoveRequest(
+            noteKind = if (isGeneralNote) "main" else "call",
+            sourceCompanyId = sourceCompanyId,
+            targetCompanyId = targetCompanyId,
+            sourceClientEventId = sourceValue.serverClientEventId,
+            targetClientEventId = targetValue.serverClientEventId.takeIf { targetValue.confirmedServer }.orEmpty(),
+            phone = phone,
+            sourceNote = sourceText,
+        )
+        topicExecutor.execute {
+            val result = runCatching { ContactNoteMoveClient.move(applicationContext, request) }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                result.onSuccess { moved ->
+                    ContactNoteMoveClient.applyLocalResult(
+                        applicationContext,
+                        draft(),
+                        sourceCompanyId,
+                        sourceValue.serverClientEventId,
+                        moved,
+                    )
+                    preferredCompanyId = moved.targetCompanyId
+                    sendBroadcast(Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(packageName))
+                    Toast.makeText(
+                        this,
+                        "Бележката е преместена в ${moved.targetCompanyName.ifBlank { companyName(moved.targetCompanyId) }}",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    finish()
+                }.onFailure { error ->
+                    moveInProgress = false
+                    moveMode = true
+                    topicControl?.let(::bindTopicControl)
+                    Toast.makeText(
+                        this,
+                        error.message.orEmpty().ifBlank { "Бележката не можа да бъде преместена" },
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun companyName(companyId: String): String =
+        topicState.companies.firstOrNull { it.id == companyId }?.name.orEmpty().ifBlank { "другата фирма" }
+
     private fun saveAndSwitch(target: UnifiedNoteKind, noteText: String) {
+        moveMode = false
+        moveSourceCompanyId = ""
         if (target.isGeneral == isGeneralNote) return
         if (!saveForTransition(noteText)) {
             Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()

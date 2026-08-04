@@ -63,13 +63,6 @@ internal class PostCallUnifiedNoteEditor(
             isGeneralNote = kind.isGeneral,
             serverClientEventId = if (kind.isGeneral) "" else serverClientEventId().trim(),
         )
-        val form = OverlayContactNoteFormController(
-            service = service,
-            handler = handler,
-            dp = ui::dp,
-            draft = draft,
-            preferredCompanyId = initialCompanyId,
-        )
         val originalText = if (kind.isGeneral) {
             pendingGeneralNote() ?: ContactNoteReader.generalNoteForPhone(service, phoneValue)
         } else {
@@ -83,6 +76,19 @@ internal class PostCallUnifiedNoteEditor(
         fun setPending(text: String) {
             if (kind.isGeneral) setPendingGeneralNote(text) else setPendingCallNote(text)
         }
+        val form = OverlayContactNoteFormController(
+            service = service,
+            handler = handler,
+            dp = ui::dp,
+            draft = draft,
+            preferredCompanyId = initialCompanyId,
+            onMoveCompleted = { moved ->
+                setPending("")
+                setPreferredCompanyId(moved.targetCompanyId)
+                notifyNotesChanged()
+                stopOverlay()
+            },
+        )
 
         fun saveCurrent(noteText: String, transition: Boolean): Boolean {
             setPending(noteText)
