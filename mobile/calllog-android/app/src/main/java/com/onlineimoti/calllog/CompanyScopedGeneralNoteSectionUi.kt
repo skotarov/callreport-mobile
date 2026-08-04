@@ -34,9 +34,14 @@ internal class CompanyScopedGeneralNoteSectionUi(
         section.addView(headerUi.sectionTitleWithDrawable(activity.getString(R.string.dynamic_note_general_title), R.drawable.ic_note_lines))
         addLocalNote(section, localNote, localNotePending, onEditCompany)
         addUnscopedServerMainNote(section, unscopedServerMainNote, onEditUnscopedServerMainNote)
-        if (!showCompanyNotes || !companyScopeAvailable) return
+        if (!showCompanyNotes) return
+        val visibleCompanyNotes = CompanyMainNoteVisibilityPolicy.visibleNotes(
+            companyScopeAvailable = companyScopeAvailable,
+            notes = companyNotes,
+        )
+        if (visibleCompanyNotes.isEmpty()) return
 
-        companyNotes
+        visibleCompanyNotes
             .filter { it.companyId.isNotBlank() }
             .groupBy { it.companyId }
             .values
@@ -46,7 +51,8 @@ internal class CompanyScopedGeneralNoteSectionUi(
                     section = section,
                     notes = notes,
                     onEditCompany = onEditCompany,
-                    phaseBarForCompany = phaseBarForCompany,
+                    allowAdd = companyScopeAvailable,
+                    phaseBarForCompany = phaseBarForCompany.takeIf { companyScopeAvailable },
                 )
             }
     }
@@ -55,6 +61,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
         section: LinearLayout,
         notes: List<CallReportCompanyMainNote>,
         onEditCompany: (String) -> Unit,
+        allowAdd: Boolean,
         phaseBarForCompany: ((String) -> View)?,
     ) {
         val first = notes.firstOrNull() ?: return
@@ -66,7 +73,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
             .sortedByDescending { it.updatedAtMs }
         val lastVisibleNote = visibleNotes.lastOrNull()
         val hasEditableNote = visibleNotes.any { it.editable }
-        val showAdd = if (multiAuthor) !hasEditableNote else visibleNotes.isEmpty()
+        val showAdd = allowAdd && if (multiAuthor) !hasEditableNote else allowAdd && visibleNotes.isEmpty()
 
         section.addView(
             companyHeader(

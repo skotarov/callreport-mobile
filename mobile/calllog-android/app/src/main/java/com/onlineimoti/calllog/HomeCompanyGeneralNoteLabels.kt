@@ -43,14 +43,21 @@ internal object HomeCompanyGeneralNoteLabels {
         val companies = result.principal.companies.ifEmpty {
             cachedCompanies(appContext, config)
         }
-        val serverBackedPhoneKeys = result.events
-            .asSequence()
-            .filter { event ->
-                event.communicationType.equals("note", ignoreCase = true) &&
-                    event.note.trim().isNotBlank()
-            }
-            .mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.phone) }
-            .filterTo(linkedSetOf()) { it.isNotBlank() && it in requestedPhoneKeys }
+        val serverBackedPhoneKeys = buildSet {
+            result.events.asSequence()
+                .filter { event ->
+                    event.communicationType.equals("note", ignoreCase = true) &&
+                        event.note.trim().isNotBlank()
+                }
+                .map { event -> HomeCallPageLoader.noteKey(event.phone) }
+                .filter { key -> key.isNotBlank() && key in requestedPhoneKeys }
+                .forEach(::add)
+            result.companyMainNotes.asSequence()
+                .filter { note -> note.note.trim().isNotBlank() }
+                .map { note -> HomeCallPageLoader.noteKey(note.phone) }
+                .filter { key -> key.isNotBlank() && key in requestedPhoneKeys }
+                .forEach(::add)
+        }
         val companiesById = companies.associate { it.id to it.name }
         val labelsByPhone = linkedMapOf<String, LinkedHashMap<String, MutableScopeLabel>>()
         val confirmedGeneralScopes = linkedSetOf<String>()
@@ -74,6 +81,19 @@ internal object HomeCompanyGeneralNoteLabels {
                     changedAtMs = maxOf(event.updatedAtMs, event.occurredAtMs, event.createdAtMs),
                 )
             }
+        }
+
+        // The dedicated collection is canonical and remains visible even when
+        // the phone is a known Android contact with CRM turned off.
+        for (note in result.companyMainNotes) {
+            if (note.note.isBlank() || note.companyId.isBlank()) continue
+            val phoneKey = HomeCallPageLoader.noteKey(note.phone)
+            if (phoneKey.isBlank() || phoneKey !in requestedPhoneKeys) continue
+            confirmedGeneralScopes += scopeKey(phoneKey, note.companyId)
+            labelFor(phoneKey, note.companyId).setServerGeneralNote(
+                text = note.note,
+                changedAtMs = note.updatedAtMs,
+            )
         }
 
         // Upload acknowledgement can arrive before lookup.php exposes the new row.
