@@ -90,7 +90,7 @@ internal object ContactNoteScopeTextResolver {
             val latestByCompany = mutableMapOf<String, CallReportHistoryEvent>()
             history.events.forEach { event ->
                 if (!event.communicationType.equals("note", ignoreCase = true)) return@forEach
-                if (!event.canEdit) return@forEach
+                if (event.canEdit != true) return@forEach
                 if (event.companyId.isBlank() || event.note.isBlank()) return@forEach
                 if (HomeCallPageLoader.noteKey(event.phone) != phoneKey) return@forEach
                 if (!sameCall(draft, event)) return@forEach
