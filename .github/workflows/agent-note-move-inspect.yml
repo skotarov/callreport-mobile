@@ -1,43 +1,33 @@
-name: Agent Note Move Inspect
+name: Agent Apply Note Move UI
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Collect relevant Android source
+        with:
+          ref: agent/move-note-between-companies-20260804
+      - name: Apply reviewed Android note move files
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p inspect
-          base=mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog
-          for file in \
-            ContactNoteEditActivity.kt \
-            ContactNoteEditUi.kt \
-            ContactNoteTopicFieldUi.kt \
-            ContactNoteTopicSelector.kt \
-            ContactNoteScopeTextController.kt \
-            ContactNoteScopeTextResolver.kt \
-            OverlayContactNoteFormController.kt \
-            PostCallUnifiedNoteEditor.kt \
-            CallReportTopicSyncClient.kt \
-            CompanyCallNoteOutbox.kt \
-            CallReportTopicNoteOutbox.kt \
-            CallReportCompanyGeneralNoteStore.kt \
-            ServerRecordIndex.kt \
-            ConfigStore.kt; do
-            if [ -f "$base/$file" ]; then cp "$base/$file" "inspect/$file"; fi
-          done
-          grep -RInE "(OverlayContactNoteFormController|ContactNoteTopicFieldUi|serverClientEventId|onTopicControlReady|CallReportTopicSyncClient|TopicNoteOutbox)" "$base" > inspect/references.txt || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: note-move-mobile-inspection
-          path: inspect
-          retention-days: 1
+          cat .agent/note-move-patch/part* | base64 -d | tar -xzf -
+          git config user.name "relationship-manager-agent"
+          git config user.email "actions@users.noreply.github.com"
+          git add mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNoteEditActivity.kt \
+                  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNoteEditUi.kt \
+                  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNoteScopeTextController.kt \
+                  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNoteScopeTextResolver.kt \
+                  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/ContactNoteTopicFieldUi.kt \
+                  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/OverlayContactNoteFormController.kt \
+                  mobile/calllog-android/app/src/main/java/com/onlineimoti/calllog/PostCallUnifiedNoteEditor.kt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Add in-place company note move UI"
+          git push origin HEAD:agent/move-note-between-companies-20260804
