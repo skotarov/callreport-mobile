@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.text.InputType
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.EditText
@@ -13,6 +14,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.TextViewCompat
 
 internal enum class UnifiedNoteKind {
     GENERAL,
@@ -76,37 +78,64 @@ internal class UnifiedNoteEditorContentUi(
         input: EditText,
         callbacks: UnifiedNoteEditorCallbacks,
     ): LinearLayout = LinearLayout(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        addView(ImageView(context).apply {
-            setImageResource(if (state.kind.isGeneral) R.drawable.ic_note_lines else R.drawable.ic_chat_note)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = LinearLayout.LayoutParams(dp(35), dp(35)).apply { marginEnd = dp(8) }
-        })
+        orientation = LinearLayout.VERTICAL
+
         addView(LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(ImageView(context).apply {
+                setImageResource(if (state.kind.isGeneral) R.drawable.ic_note_lines else R.drawable.ic_chat_note)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                layoutParams = LinearLayout.LayoutParams(dp(35), dp(35)).apply { marginEnd = dp(8) }
+            })
             addView(TextView(context).apply {
                 text = context.getString(
                     if (state.kind.isGeneral) R.string.dynamic_note_general_title else R.string.dynamic_note_call_title,
                 )
-                textSize = 18f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(Color.rgb(17, 24, 39))
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                    this,
+                    12,
+                    18,
+                    1,
+                    TypedValue.COMPLEX_UNIT_SP,
+                )
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f,
+                )
             })
+        })
+
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(1) }
             addView(TextView(context).apply {
                 text = state.titleText
                 textSize = 13f
                 setTextColor(Color.rgb(107, 114, 128))
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f,
+                )
             })
-        })
-        addView(iconButton(R.drawable.ic_calendar_event, context.getString(R.string.dynamic_action_calendar)) {
-            callbacks.openCalendar(input.text?.toString().orEmpty())
-        })
-        addView(iconButton(R.drawable.ic_popup_close, context.getString(R.string.dynamic_sms_close)) {
-            callbacks.close(input.text?.toString().orEmpty())
+            addView(iconButton(R.drawable.ic_calendar_event, context.getString(R.string.dynamic_action_calendar)) {
+                callbacks.openCalendar(input.text?.toString().orEmpty())
+            })
+            addView(iconButton(R.drawable.ic_popup_close, context.getString(R.string.dynamic_sms_close)) {
+                callbacks.close(input.text?.toString().orEmpty())
+            })
         })
     }
 
