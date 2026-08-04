@@ -197,7 +197,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
     }
 
     private fun bindTopicControl(control: RadioGroup) {
-        ContactNoteTopicSelector.bind(this, control, topicState) { selected ->
+        ContactNoteTopicFieldUi(this, ::dp).bind(control, topicState) { selected ->
             noteInput?.let { selectTopicCompany(selected, it) }
         }
     }
@@ -307,6 +307,8 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private fun storeCurrentServerEventId(value: String) {
         if (isGeneralNote) generalServerClientEventId = value else callServerClientEventId = value
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private companion object {
         const val EXTRA_SHOW_NUMBER_KEYPAD = "show_number_keypad"
