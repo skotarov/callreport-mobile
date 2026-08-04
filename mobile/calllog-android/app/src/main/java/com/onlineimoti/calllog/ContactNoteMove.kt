@@ -107,12 +107,23 @@ internal object ContactNoteMoveClient {
         context: Context,
         draft: ContactNoteFormDraft,
         sourceCompanyId: String,
+        sourceClientEventId: String,
         result: ContactNoteMoveResult,
     ) {
         val appContext = context.applicationContext
+        ServerRecordIndex.markPending(appContext, sourceClientEventId)
         if (draft.isGeneralNote) {
             CallReportCompanyGeneralNoteStore.saveOrDelete(appContext, draft.phone, sourceCompanyId, "")
             CallReportCompanyGeneralNoteStore.saveOrDelete(appContext, draft.phone, result.targetCompanyId, result.note)
+        } else {
+            HomeNotesSnapshotCache.invalidateDeletedNote(
+                context = appContext,
+                phone = draft.phone,
+                isGeneralNote = false,
+                callAtMs = draft.callAt,
+                direction = draft.direction,
+                serverClientEventId = sourceClientEventId,
+            )
         }
         if (result.targetClientEventId.isNotBlank()) {
             ServerRecordIndex.markConfirmed(appContext, listOf(result.targetClientEventId))
