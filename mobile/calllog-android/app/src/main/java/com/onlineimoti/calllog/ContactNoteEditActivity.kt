@@ -308,6 +308,9 @@ class ContactNoteEditActivity : FontScaledActivity() {
         if (isGeneralNote) generalServerClientEventId = value else callServerClientEventId = value
     }
 
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
     private companion object {
         const val EXTRA_SHOW_NUMBER_KEYPAD = "show_number_keypad"
         const val EXTRA_NUMBER = "number"
