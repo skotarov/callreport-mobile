@@ -115,7 +115,7 @@ internal object ContactNoteMoveClient {
         }
 
         val result = try {
-            requestServerMove(appContext, config.baseUrl, config.accessToken, request, sourceLocalId)
+            requestServerMove(config.baseUrl, config.accessToken, request, sourceLocalId)
         } catch (error: Throwable) {
             if (request.targetIsLocal) {
                 throw IOException(
@@ -152,13 +152,16 @@ internal object ContactNoteMoveClient {
     }
 
     private fun requestServerMove(
-        context: Context,
         baseUrl: String,
         accessToken: String,
         request: ContactNoteMoveRequest,
         sourceLocalId: String,
     ): ContactNoteMoveResult {
-        val coordinates = localCoordinates(request)
+        val coordinates = if (request.sourceIsLocal || request.targetIsLocal) {
+            localCoordinates(request)
+        } else {
+            null
+        }
         val payload = JSONObject().apply {
             put("move_request_id", request.moveRequestId)
             put("note_kind", request.noteKind)
@@ -179,7 +182,7 @@ internal object ContactNoteMoveClient {
             }
             put("phone", request.phone)
             put("source_note", request.sourceNote)
-            if (request.noteKind == "call") {
+            if (request.noteKind == "call" && coordinates != null) {
                 put("occurred_at_ms", coordinates.callAtMs)
                 put("direction", coordinates.direction)
                 put("duration_seconds", coordinates.durationSeconds)
