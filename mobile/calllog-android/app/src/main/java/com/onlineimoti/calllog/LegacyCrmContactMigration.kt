@@ -15,7 +15,11 @@ internal object LegacyCrmContactMigration {
     private const val META_PREFS = "crm_contact_sync_meta"
     private const val KEY_MIGRATED_PREFIX = "legacy_global_profile_migrated_v1_"
 
-    /** Runs on the existing Clients worker thread. Failed migrations are retried. */
+    /**
+     * Runs on the existing Clients worker thread.
+     * Returns true only when this call uploaded missing legacy markers.
+     * Failed migrations are left unmarked and retried later.
+     */
     fun migrateIfNeeded(context: Context, config: AppConfig): Boolean {
         val appContext = context.applicationContext
         if (!CallReportRemoteAccess.isReady(config)) return false
@@ -25,7 +29,7 @@ internal object LegacyCrmContactMigration {
 
         val migrationKey = KEY_MIGRATED_PREFIX + hash(profileScope)
         val meta = appContext.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
-        if (meta.getBoolean(migrationKey, false)) return true
+        if (meta.getBoolean(migrationKey, false)) return false
 
         val legacyPhones = appContext.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
             .all
@@ -36,6 +40,7 @@ internal object LegacyCrmContactMigration {
             .distinct()
             .toList()
 
+        var uploaded = false
         if (legacyPhones.isNotEmpty()) {
             val snapshot = runCatching {
                 ProfileCrmContactsClient.fetchSnapshot(appContext, config)
@@ -45,7 +50,7 @@ internal object LegacyCrmContactMigration {
             // record. Only genuinely missing legacy switches are imported.
             val missing = legacyPhones.filterNot(snapshot.recordsByPhoneKey::containsKey)
             if (missing.isNotEmpty()) {
-                val migrated = runCatching {
+                uploaded = runCatching {
                     ProfileCrmContactsClient.updateSnapshot(
                         context = appContext,
                         config = config,
@@ -57,11 +62,12 @@ internal object LegacyCrmContactMigration {
                         },
                     )
                 }.isSuccess
-                if (!migrated) return false
+                if (!uploaded) return false
             }
         }
 
-        return meta.edit().putBoolean(migrationKey, true).commit()
+        if (!meta.edit().putBoolean(migrationKey, true).commit()) return false
+        return uploaded
     }
 
     private fun hash(value: String): String = MessageDigest.getInstance("SHA-256")
