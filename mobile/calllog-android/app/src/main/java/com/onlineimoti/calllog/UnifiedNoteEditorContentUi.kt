@@ -264,10 +264,6 @@ internal class UnifiedNoteEditorContentUi(
                 })
                 addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
             }
-            addView(secondaryButton(context.getString(R.string.dynamic_note_cancel)) {
-                callbacks.close(input.text?.toString().orEmpty())
-            })
-            addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
             addView(primaryButton(context.getString(R.string.dynamic_note_save)) {
                 callbacks.save(input.text?.toString().orEmpty())
             })
