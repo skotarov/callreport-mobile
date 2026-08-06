@@ -144,7 +144,13 @@ internal class PostCallUnifiedNoteEditor(
                         stopOverlay()
                     }
                 },
-                close = { text -> runAfterSave(text, transition = true, action = stopOverlay) },
+                close = { text ->
+                    NoteEditorCloseConfirmation.requestOverlay(
+                        service = service,
+                        hasUnsavedChanges = form.hasChangedText(text),
+                        closeWithoutSaving = stopOverlay,
+                    )
+                },
                 openCalendar = { text ->
                     runAfterSave(text, transition = true) { openCalendarEvent(titleText) }
                 },
