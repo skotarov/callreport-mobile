@@ -79,7 +79,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
             cancelMoveMode()
             return
         }
-        saveAndCloseIfChanged(noteInput?.text?.toString().orEmpty())
+        requestCloseWithoutSaving(noteInput?.text?.toString().orEmpty())
     }
 
     override fun onDestroy() {
@@ -133,7 +133,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
             saveAndClose = ::saveAndClose,
             deleteAndClose = ::deleteSelectedNote,
             saveAndOpenCalendar = ::saveAndOpenCalendar,
-            close = ::saveAndCloseIfChanged,
+            close = ::requestCloseWithoutSaving,
         ).buildContent())
         if (topicState.visible) loadTopicCompanies(generation)
     }
@@ -376,12 +376,12 @@ class ContactNoteEditActivity : FontScaledActivity() {
 
     private fun deleteSelectedNote() = saveAndClose("")
 
-    private fun saveAndCloseIfChanged(noteText: String) {
-        if (!saveForTransition(noteText)) {
-            Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()
-            return
-        }
-        finish()
+    private fun requestCloseWithoutSaving(noteText: String) {
+        NoteEditorCloseConfirmation.request(
+            activity = this,
+            hasUnsavedChanges = noteText != persistedEditorText,
+            closeWithoutSaving = ::finish,
+        )
     }
 
     private fun saveForTransition(noteText: String): Boolean {
