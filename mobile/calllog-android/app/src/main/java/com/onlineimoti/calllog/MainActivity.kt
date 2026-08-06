@@ -12,8 +12,6 @@ import java.util.concurrent.Executors
 class MainActivity : FontScaledAppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val executor = Executors.newSingleThreadExecutor()
-    private var suppressAutoSave = false
-    private var serverConnectionGeneration = 0
     private var currentLanguage = ConfigStore.DEFAULT_APP_LANGUAGE
     private var currentFontScale = AppFontScaleStore.NORMAL
 
@@ -23,12 +21,21 @@ class MainActivity : FontScaledAppCompatActivity() {
     private val settingsNavigationController: MainSettingsNavigationController by lazy {
         MainSettingsNavigationController(this, binding, translationSettingsController::onSectionVisible)
     }
+    private val serverConnectionController: MainServerConnectionController by lazy {
+        MainServerConnectionController(
+            activity = this,
+            binding = binding,
+            executor = executor,
+            setStatus = ::setStatus,
+            refreshServerDependentUi = ::refreshServerDependentUi,
+        )
+    }
     private val settingsAutoSaveController: MainSettingsAutoSaveController by lazy {
         MainSettingsAutoSaveController(
             binding,
             ::autoSaveSettings,
-            ::onRemoteEnabledRequested,
-            ::onRemoteConnectionInputChanged,
+            serverConnectionController::onRemoteEnabledRequested,
+            serverConnectionController::onRemoteConnectionInputChanged,
             ::applyLanguageIfChanged,
             ::applyFontScaleIfChanged,
         )
@@ -109,13 +116,17 @@ class MainActivity : FontScaledAppCompatActivity() {
         translationSettingsController.wire()
         serverSyncQueueStatusController.wire()
         serverSyncQueueStatusController.refresh()
-        configureBuildSpecificSettings()
+        MainSettingsStartupUi.configureBuildSpecificSettings(
+            binding,
+            defaultSmsSettingsController,
+            callScreeningIntegrationSettingsController,
+        )
         wireSettingsActions()
         if (BuildConfig.DEBUG) {
             MainServerTestsController(this, binding, executor, ::saveConfig, ::setStatus).wire()
         }
         settingsNavigationController.wire()
-        if (!openRequestedSettingsSection(intent)) settingsNavigationController.showMenu()
+        if (!MainSettingsStartupUi.openRequestedSection(binding, intent)) settingsNavigationController.showMenu()
         defaultSmsSettingsController.refresh()
         callScreeningIntegrationSettingsController.refresh()
         permissionFlowController.start()
@@ -124,7 +135,7 @@ class MainActivity : FontScaledAppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (::binding.isInitialized) openRequestedSettingsSection(intent)
+        if (::binding.isInitialized) MainSettingsStartupUi.openRequestedSection(binding, intent)
     }
 
     override fun onResume() {
@@ -148,39 +159,7 @@ class MainActivity : FontScaledAppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun configureBuildSpecificSettings() {
-        val permissionsSection = binding.settingsApplicationGroup.permissionsSection.statusSmsPermissionsSection.root
-        if (DistributionCapabilities.isPlayBusinessBuild) {
-            binding.settingsMenuGroup.settingsApplicationButton.visibility = android.view.View.GONE
-            binding.settingsMenuGroup.settingsPopupButton.visibility = android.view.View.GONE
-            binding.settingsMenuGroup.settingsRmContactsButton.visibility = android.view.View.GONE
-            binding.settingsMenuGroup.settingsDataArchiveButton.visibility = android.view.View.GONE
-            binding.settingsApplicationGroup.root.visibility = android.view.View.GONE
-            binding.settingsPopupGroup.root.visibility = android.view.View.GONE
-            binding.settingsRmContactsGroup.root.visibility = android.view.View.GONE
-            binding.settingsDataArchiveGroup.root.visibility = android.view.View.GONE
-            return
-        }
-        permissionsSection.visibility = android.view.View.VISIBLE
-        defaultSmsSettingsController.wire()
-        callScreeningIntegrationSettingsController.wire()
-    }
-
     private fun hydrateFields() = MainSettingsConfigUi.hydrate(binding, ConfigStore.load(this))
-
-    private fun openRequestedSettingsSection(intent: Intent?): Boolean {
-        return when {
-            intent?.getBooleanExtra(EXTRA_OPEN_SERVER, false) == true -> {
-                binding.settingsMenuGroup.settingsServerButton.performClick()
-                true
-            }
-            intent?.getBooleanExtra(EXTRA_OPEN_REGISTRATION, false) == true -> {
-                binding.settingsMenuGroup.settingsRegistrationButton.performClick()
-                true
-            }
-            else -> false
-        }
-    }
 
     private fun wireSettingsActions() {
         MainSettingsActionBinder.wire(
@@ -200,84 +179,6 @@ class MainActivity : FontScaledAppCompatActivity() {
         saveConfig()
         setStatus(getString(R.string.settings_server_saved))
         refreshServerDependentUi()
-    }
-
-    private fun onRemoteEnabledRequested(enabled: Boolean) {
-        if (suppressAutoSave) return
-        if (enabled) {
-            validateAndEnableServer()
-            return
-        }
-        serverConnectionGeneration++
-        applyTestedServerMode(MainSettingsConfigUi.read(binding), enabled = false)
-        setStatus(getString(R.string.server_mode_disabled))
-    }
-
-    private fun onRemoteConnectionInputChanged() {
-        if (suppressAutoSave) return
-        val wasEnabled = ConfigStore.load(this).remoteEnabled || binding.remoteSettingsSection.remoteEnabledCheckBox.isChecked
-        serverConnectionGeneration++
-        val entered = MainSettingsConfigUi.read(binding)
-        ConfigStore.save(this, entered.copy(remoteEnabled = false))
-        HomeCrmModeStore.setEnabled(this, false)
-        setRemoteCheckbox(checked = false, enabled = true)
-        if (wasEnabled) {
-            setStatus(getString(R.string.server_connection_recheck_required))
-            refreshServerDependentUi()
-        }
-    }
-
-    private fun validateAndEnableServer() {
-        val generation = ++serverConnectionGeneration
-        val entered = MainSettingsConfigUi.read(binding)
-        ConfigStore.save(this, entered.copy(remoteEnabled = false))
-        HomeCrmModeStore.setEnabled(this, false)
-        val candidate = ConfigStore.load(this).copy(remoteEnabled = true)
-        setRemoteCheckbox(checked = false, enabled = false)
-        setStatus("⏳ ${getString(R.string.test_server_connection_running)}")
-        executor.execute {
-            val result = runCatching {
-                val status = ServerConnectionTester.test(candidate)
-                val session = if (status.ok) {
-                    CompanyAccountApi.refreshProfile(applicationContext).getOrThrow()
-                } else {
-                    null
-                }
-                status to session
-            }
-            runOnUiThread {
-                if (isFinishing || isDestroyed || generation != serverConnectionGeneration) return@runOnUiThread
-                result.onSuccess { (status, session) ->
-                    val enabled = status.ok && session != null
-                    if (session != null) CompanyAccountApi.applySession(applicationContext, session)
-                    applyTestedServerMode(candidate, enabled)
-                    setStatus(buildString {
-                        append(if (enabled) "✅ " else "⚠️ ")
-                        append(status.title)
-                        if (status.detail.isNotBlank()) append("\n").append(status.detail)
-                    })
-                }.onFailure { error ->
-                    applyTestedServerMode(candidate, enabled = false)
-                    val message = error.message.orEmpty().ifBlank { getString(R.string.test_server_connection_failed) }
-                    setStatus("❌ ${getString(R.string.settings_registration_profile_load_failed, message)}")
-                }
-            }
-        }
-    }
-
-    private fun applyTestedServerMode(config: AppConfig, enabled: Boolean) {
-        ConfigStore.save(this, config.copy(remoteEnabled = enabled))
-        HomeCrmModeStore.setEnabled(this, enabled)
-        setRemoteCheckbox(checked = enabled, enabled = true)
-        refreshServerDependentUi()
-    }
-
-    private fun setRemoteCheckbox(checked: Boolean, enabled: Boolean) {
-        val previous = suppressAutoSave
-        suppressAutoSave = true
-        binding.remoteSettingsSection.remoteEnabledCheckBox.isChecked = checked
-        binding.remoteSettingsSection.remoteEnabledCheckBox.isEnabled = enabled
-        suppressAutoSave = previous
     }
 
     private fun refreshServerDependentUi() {
@@ -331,7 +232,7 @@ class MainActivity : FontScaledAppCompatActivity() {
     ).all(::hasPermission)
 
     private fun autoSaveSettings(): AppConfig {
-        if (suppressAutoSave) return ConfigStore.load(this)
+        if (serverConnectionController.isAutoSaveSuppressed) return ConfigStore.load(this)
         return saveConfig().also {
             refreshPermissionSummary()
             serverSyncQueueStatusController.refresh()
