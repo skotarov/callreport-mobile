@@ -26,6 +26,7 @@ internal class HomeCrmContactsLoader(
     private val executor = Executors.newSingleThreadExecutor()
     private val generation = AtomicInteger(0)
     private val busyTokens = linkedSetOf<Long>()
+    private var lastCrmOnlyState = false
 
     fun invalidate(): Int {
         finishAllBusy()
@@ -40,6 +41,8 @@ internal class HomeCrmContactsLoader(
 
     fun renderAsync(pageSize: Int, expectedGeneration: Int) {
         val filterState = crmFilters.state()
+        val forceCrmMarkerRefresh = filterState.crmOnly && !lastCrmOnlyState
+        lastCrmOnlyState = filterState.crmOnly
         val requestedPage = pageIndex()
         val appContext = activity.applicationContext
         val config = ConfigStore.load(appContext)
@@ -65,6 +68,16 @@ internal class HomeCrmContactsLoader(
         }
 
         executor.execute {
+            // Enabling the personal CRM filter is an explicit request for the
+            // complete current set. Bypass the normal short refresh TTL once so
+            // edits made on another phone can win by updatedAtMs before we build
+            // the local fallback and final merged list.
+            if (forceCrmMarkerRefresh) {
+                runCatching {
+                    CrmContactSyncStore.refreshFromServer(appContext, force = true)
+                }
+            }
+
             var provisionalAvailable = cachedData != null
             if (!provisionalAvailable && filterState.crmOnly) {
                 val provisionalCalls = runCatching {
