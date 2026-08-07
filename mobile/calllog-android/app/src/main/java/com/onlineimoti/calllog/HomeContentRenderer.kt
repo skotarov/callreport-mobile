@@ -9,9 +9,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.ActivityHomeBinding
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** Renders the ordinary Call Log, search results and CRM call rows. */
 internal class HomeContentRenderer(
@@ -312,9 +309,7 @@ internal class HomeContentRenderer(
         "$HOME_ROW_TAG_PREFIX${HomeCallNotesResolver.keyFor(call)}"
 
     private fun dateSeparator(timestamp: Long, relativeDays: Long, hasRowsBefore: Boolean): TextView {
-        val locale = if (AppLocaleText.isBulgarian()) Locale("bg", "BG") else Locale.US
-        val label = "${SimpleDateFormat("EEEE, d MMMM yyyy", locale).format(Date(timestamp))} " +
-            "(${HomeTimelineDateUi.relativeDaysLabel(activity, relativeDays)})"
+        val label = HomeTimelineDateUi.dayGroupLabel(activity, timestamp, relativeDays)
         return TextView(activity).apply {
             text = label
             textSize = 12.5f
