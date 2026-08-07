@@ -28,9 +28,7 @@ internal object HomeTimelineDateUi {
             val weekday = SimpleDateFormat("EEEE", locale).format(calendar.time)
             val month = SimpleDateFormat("MMMM", locale)
                 .format(calendar.time)
-                .replaceFirstChar { character ->
-                    if (character.isLowerCase()) character.titlecase(locale) else character.toString()
-                }
+                .replaceFirstChar { character -> character.uppercaseChar() }
             buildString {
                 append(weekday)
                 append(", ")
