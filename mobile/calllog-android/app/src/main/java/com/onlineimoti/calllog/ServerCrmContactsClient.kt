@@ -18,7 +18,11 @@ internal object ServerCrmContactsClient {
         context: Context? = null,
     ): List<PhoneCallRecord> {
         if (!CallReportRemoteAccess.isReady(config)) return emptyList()
-        val endpoint = buildEndpoint(config.baseUrl, PATH, queryParameters(config, filterState, searchQuery))
+        val endpoint = buildEndpoint(
+            config.baseUrl,
+            PATH,
+            ServerCrmContactsQuery.parameters(config, filterState, searchQuery),
+        )
         val connection = runCatching { URL(endpoint).openConnection() as HttpURLConnection }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
             throw error
@@ -89,26 +93,37 @@ internal object ServerCrmContactsClient {
             connection.disconnect()
         }
     }
+}
 
-    private fun queryParameters(
+/** Builds one canonical Clients request so active filters always scope the search itself. */
+internal object ServerCrmContactsQuery {
+    fun parameters(
         config: AppConfig,
         filterState: HomeCrmFilterState,
         searchQuery: String,
     ): Map<String, String> {
         val query = searchQuery.trim()
+        val phases = filterState.phases
+            .filter { it in ContactNegotiationPhaseStore.PHASE_1..ContactNegotiationPhaseStore.PHASE_4 }
+            .sorted()
+        val companyIds = filterState.companyIds
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
         return linkedMapOf(
             "access_token" to config.accessToken,
             "crm_only" to if (filterState.crmOnly) "1" else "0",
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
-            if (filterState.hasPhaseFilter) {
-                val phase = filterState.phases.sorted().joinToString(",")
+            if (phases.isNotEmpty()) {
+                val phase = phases.joinToString(",")
                 put("phase", phase)
                 // Some older server deployments read only the plural alias.
                 put("phases", phase)
             }
-            if (filterState.hasCompanyFilter) {
-                put("company_id", filterState.companyIds.sorted().joinToString(","))
+            if (companyIds.isNotEmpty()) {
+                put("company_id", companyIds.joinToString(","))
             }
             if (query.isNotBlank()) {
                 put("q", query)
