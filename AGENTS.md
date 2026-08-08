@@ -48,6 +48,88 @@ Use this order of preference:
 
 For files such as `ContactNoteReader.kt`, prefer adding a helper such as `NotePersistence.kt` instead of replacing the entire file.
 
+## Clients architecture and sync contract
+
+The `Clients` screen is a server-backed Relationship Manager view. Treat the rules below as product behavior, not as an implementation detail.
+
+### Server is authoritative for clients
+
+- A client exists because it exists on the Relationship Manager server.
+- Company clients are server-side only.
+- The Android phone call log and Android Contacts are not authoritative client databases and must not create a separate Clients universe.
+- Local Android data for Clients is a cache used for fast rendering, offline tolerance and reconciliation.
+- If Android has a personal CRM marker for a phone but the corresponding client is missing from the server-side Clients data, treat that as a synchronization problem to repair, not as a valid local-only client.
+- Client storage, archival and authoritative search live on the server.
+
+### Cache-first, server-reconciled rendering
+
+- Opening Clients should render the matching local cache immediately when available.
+- Then request the authoritative page from the server.
+- Reconcile by stable client/phone identity and update only rows/fields whose authoritative state changed; avoid replacing the whole visible list when that would cause unnecessary jumping or flicker.
+- Pagination exists for performance. Do not solve loading problems by downloading the entire server client database into every normal page request.
+- A fresh install or empty cache must be able to hydrate the local Clients cache from the server.
+
+### Search belongs to the server
+
+- Clients search is server-side and must search the authoritative server client data, including server notes/data that may not be present in the current local page cache.
+- For responsiveness, the app may show an immediate provisional result from its local cache.
+- When the server result arrives, reconcile it into the visible result and update only the differences where practical.
+- Search must always be executed inside the currently selected filters, not on an unrelated broad result followed by an inconsistent client-side filter.
+
+### Filter semantics
+
+Empty/unselected filter means no restriction on that dimension:
+
+- CRM filter OFF: show all server clients visible to the signed-in user, whether or not they are personally marked CRM.
+- CRM filter ON: show only clients for which the current signed-in user has an active personal CRM/care marker.
+- Company filter empty: include personal server records plus all accessible company records.
+- Company selected: restrict to the selected accessible company/companies.
+- Phase filter empty: include every phase plus records with no phase.
+- Phase selected: filter by the current signed-in user's own phase state only.
+- Colleagues' CRM/care state and phases may be displayed as useful status, but they must not decide the current user's personal CRM or phase filter results.
+
+### CRM / care markers are per user
+
+- CRM means: "this user is actively taking care of this client". It does not mean "this record is a client".
+- Multiple colleagues may independently have CRM/care active for the same client at the same time.
+- Show when the same client is also active/CRM for other colleagues when that information is available.
+- Each user's CRM state is independent and contains its own active/inactive value and change timestamp.
+- Marking or unmarking CRM by one user must never overwrite another user's CRM state.
+- On reinstall/login, the signed-in user's CRM state must be restored from the server into the local cache.
+
+### Phases are per user
+
+- Each user maintains their own phase/progress for the same client.
+- Different colleagues can legitimately have different phases for the same client because they may be managing different workflows.
+- Example: one broker can track the purchase workflow while another colleague tracks mortgage/credit progress.
+- The UI may show colleagues' phase/progress as additional information.
+- The phase filter must use only the current signed-in user's phase.
+- A colleague changing their phase must not overwrite the current user's phase.
+
+### Notes and ownership
+
+- Notes are server-synchronized records with their own author identity and timestamps.
+- A user's own note is editable by that user.
+- A colleague's note should show the colleague's name/identity and is read-only for the current user unless an explicit permission model says otherwise.
+- Notes from different authors are independent records. Never merge two authors' notes into one mutable last-write-wins field.
+
+### Per-field/per-object timestamps and conflict resolution
+
+- Do not use one timestamp for the whole client as a replacement for independent state timestamps.
+- Every independently mutable piece of information must carry its own modification timestamp/version where needed for synchronization.
+- At minimum, independent timestamps/versioning are required for personal CRM state, each user's phase state, each note, and other independently editable client fields.
+- Reconciliation compares the same logical field/object on both sides. Newer state wins for that field/object only.
+- If the server copy is newer, update the local cache for that field/object.
+- If the local copy is newer and the current user is allowed to edit that field/object, sync it to the server.
+- A newer change to one field (for example a colleague's note) must not overwrite an unrelated field (for example the current user's CRM marker or phase).
+- Conflict resolution must preserve user/author ownership boundaries.
+
+### Multi-user visibility
+
+- Server-side changes made by colleagues should flow into the local cache and become visible after reconciliation.
+- Display colleague identity for colleague-owned notes/status where available.
+- Visibility does not imply edit permission: colleague-owned information can be visible while remaining read-only.
+
 ## Android tasks belong in this repo
 
 Implement Android/mobile work here: UI, Settings, recent calls, pagination, permissions, app icon, theme, build version display, call detection, popups, local call log, WebView opening of remote pages, and Android-side settings.
