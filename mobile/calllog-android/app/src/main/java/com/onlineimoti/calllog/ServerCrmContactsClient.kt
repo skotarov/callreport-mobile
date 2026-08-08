@@ -113,9 +113,14 @@ internal object ServerCrmContactsQuery {
             .sorted()
         return linkedMapOf(
             "access_token" to config.accessToken,
-            "crm_only" to if (filterState.crmOnly) "1" else "0",
             "limit" to if (query.isBlank()) "200" else "500",
         ).apply {
+            // Omit crm_only entirely when the CRM button is not selected. Besides
+            // matching the neutral-filter semantics, this keeps compatibility with
+            // older deployments that treated the presence of crm_only as enabled.
+            if (filterState.crmOnly) {
+                put("crm_only", "1")
+            }
             if (phases.isNotEmpty()) {
                 val phase = phases.joinToString(",")
                 put("phase", phase)
