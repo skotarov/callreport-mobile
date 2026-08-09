@@ -33,10 +33,11 @@ internal class HomeCompanyScopeChipsUi(
         showPhaseDots: Boolean = true,
         serverBacked: Boolean = false,
     ): HorizontalScrollView {
+        val openHistoryDescription = activity.getString(R.string.runtime_open_contact_history)
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            bindHistoryClick(onClick, "Отвори историята на контакта")
+            bindHistoryClick(onClick, openHistoryDescription)
         }
         var hasPrevious = false
         when {
@@ -62,7 +63,7 @@ internal class HomeCompanyScopeChipsUi(
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             addView(row)
-            bindHistoryClick(onClick, "Отвори историята на контакта")
+            bindHistoryClick(onClick, openHistoryDescription)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -164,7 +165,7 @@ internal class HomeCompanyScopeChipsUi(
             Color.TRANSPARENT,
             0,
         )
-        bindHistoryClick(onClick, "CRM. Отвори историята на контакта")
+        bindHistoryClick(onClick, "CRM. ${activity.getString(R.string.runtime_open_contact_history)}")
     }
 
     private fun cloudLabel(onClick: (() -> Unit)?): ImageView = ImageView(activity).apply {
@@ -173,7 +174,7 @@ internal class HomeCompanyScopeChipsUi(
         scaleType = ImageView.ScaleType.CENTER
         setPadding(dp(4), dp(3), dp(4), dp(3))
         layoutParams = LinearLayout.LayoutParams(dp(30), dp(28))
-        bindHistoryClick(onClick, "Има сървърна история. Отвори историята на контакта")
+        bindHistoryClick(onClick, activity.getString(R.string.runtime_open_contact_history))
     }
 
     private fun chip(
@@ -215,7 +216,10 @@ internal class HomeCompanyScopeChipsUi(
             maxLines = 1
             setPadding(dp(7), dp(4), dp(7), dp(4))
             background = roundedRect(colors.background, dp(9), colors.border, dp(1))
-            bindHistoryClick(onClick, "${label.companyName}. Отвори историята на контакта")
+            bindHistoryClick(
+                onClick,
+                "${label.companyName}. ${activity.getString(R.string.runtime_open_contact_history)}",
+            )
         }
     }
 

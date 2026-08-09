@@ -41,7 +41,7 @@ internal class HomeCrmContactRowRenderer(
             cardElevation = 0f
             isClickable = true
             isFocusable = true
-            contentDescription = "Отвори CRM историята на $title"
+            contentDescription = activity.getString(R.string.runtime_open_crm_history_for, title)
             setOnClickListener { openContactNotes(contact, title) }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
