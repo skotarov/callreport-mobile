@@ -1,0 +1,10 @@
+<resources>
+    <string name="clients_status_loading">Зареждам клиенти от сървъра…</string>
+    <string name="clients_status_cached_refreshing">Показани са запазени данни · обновяване…</string>
+    <string name="clients_status_refresh_failed_retry">Неуспешно обновяване · Опитай пак</string>
+    <string name="clients_status_load_failed">Клиентите не могат да се заредят в момента.</string>
+    <string name="clients_status_empty_filtered">Няма клиенти за избраните филтри.</string>
+    <string name="clients_status_empty">Няма клиенти в RM.</string>
+    <string name="clients_filter_show_all">Покажи всички клиенти</string>
+    <string name="clients_filter_show_mine">Покажи само моите активни клиенти</string>
+</resources>

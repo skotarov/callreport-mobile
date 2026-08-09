@@ -42,7 +42,7 @@ internal class HomeCrmContactsContentView(
             currentCrmPhoneKeys = emptySet()
             contentRenderer.clearCalls()
             addStatusRow(
-                text = if (AppLocaleText.isBulgarian()) "Зареждам клиенти от сървъра…" else "Loading customers from server…",
+                text = activity.getString(R.string.clients_status_loading),
                 tagValue = SERVER_LOADING_STATUS_TAG,
             )
         }
@@ -80,10 +80,11 @@ internal class HomeCrmContactsContentView(
         )
         if (!patched) rebuildPage(page, data, companyLabels)
         HomeLoadingFooterUi.hide(binding.homeCallsContainer)
-        if (stale) showInlineStatus(
-            if (AppLocaleText.isBulgarian()) "Показани са запазени данни · обновяване…" else "Showing saved data · refreshing…",
-            null,
-        ) else clearInlineStatus()
+        if (stale) {
+            showInlineStatus(activity.getString(R.string.clients_status_cached_refreshing), null)
+        } else {
+            clearInlineStatus()
+        }
         if (refreshCompanyLabels) companyGeneralNotes.refresh(data.calls)
     }
 
@@ -98,7 +99,7 @@ internal class HomeCrmContactsContentView(
         removeStatusRows()
         HomeLoadingFooterUi.hide(binding.homeCallsContainer)
         binding.fullLogProgress.visibility = View.GONE
-        val retryText = if (AppLocaleText.isBulgarian()) "Неуспешно обновяване · Опитай пак" else "Refresh failed · Retry"
+        val retryText = activity.getString(R.string.clients_status_refresh_failed_retry)
         if (!hasCachedRows) {
             currentData = null
             lastRenderedData = null
@@ -106,7 +107,7 @@ internal class HomeCrmContactsContentView(
             currentCrmPhoneKeys = emptySet()
             contentRenderer.clearCalls()
             addStatusRow(
-                text = if (AppLocaleText.isBulgarian()) "Клиентите не могат да се заредят в момента." else "Customers cannot be loaded right now.",
+                text = activity.getString(R.string.clients_status_load_failed),
                 tagValue = ERROR_STATUS_TAG,
             )
             binding.previousCallsButton.text = activity.getString(R.string.dynamic_home_previous_calls, pageSize)
@@ -144,12 +145,9 @@ internal class HomeCrmContactsContentView(
         contentRenderer.clearCalls()
         binding.fullLogProgress.visibility = View.GONE
         addStatusRow(
-            text = when {
-                hasActiveCrmFilters() && AppLocaleText.isBulgarian() -> "Няма клиенти за избраните филтри."
-                hasActiveCrmFilters() -> "No customers match the selected filters."
-                AppLocaleText.isBulgarian() -> "Няма клиенти в RM."
-                else -> "No customers in RM."
-            },
+            text = activity.getString(
+                if (hasActiveCrmFilters()) R.string.clients_status_empty_filtered else R.string.clients_status_empty,
+            ),
             tagValue = EMPTY_STATUS_TAG,
         )
         HomeLoadingFooterUi.hide(binding.homeCallsContainer)
@@ -297,7 +295,7 @@ internal class HomeCrmContactsContentView(
 
     private fun prepareCustomersHeader() {
         binding.crmControlsScroll.visibility = View.GONE
-        binding.crmContactsTitleText.text = "Клиенти"
+        binding.crmContactsTitleText.text = activity.getString(R.string.runtime_crm_clients)
     }
 
     private companion object {

@@ -1,0 +1,10 @@
+<resources>
+    <string name="clients_status_loading">Loading clients from server…</string>
+    <string name="clients_status_cached_refreshing">Showing saved data · refreshing…</string>
+    <string name="clients_status_refresh_failed_retry">Refresh failed · Retry</string>
+    <string name="clients_status_load_failed">Clients cannot be loaded right now.</string>
+    <string name="clients_status_empty_filtered">No clients match the selected filters.</string>
+    <string name="clients_status_empty">No clients in RM.</string>
+    <string name="clients_filter_show_all">Show all clients</string>
+    <string name="clients_filter_show_mine">Show only my active clients</string>
+</resources>

@@ -206,11 +206,9 @@ internal class HomeCrmFiltersController(
         val fill = if (active) activeColor else Color.WHITE
         val border = if (active) activeColor else COLOR_INACTIVE
         val foreground = if (active) Color.WHITE else COLOR_DARK_TEXT
-        val description = if (active) {
-            if (AppLocaleText.isBulgarian()) "Покажи всички клиенти" else "Show all clients"
-        } else {
-            if (AppLocaleText.isBulgarian()) "Покажи само моите активни клиенти" else "Show only my active clients"
-        }
+        val description = activity.getString(
+            if (active) R.string.clients_filter_show_all else R.string.clients_filter_show_mine,
+        )
         return LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
