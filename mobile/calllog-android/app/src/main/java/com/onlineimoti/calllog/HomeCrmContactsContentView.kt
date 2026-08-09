@@ -8,7 +8,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.onlineimoti.calllog.databinding.ActivityHomeBinding
 
-/** Draws the customers planning list while retaining Home's existing paging controls. */
+/** Draws the Clients list while retaining Home's existing paging controls. */
 internal class HomeCrmContactsContentView(
     private val activity: AppCompatActivity,
     private val binding: ActivityHomeBinding,
@@ -20,9 +20,7 @@ internal class HomeCrmContactsContentView(
     private val hasActiveCrmFilters: () -> Boolean,
     private val retainRowsDuringEdgePaging: () -> Boolean = { false },
 ) {
-    /** Current data remains nullable so delayed company-label callbacks stop after invalidation. */
     private var currentData: HomeRenderData? = null
-    /** Last rows actually drawn remain available for a safe diff on the next explicit render. */
     private var lastRenderedData: HomeRenderData? = null
     private var currentCompanyLabelsByNumber: Map<String, List<HomeCompanyScopeLabel>> = emptyMap()
     private var currentCrmPhoneKeys: Set<String> = emptySet()
@@ -35,6 +33,7 @@ internal class HomeCrmContactsContentView(
         prepareCustomersHeader()
         timelineToggle.prepare(visible = true, contactsMode = true)
         removeStatusRows()
+        clearInlineStatus()
         val retainingRows = retainRowsDuringEdgePaging()
         if (!retainingRows) {
             currentData = null
@@ -43,22 +42,23 @@ internal class HomeCrmContactsContentView(
             currentCrmPhoneKeys = emptySet()
             contentRenderer.clearCalls()
             addStatusRow(
-                text = if (AppLocaleText.isBulgarian()) {
-                    "Зареждам клиенти от сървъра…"
-                } else {
-                    "Loading customers from server…"
-                },
+                text = if (AppLocaleText.isBulgarian()) "Зареждам клиенти от сървъра…" else "Loading customers from server…",
                 tagValue = SERVER_LOADING_STATUS_TAG,
             )
         }
         binding.fullLogProgress.visibility = View.GONE
         HomeLoadingFooterUi.show(binding.homeCallsContainer)
-        binding.homeStatusText.text = ""
-        binding.homeStatusText.visibility = View.GONE
         binding.paginationContainer.visibility = View.GONE
     }
 
-    fun render(data: HomeRenderData, pageSize: Int, refreshCompanyLabels: Boolean = true) {
+    fun render(
+        data: HomeRenderData,
+        pageSize: Int,
+        refreshCompanyLabels: Boolean = true,
+        totalItems: Int? = null,
+        serverOffset: Int? = null,
+        stale: Boolean = false,
+    ) {
         prepareCustomersHeader()
         removeStatusRows()
         val previousData = lastRenderedData
@@ -71,24 +71,19 @@ internal class HomeCrmContactsContentView(
         currentCompanyLabelsByNumber = companyLabels
         currentCrmPhoneKeys = crmPhoneKeys
         contentRenderer.replaceCurrentCalls(data.calls)
-        val page = HomePagedListUi.page(
-            binding.homeCallsContainer,
-            PageLoadingModeStore.usesPrefetch(activity),
-            pageIndex(),
-        )
+        val page = HomePagedListUi.page(binding.homeCallsContainer, PageLoadingModeStore.usesPrefetch(activity), pageIndex())
         binding.fullLogProgress.visibility = View.GONE
-        renderPagination(pageSize, data.calls.size)
+        renderPagination(pageSize, data.calls.size, totalItems, serverOffset)
         val patched = reconcileRows(
-            page = page,
-            data = data,
-            companyLabels = companyLabels,
-            crmPhoneKeys = crmPhoneKeys,
-            previousData = previousData,
-            previousLabels = previousLabels,
-            previousCrmKeys = previousCrmKeys,
+            page, data, companyLabels, crmPhoneKeys,
+            previousData, previousLabels, previousCrmKeys,
         )
         if (!patched) rebuildPage(page, data, companyLabels)
         HomeLoadingFooterUi.hide(binding.homeCallsContainer)
+        if (stale) showInlineStatus(
+            if (AppLocaleText.isBulgarian()) "Показани са запазени данни · обновяване…" else "Showing saved data · refreshing…",
+            null,
+        ) else clearInlineStatus()
         if (refreshCompanyLabels) companyGeneralNotes.refresh(data.calls)
     }
 
@@ -97,9 +92,38 @@ internal class HomeCrmContactsContentView(
         render(data, pageSize, refreshCompanyLabels = false)
     }
 
+    /** Temporary server failure is distinct from a valid empty response. */
+    fun renderRefreshError(pageSize: Int, hasCachedRows: Boolean, onRetry: () -> Unit) {
+        prepareCustomersHeader()
+        removeStatusRows()
+        HomeLoadingFooterUi.hide(binding.homeCallsContainer)
+        binding.fullLogProgress.visibility = View.GONE
+        val retryText = if (AppLocaleText.isBulgarian()) "Неуспешно обновяване · Опитай пак" else "Refresh failed · Retry"
+        if (!hasCachedRows) {
+            currentData = null
+            lastRenderedData = null
+            currentCompanyLabelsByNumber = emptyMap()
+            currentCrmPhoneKeys = emptySet()
+            contentRenderer.clearCalls()
+            addStatusRow(
+                text = if (AppLocaleText.isBulgarian()) "Клиентите не могат да се заредят в момента." else "Customers cannot be loaded right now.",
+                tagValue = ERROR_STATUS_TAG,
+            )
+            binding.previousCallsButton.text = activity.getString(R.string.dynamic_home_previous_calls, pageSize)
+            binding.nextCallsButton.text = activity.getString(R.string.dynamic_home_next_calls, pageSize)
+            PaginationButtonAppearance.apply(binding.previousCallsButton, pageIndex() > 0)
+            PaginationButtonAppearance.apply(binding.nextCallsButton, false)
+            binding.pageText.text = activity.getString(R.string.dynamic_home_page, pageIndex() + 1)
+            binding.paginationContainer.visibility = View.VISIBLE
+        }
+        showInlineStatus(retryText, onRetry)
+    }
+
+    /** Called only after an authoritative successful response with total=0. */
     fun renderEmpty(pageSize: Int) {
         prepareCustomersHeader()
         removeStatusRows()
+        clearInlineStatus()
         if (retainRowsDuringEdgePaging() && pageIndex() > 0) {
             currentData = null
             lastRenderedData = null
@@ -119,8 +143,6 @@ internal class HomeCrmContactsContentView(
         currentCrmPhoneKeys = emptySet()
         contentRenderer.clearCalls()
         binding.fullLogProgress.visibility = View.GONE
-        binding.homeStatusText.text = ""
-        binding.homeStatusText.visibility = View.GONE
         addStatusRow(
             text = when {
                 hasActiveCrmFilters() && AppLocaleText.isBulgarian() -> "Няма клиенти за избраните филтри."
@@ -140,11 +162,6 @@ internal class HomeCrmContactsContentView(
         binding.nextCallsButton.text = activity.getString(R.string.dynamic_home_next_calls, pageSize)
     }
 
-    /**
-     * Reuses unchanged views, moves rows whose order changed and rebuilds only
-     * rows whose visible state changed. Unknown child layouts fall back to the
-     * old full rebuild instead of risking a malformed list.
-     */
     private fun reconcileRows(
         page: LinearLayout,
         data: HomeRenderData,
@@ -164,27 +181,12 @@ internal class HomeCrmContactsContentView(
             }
         }
         if (existingTags.toSet().size != existingTags.size) return false
-
         data.calls.forEachIndexed { targetIndex, contact ->
             val tag = rowTag(contact)
-            val existingIndex = (0 until page.childCount).firstOrNull { index ->
-                page.getChildAt(index).tag == tag
-            } ?: -1
-            val changed = rowChanged(
-                contact = contact,
-                data = data,
-                companyLabels = companyLabels,
-                crmPhoneKeys = crmPhoneKeys,
-                previousData = previousData,
-                previousLabels = previousLabels,
-                previousCrmKeys = previousCrmKeys,
-            )
+            val existingIndex = (0 until page.childCount).firstOrNull { index -> page.getChildAt(index).tag == tag } ?: -1
+            val changed = rowChanged(contact, data, companyLabels, crmPhoneKeys, previousData, previousLabels, previousCrmKeys)
             if (existingIndex == targetIndex && !changed) return@forEachIndexed
-            val view = if (existingIndex >= 0 && !changed) {
-                page.getChildAt(existingIndex)
-            } else {
-                buildRow(contact, data, companyLabels)
-            }
+            val view = if (existingIndex >= 0 && !changed) page.getChildAt(existingIndex) else buildRow(contact, data, companyLabels)
             if (existingIndex >= 0) page.removeViewAt(existingIndex)
             page.addView(view, targetIndex.coerceAtMost(page.childCount))
         }
@@ -203,9 +205,7 @@ internal class HomeCrmContactsContentView(
     ): Boolean {
         previousData ?: return true
         val phoneKey = HomeCallPageLoader.noteKey(contact.number)
-        val previousContact = previousData.calls.firstOrNull { previous ->
-            HomeCallPageLoader.noteKey(previous.number) == phoneKey
-        } ?: return true
+        val previousContact = previousData.calls.firstOrNull { HomeCallPageLoader.noteKey(it.number) == phoneKey } ?: return true
         if (previousContact != contact) return true
         val callKey = HomeCallNotesResolver.keyFor(contact)
         return displayName(data, contact) != displayName(previousData, previousContact) ||
@@ -215,20 +215,12 @@ internal class HomeCrmContactsContentView(
             (phoneKey in crmPhoneKeys) != (phoneKey in previousCrmKeys)
     }
 
-    private fun rebuildPage(
-        page: LinearLayout,
-        data: HomeRenderData,
-        companyLabels: Map<String, List<HomeCompanyScopeLabel>>,
-    ) {
+    private fun rebuildPage(page: LinearLayout, data: HomeRenderData, companyLabels: Map<String, List<HomeCompanyScopeLabel>>) {
         page.removeAllViews()
         data.calls.forEach { contact -> page.addView(buildRow(contact, data, companyLabels)) }
     }
 
-    private fun buildRow(
-        contact: PhoneCallRecord,
-        data: HomeRenderData,
-        companyLabels: Map<String, List<HomeCompanyScopeLabel>>,
-    ): View {
+    private fun buildRow(contact: PhoneCallRecord, data: HomeRenderData, companyLabels: Map<String, List<HomeCompanyScopeLabel>>): View {
         val key = HomeCallPageLoader.noteKey(contact.number)
         val row = rowRenderer.compactRow(
             contact = contact,
@@ -249,29 +241,36 @@ internal class HomeCrmContactsContentView(
     private fun visibleCrmPhoneKeys(calls: List<PhoneCallRecord>): Set<String> {
         val context = activity.applicationContext
         if (!CallReportRemoteAccess.isReady(ConfigStore.load(context))) return emptySet()
-        return calls.asSequence()
-            .filter { contact -> CrmContactSyncStore.isEnabled(context, contact.number) }
-            .map { contact -> HomeCallPageLoader.noteKey(contact.number) }
-            .filter { key -> key.isNotBlank() }
-            .toSet()
+        return calls.asSequence().filter { CrmContactSyncStore.isEnabled(context, it.number) }
+            .map { HomeCallPageLoader.noteKey(it.number) }.filter(String::isNotBlank).toSet()
     }
 
-    private fun rowTag(contact: PhoneCallRecord): String =
-        CLIENT_ROW_TAG_PREFIX + HomeCallPageLoader.noteKey(contact.number)
+    private fun rowTag(contact: PhoneCallRecord): String = CLIENT_ROW_TAG_PREFIX + HomeCallPageLoader.noteKey(contact.number)
 
-    private fun renderPagination(pageSize: Int, itemCount: Int) {
-        timelineToggle.showRange(
-            contactsMode = true,
-            pageIndex = pageIndex(),
-            pageSize = pageSize,
-            itemCount = itemCount,
-        )
+    private fun renderPagination(pageSize: Int, itemCount: Int, totalItems: Int?, serverOffset: Int?) {
+        timelineToggle.showRange(contactsMode = true, pageIndex = pageIndex(), pageSize = pageSize, itemCount = itemCount)
         binding.previousCallsButton.text = activity.getString(R.string.dynamic_home_previous_calls, pageSize)
         binding.nextCallsButton.text = activity.getString(R.string.dynamic_home_next_calls, pageSize)
-        PaginationButtonAppearance.apply(binding.previousCallsButton, pageIndex() > 0)
-        PaginationButtonAppearance.apply(binding.nextCallsButton, itemCount >= pageSize)
-        binding.pageText.text = activity.getString(R.string.dynamic_home_page, pageIndex() + 1)
+        val offset = serverOffset ?: pageIndex() * pageSize
+        val hasNext = totalItems?.let { offset + itemCount < it } ?: (itemCount >= pageSize)
+        PaginationButtonAppearance.apply(binding.previousCallsButton, offset > 0)
+        PaginationButtonAppearance.apply(binding.nextCallsButton, hasNext)
+        binding.pageText.text = activity.getString(R.string.dynamic_home_page, offset / pageSize + 1)
         binding.paginationContainer.visibility = View.VISIBLE
+    }
+
+    private fun showInlineStatus(text: String, onClick: (() -> Unit)?) {
+        binding.homeStatusText.text = text
+        binding.homeStatusText.visibility = View.VISIBLE
+        binding.homeStatusText.isClickable = onClick != null
+        binding.homeStatusText.setOnClickListener(if (onClick == null) null else View.OnClickListener { onClick() })
+    }
+
+    private fun clearInlineStatus() {
+        binding.homeStatusText.text = ""
+        binding.homeStatusText.visibility = View.GONE
+        binding.homeStatusText.isClickable = false
+        binding.homeStatusText.setOnClickListener(null)
     }
 
     private fun addStatusRow(text: String, tagValue: String? = null) {
@@ -282,25 +281,20 @@ internal class HomeCrmContactsContentView(
             textSize = 14f
             setTextColor(Color.rgb(100, 116, 139))
             setPadding(dp(18), dp(28), dp(18), dp(28))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         })
     }
 
     private fun removeStatusRows() {
         for (index in binding.homeCallsContainer.childCount - 1 downTo 0) {
-            val child = binding.homeCallsContainer.getChildAt(index)
-            if (child.tag == SERVER_LOADING_STATUS_TAG || child.tag == EMPTY_STATUS_TAG) {
-                binding.homeCallsContainer.removeViewAt(index)
+            when (binding.homeCallsContainer.getChildAt(index).tag) {
+                SERVER_LOADING_STATUS_TAG, EMPTY_STATUS_TAG, ERROR_STATUS_TAG -> binding.homeCallsContainer.removeViewAt(index)
             }
         }
     }
 
     private fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).toInt()
 
-    /** This list is independent from the local CRM-mode switch. */
     private fun prepareCustomersHeader() {
         binding.crmControlsScroll.visibility = View.GONE
         binding.crmContactsTitleText.text = "Клиенти"
@@ -309,6 +303,7 @@ internal class HomeCrmContactsContentView(
     private companion object {
         const val SERVER_LOADING_STATUS_TAG = "relationship_manager_clients_server_loading"
         const val EMPTY_STATUS_TAG = "relationship_manager_clients_empty"
+        const val ERROR_STATUS_TAG = "relationship_manager_clients_error"
         const val CLIENT_ROW_TAG_PREFIX = "relationship_manager_client_row:"
     }
 }

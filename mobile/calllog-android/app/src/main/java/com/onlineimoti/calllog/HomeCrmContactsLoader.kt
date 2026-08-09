@@ -1,16 +1,10 @@
 package com.onlineimoti.calllog
 
-import android.content.Context
 import android.os.Handler
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * Loads the authenticated user's Clients page. A profile/filter/page-scoped
- * snapshot is rendered first, then reconciled with the authoritative server
- * result in background. CRM-only mode keeps its local fallback when no snapshot
- * exists yet.
- */
+/** Cache-first, server-authoritative loader for the Clients screen. */
 internal class HomeCrmContactsLoader(
     private val activity: HomeActivity,
     private val handler: Handler,
@@ -43,187 +37,118 @@ internal class HomeCrmContactsLoader(
         val filterState = crmFilters.state()
         val forceCrmMarkerRefresh = filterState.crmOnly && !lastCrmOnlyState
         lastCrmOnlyState = filterState.crmOnly
-        val requestedPage = pageIndex()
+        val requestedPage = pageIndex().coerceAtLeast(0)
+        val requestedOffset = requestedPage * pageSize
+        val searchQuery = activeSearchQuery().trim()
         val appContext = activity.applicationContext
         val config = ConfigStore.load(appContext)
-        val cachedData = runCatching {
-            HomeCrmContactsSnapshotCache.read(
-                context = appContext,
-                config = config,
-                filterState = filterState,
-                pageIndex = requestedPage,
-                pageSize = pageSize,
-            )
+        val repository = ClientsCacheRepository.get(appContext)
+        val cachedPage = runCatching {
+            repository.loadPage(config, filterState, searchQuery, pageSize, requestedOffset)
         }.getOrNull()
+        val legacySnapshot = if (cachedPage == null && searchQuery.isBlank()) runCatching {
+            HomeCrmContactsSnapshotCache.read(appContext, config, filterState, requestedPage, pageSize)
+        }.getOrNull() else null
+        val hasCache = cachedPage != null || legacySnapshot != null
+
         val busyToken = HomeBusyTooltipUi.begin(activity, HomeBusyWork.CLIENTS)
         busyTokens += busyToken
         when {
-            cachedData == null -> contactsContent.showLoading()
-            cachedData.calls.isEmpty() -> contactsContent.renderEmpty(pageSize)
-            else -> contactsContent.render(
-                data = cachedData,
+            cachedPage != null -> contactsContent.render(
+                data = cachedPage.data,
                 pageSize = pageSize,
                 refreshCompanyLabels = false,
+                totalItems = cachedPage.total,
+                serverOffset = cachedPage.offset,
+                stale = true,
             )
+            legacySnapshot != null -> contactsContent.render(
+                data = legacySnapshot,
+                pageSize = pageSize,
+                refreshCompanyLabels = false,
+                stale = true,
+            )
+            else -> contactsContent.showLoading()
         }
 
         executor.execute {
-            // Enabling the personal CRM filter is an explicit request for the
-            // complete current set. Bypass the normal short refresh TTL once so
-            // edits made on another phone can win by updatedAtMs before we build
-            // the local fallback and final merged list.
-            if (forceCrmMarkerRefresh) {
-                runCatching {
-                    CrmContactSyncStore.refreshFromServer(appContext, force = true)
-                }
+            if (forceCrmMarkerRefresh) runCatching {
+                CrmContactSyncStore.refreshFromServer(appContext, force = true)
             }
 
-            var provisionalAvailable = cachedData != null
-            if (!provisionalAvailable && filterState.crmOnly) {
-                val provisionalCalls = runCatching {
-                    pageContacts(
-                        filteredLocalCrmContacts(appContext, filterState),
-                        requestedPage,
-                        pageSize,
-                    )
-                }.getOrDefault(emptyList())
-                if (provisionalCalls.isNotEmpty()) {
-                    provisionalAvailable = true
-                    val provisionalData = provisionalData(provisionalCalls)
-                    handler.post {
-                        if (!isCurrent(expectedGeneration, requestedPage, filterState)) return@post
-                        contactsContent.render(
-                            data = provisionalData,
-                            pageSize = pageSize,
-                            refreshCompanyLabels = false,
-                        )
-                    }
-                }
-            }
-
-            val finalResult = runCatching {
-                val filteredServerContacts = HomeCrmContactCandidates.load(appContext, filterState)
-                val serverContacts = HomeCrmContactsPhaseFallback.resolve(
-                    state = filterState,
-                    filteredContacts = filteredServerContacts,
-                    loadWithoutPhase = {
-                        ServerCrmContactsClient.lookup(
-                            config = config,
-                            filterState = filterState.copy(phases = emptySet()),
-                            context = appContext,
-                        )
-                    },
-                    applyPhaseFilter = { unfilteredContacts ->
-                        HomeCrmFilterEngine.filterLocal(appContext, unfilteredContacts, filterState)
-                    },
+            val pageResult = runCatching {
+                HomeCrmContactCandidatesServer.loadPage(
+                    context = appContext,
+                    filterState = filterState,
+                    searchQuery = searchQuery,
+                    limit = pageSize,
+                    offset = requestedOffset,
                 )
-                val contacts = if (filterState.crmOnly) {
-                    // The server result already respects phase/company filters. Local
-                    // winners must pass the same filters before being merged back;
-                    // otherwise every local CRM marker reappears after a phase is chosen.
-                    val confirmedServer = serverContacts.filter { contact ->
-                        CrmContactSyncStore.isEnabled(appContext, contact.number)
+            }
+            val renderResult = pageResult.mapCatching { serverPage ->
+                val calls = serverPage.calls.map(::enrichWithLocalName)
+                val contactNotes = HomeCallPageLoader.contactNotes(appContext, calls).toMutableMap()
+                val callNotes = linkedMapOf<String, String>()
+                runCatching { HomeCrmClientServerNotes.snapshot(appContext, calls) }.getOrNull()?.let { notes ->
+                    contactNotes.putAll(notes.contactNotesByNumber)
+                    callNotes.putAll(notes.callNotesByCall)
+                }
+                serverPage.clients.forEach { client ->
+                    val latest = client.notes.maxByOrNull { note -> maxOf(note.updatedAtMs, note.createdAtMs) } ?: return@forEach
+                    val key = HomeCallPageLoader.noteKey(client.phone)
+                    if (key.isNotBlank()) {
+                        contactNotes[key] = if (latest.authorName.isBlank()) latest.text else "${latest.authorName}: ${latest.text}"
                     }
-                    val filteredLocalAfterSync = filteredLocalCrmContacts(appContext, filterState)
-                    (confirmedServer + filteredLocalAfterSync)
-                        .distinctBy { contact -> HomeCallPageLoader.noteKey(contact.number) }
-                } else {
-                    serverContacts
                 }
-                val page = pageContacts(contacts, requestedPage, pageSize)
-                val serverNotes = HomeCrmClientServerNotes.snapshot(appContext, page)
-                val contactNotes = HomeCallPageLoader.contactNotes(appContext, page).toMutableMap().apply {
-                    putAll(serverNotes.contactNotesByNumber)
-                }
-                HomeRenderData(
-                    calls = page,
+                val data = HomeRenderData(
+                    calls = calls,
                     contactNotesByNumber = contactNotes,
-                    contactNamesByNumber = page.associate { call ->
-                        HomeCallPageLoader.noteKey(call.number) to call.displayName
-                    },
-                    callNotesByCall = serverNotes.callNotesByCall,
+                    contactNamesByNumber = calls.associate { call -> HomeCallPageLoader.noteKey(call.number) to call.displayName },
+                    callNotesByCall = callNotes,
                 )
-            }
-            finalResult.getOrNull()?.let { data ->
-                runCatching {
-                    HomeCrmContactsSnapshotCache.write(
-                        context = appContext,
-                        config = config,
-                        filterState = filterState,
-                        pageIndex = requestedPage,
-                        pageSize = pageSize,
-                        data = data,
-                    )
+                runCatching { repository.storePage(appContext, config, filterState, searchQuery, serverPage) }
+                if (searchQuery.isBlank()) runCatching {
+                    HomeCrmContactsSnapshotCache.write(appContext, config, filterState, requestedPage, pageSize, data)
                 }
+                ServerRenderPage(data, serverPage.total, serverPage.limit, serverPage.offset)
             }
 
             handler.post {
                 finishBusy(busyToken)
-                if (!isCurrent(expectedGeneration, requestedPage, filterState)) return@post
-                finalResult.onSuccess { data ->
-                    if (data.calls.isEmpty()) contactsContent.renderEmpty(pageSize)
-                    else contactsContent.render(data, pageSize)
+                if (!isCurrent(expectedGeneration, requestedPage, filterState, searchQuery)) return@post
+                renderResult.onSuccess { result ->
+                    if (result.total == 0) {
+                        contactsContent.renderEmpty(pageSize)
+                    } else {
+                        contactsContent.render(
+                            data = result.data,
+                            pageSize = pageSize,
+                            totalItems = result.total,
+                            serverOffset = result.offset,
+                            stale = false,
+                        )
+                    }
                 }.onFailure {
-                    // Offline or temporary server failure must not erase either the
-                    // cached page or the phase-filtered local CRM fallback already shown.
-                    if (!provisionalAvailable) contactsContent.renderEmpty(pageSize)
+                    contactsContent.renderRefreshError(
+                        pageSize = pageSize,
+                        hasCachedRows = hasCache,
+                        onRetry = { renderAsync(pageSize, expectedGeneration) },
+                    )
                 }
                 onRenderComplete()
             }
         }
     }
 
-    /** Applies the exact Clients phase/company rules to the local CRM fallback. */
-    private fun filteredLocalCrmContacts(
-        context: Context,
-        filterState: HomeCrmFilterState,
-    ): List<PhoneCallRecord> {
-        val local = HomeCrmContactCandidates.loadLocal(context)
-        val phaseFiltered = HomeCrmFilterEngine.filterLocal(context, local, filterState)
-        if (!filterState.isCompanyFiltered || phaseFiltered.isEmpty()) return phaseFiltered
-        val memberships = HomeCrmCompanyMembershipStore.resolve(
-            context = context.applicationContext,
-            config = ConfigStore.load(context.applicationContext),
-            phones = phaseFiltered.map { it.number },
-        )
-        return HomeCrmFilterEngine.filterByCompany(
-            calls = phaseFiltered,
-            state = filterState,
-            companyIdsByPhoneKey = memberships.companyIdsByPhoneKey,
-        )
-    }
-
-    private fun pageContacts(
-        contacts: List<PhoneCallRecord>,
-        requestedPage: Int,
-        pageSize: Int,
-    ): List<PhoneCallRecord> = contacts
-        .map { contact -> enrichWithLocalName(contact) }
-        .sortedWith(contactListOrder)
-        .drop(requestedPage * pageSize)
-        .take(pageSize)
-
-    private fun provisionalData(page: List<PhoneCallRecord>): HomeRenderData = HomeRenderData(
-        calls = page,
-        contactNotesByNumber = emptyMap(),
-        contactNamesByNumber = page.associate { call ->
-            HomeCallPageLoader.noteKey(call.number) to call.displayName
-        },
-        callNotesByCall = emptyMap(),
-    )
-
     private fun isCurrent(
         expectedGeneration: Int,
         requestedPage: Int,
         filterState: HomeCrmFilterState,
+        searchQuery: String,
     ): Boolean = expectedGeneration == generation.get() &&
-        !activity.isFinishing &&
-        !activity.isDestroyed &&
-        isCrmContactsMode() &&
-        activePhoneFilter().isBlank() &&
-        activeSearchQuery().isBlank() &&
-        pageIndex() == requestedPage &&
-        crmFilters.state() == filterState
+        !activity.isFinishing && !activity.isDestroyed && isCrmContactsMode() &&
+        activePhoneFilter().isBlank() && activeSearchQuery().trim() == searchQuery &&
+        pageIndex() == requestedPage && crmFilters.state() == filterState
 
     private fun finishBusy(token: Long) {
         busyTokens.remove(token)
@@ -236,23 +161,13 @@ internal class HomeCrmContactsLoader(
 
     private fun enrichWithLocalName(contact: PhoneCallRecord): PhoneCallRecord {
         val localName = ContactGroupFilter.resolveDisplayName(activity.applicationContext, contact.number).orEmpty().trim()
-        if (localName.isBlank()) return contact
-        return contact.copy(name = localName)
+        return if (localName.isBlank()) contact else contact.copy(name = localName)
     }
 
-    private companion object {
-        /** Saved contacts stay alphabetic; unsaved/server-only leads follow, newest activity first. */
-        val contactListOrder = Comparator<PhoneCallRecord> { left, right ->
-            val leftUnknownLead = left.name.isBlank() && left.startedAt > 0L
-            val rightUnknownLead = right.name.isBlank() && right.startedAt > 0L
-            when {
-                leftUnknownLead != rightUnknownLead -> if (leftUnknownLead) 1 else -1
-                leftUnknownLead -> right.startedAt.compareTo(left.startedAt)
-                else -> String.CASE_INSENSITIVE_ORDER.compare(
-                    left.displayName.ifBlank { left.number },
-                    right.displayName.ifBlank { right.number },
-                )
-            }
-        }
-    }
+    private data class ServerRenderPage(
+        val data: HomeRenderData,
+        val total: Int,
+        val limit: Int,
+        val offset: Int,
+    )
 }
