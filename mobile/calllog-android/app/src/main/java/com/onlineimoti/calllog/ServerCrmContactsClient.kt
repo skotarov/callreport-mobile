@@ -141,7 +141,7 @@ internal object ServerCrmContactsClient {
                 val item = contacts.optJSONObject(index) ?: continue
                 parseClient(item)?.let(::add)
             }
-        }.distinctBy { it.identity.ifBlank { it.normalizedPhone } }
+        }
         val returnedLimit = json.optInt("limit", requestedLimit).takeIf { it > 0 } ?: requestedLimit
         val returnedOffset = json.optInt("offset", requestedOffset).coerceAtLeast(0)
         val hasTotal = json.has("total") && !json.isNull("total")
