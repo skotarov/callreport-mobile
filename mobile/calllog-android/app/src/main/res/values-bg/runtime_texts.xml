@@ -1,7 +1,5 @@
 <resources>
     <string name="runtime_crm_clients">Клиенти</string>
-    <string name="runtime_mode_calls">Разговори</string>
-    <string name="runtime_menu_crm_calls">CRM разговори</string>
     <string name="runtime_menu_phone_contacts">Телефонни контакти</string>
     <string name="runtime_menu_sms">SMS</string>
     <string name="runtime_menu_calendar">Календар</string>
