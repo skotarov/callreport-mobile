@@ -20,13 +20,18 @@ internal class HomeActions(
         activity.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
     }
 
-    fun openContactNotesScreen(call: PhoneCallRecord, displayName: String) {
+    fun openContactNotesScreen(phone: String, displayName: String) {
+        if (phone.isBlank()) return
         activity.startActivity(
             Intent(activity, ContactNotesActivity::class.java)
-                .putExtra(ContactNotesActivity.EXTRA_PHONE, call.number)
-                .putExtra(ContactNotesActivity.EXTRA_TITLE, displayName.ifBlank { call.number })
+                .putExtra(ContactNotesActivity.EXTRA_PHONE, phone)
+                .putExtra(ContactNotesActivity.EXTRA_TITLE, displayName.ifBlank { phone })
                 .putExtra(ContactNotesActivity.EXTRA_BACK_TARGETS_UNFILTERED_HOME, isUnfilteredHome())
         )
+    }
+
+    fun openContactNotesScreen(call: PhoneCallRecord, displayName: String) {
+        openContactNotesScreen(call.number, displayName)
     }
 
     fun openContactNotePopupForCall(

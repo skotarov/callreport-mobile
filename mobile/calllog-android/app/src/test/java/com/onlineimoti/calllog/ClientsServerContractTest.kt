@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -80,6 +81,41 @@ class ClientsServerContractTest {
     @Test fun searchIsTrimmed() = assertEquals("abc", params(q = "  abc  ")["q"])
     @Test fun searchLegacyAliasMatchesCanonicalQuery() { val p = params(q = "abc"); assertEquals(p["q"], p["search"]) }
     @Test fun phaseLegacyAliasMatchesCanonicalPhase() { val p = params(HomeCrmFilterState(phases = setOf(1))); assertEquals(p["phase"], p["phases"]) }
+
+    @Test fun serverPageRemainsAuthoritativeAfterFilteringRequest() {
+        val json = JSONObject(
+            """{
+                "ok": true,
+                "total": 1,
+                "limit": 20,
+                "offset": 0,
+                "contacts": [
+                    {"client_id":"c1","phone":"0888123456","is_crm":false,"phase":1}
+                ]
+            }""".trimIndent(),
+        )
+        val page = ServerCrmContactsClient.parsePage(
+            json = json,
+            filterState = HomeCrmFilterState(phases = setOf(4), crmOnly = true),
+            requestedLimit = 20,
+            requestedOffset = 0,
+        )
+        assertEquals(1, page.total)
+        assertEquals(1, page.clients.size)
+        assertEquals("c1", page.clients.single().identity)
+        assertFalse(page.clients.single().isCrm == true)
+        assertEquals(1, page.clients.single().phase)
+    }
+
+    @Test fun malformedBlankPhoneIsStillRejectedWithoutChangingServerTotal() {
+        val json = JSONObject(
+            """{"ok":true,"total":2,"limit":20,"offset":0,"contacts":[{"client_id":"bad","phone":""},{"client_id":"good","phone":"0888123456"}]}""",
+        )
+        val page = ServerCrmContactsClient.parsePage(json, HomeCrmFilterState(), 20, 0)
+        assertEquals(2, page.total)
+        assertEquals(1, page.clients.size)
+        assertEquals("good", page.clients.single().identity)
+    }
 
     @Test fun newerCrmTimestampWins() {
         val old = ClientsObjectMerge.CrmState(true, 10)

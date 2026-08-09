@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import java.security.MessageDigest
 
 internal data class CachedClientsPage(
-    val data: HomeRenderData,
+    val clients: List<ServerCrmClient>,
     val total: Int,
     val limit: Int,
     val offset: Int,
@@ -15,9 +15,9 @@ internal data class CachedClientsPage(
 )
 
 /**
- * Durable object-level Clients cache. The old rendered snapshot remains a
- * compatibility fast-path, while this database keeps client/state/note objects
- * independently so one newer field cannot erase unrelated state.
+ * Durable object-level Clients cache. Client/state/note objects are stored and
+ * restored independently so the Clients screen never has to masquerade them as
+ * call-log records and one newer field cannot erase unrelated state.
  */
 internal class ClientsCacheRepository private constructor(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DB_NAME, null, DB_VERSION) {
@@ -46,34 +46,36 @@ internal class ClientsCacheRepository private constructor(context: Context) :
         val scope = scope(config)
         if (scope.isBlank()) return null
         val signature = signature(filterState, searchQuery)
-        val meta = readableDatabase.rawQuery(
+        val safeOffset = offset.coerceAtLeast(0)
+        val db = readableDatabase
+        val meta = db.rawQuery(
             "SELECT total,page_limit,saved_at_ms FROM page_meta WHERE scope=? AND signature=? AND page_offset=?",
-            arrayOf(scope, signature, offset.coerceAtLeast(0).toString()),
+            arrayOf(scope, signature, safeOffset.toString()),
         ).use { cursor ->
             if (!cursor.moveToFirst()) null else Triple(cursor.getInt(0), cursor.getInt(1), cursor.getLong(2))
         } ?: return null
-        val calls = mutableListOf<PhoneCallRecord>()
-        val names = linkedMapOf<String, String>()
-        val contactNotes = linkedMapOf<String, String>()
-        readableDatabase.rawQuery(
-            "SELECT c.client_key,c.phone,c.name,c.last_activity_ms FROM page_item p JOIN clients c ON c.scope=p.scope AND c.client_key=p.client_key WHERE p.scope=? AND p.signature=? AND p.page_offset=? ORDER BY p.position ASC",
-            arrayOf(scope, signature, offset.coerceAtLeast(0).toString()),
+        val clients = mutableListOf<ServerCrmClient>()
+        db.rawQuery(
+            "SELECT c.client_key,c.phone,c.normalized_phone,c.name,c.last_activity_ms FROM page_item p JOIN clients c ON c.scope=p.scope AND c.client_key=p.client_key WHERE p.scope=? AND p.signature=? AND p.page_offset=? ORDER BY p.position ASC",
+            arrayOf(scope, signature, safeOffset.toString()),
         ).use { cursor ->
             while (cursor.moveToNext()) {
-                val clientKey = cursor.getString(0)
-                val phone = cursor.getString(1)
-                val name = cursor.getString(2)
-                calls += PhoneCallRecord(phone, name, "", cursor.getLong(3), 0L)
-                val phoneKey = HomeCallPageLoader.noteKey(phone)
-                names[phoneKey] = name
-                latestNote(scope, clientKey)?.let { contactNotes[phoneKey] = it }
+                clients += readClient(
+                    db = db,
+                    scope = scope,
+                    key = cursor.getString(0),
+                    phone = cursor.getString(1),
+                    normalizedPhone = cursor.getString(2),
+                    name = cursor.getString(3),
+                    lastActivityAtMs = cursor.getLong(4),
+                )
             }
         }
         return CachedClientsPage(
-            data = HomeRenderData(calls, contactNotes, names, emptyMap()),
+            clients = clients,
             total = meta.first,
             limit = meta.second.takeIf { it > 0 } ?: limit,
-            offset = offset.coerceAtLeast(0),
+            offset = safeOffset,
             savedAtMs = meta.third,
         )
     }
@@ -124,6 +126,84 @@ internal class ClientsCacheRepository private constructor(context: Context) :
         }
     }
 
+    private fun readClient(
+        db: SQLiteDatabase,
+        scope: String,
+        key: String,
+        phone: String,
+        normalizedPhone: String,
+        name: String,
+        lastActivityAtMs: Long,
+    ): ServerCrmClient {
+        val currentState = readCurrentState(db, scope, key)
+        return ServerCrmClient(
+            identity = key,
+            phone = phone,
+            normalizedPhone = normalizedPhone.ifBlank { PhoneNormalizer.key(phone) },
+            name = name,
+            lastActivityAtMs = lastActivityAtMs,
+            isCrm = currentState.first.active,
+            crmUpdatedAtMs = currentState.first.updatedAtMs,
+            phase = currentState.second.phase,
+            phaseUpdatedAtMs = currentState.second.updatedAtMs,
+            companyIds = readCompanies(db, scope, key),
+            userStates = readOtherUserStates(db, scope, key),
+            notes = readNotes(db, scope, key),
+            searchSnippet = "",
+        )
+    }
+
+    private fun readCompanies(db: SQLiteDatabase, scope: String, key: String): Set<String> = linkedSetOf<String>().apply {
+        db.rawQuery(
+            "SELECT company_id FROM company_membership WHERE scope=? AND client_key=? ORDER BY company_id ASC",
+            arrayOf(scope, key),
+        ).use { cursor ->
+            while (cursor.moveToNext()) cursor.getString(0)?.takeIf(String::isNotBlank)?.let(::add)
+        }
+    }
+
+    private fun readOtherUserStates(db: SQLiteDatabase, scope: String, key: String): List<ServerCrmUserState> = buildList {
+        db.rawQuery(
+            "SELECT user_id,display_name,crm_active,crm_updated_ms,phase,phase_updated_ms FROM other_user_state WHERE scope=? AND client_key=? ORDER BY user_id ASC",
+            arrayOf(scope, key),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                add(
+                    ServerCrmUserState(
+                        userId = cursor.getString(0),
+                        displayName = cursor.getString(1),
+                        crmActive = if (cursor.isNull(2)) null else cursor.getInt(2) != 0,
+                        crmUpdatedAtMs = cursor.getLong(3),
+                        phase = if (cursor.isNull(4)) null else cursor.getInt(4),
+                        phaseUpdatedAtMs = cursor.getLong(5),
+                    )
+                )
+            }
+        }
+    }
+
+    private fun readNotes(db: SQLiteDatabase, scope: String, key: String): List<ServerCrmNote> = buildList {
+        db.rawQuery(
+            "SELECT note_id,author_id,author_name,company_id,text_value,created_at_ms,updated_at_ms,editable FROM client_note WHERE scope=? AND client_key=? ORDER BY updated_at_ms DESC,created_at_ms DESC,note_id ASC",
+            arrayOf(scope, key),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                add(
+                    ServerCrmNote(
+                        id = cursor.getString(0),
+                        authorId = cursor.getString(1),
+                        authorName = cursor.getString(2),
+                        companyId = cursor.getString(3),
+                        text = cursor.getString(4),
+                        createdAtMs = cursor.getLong(5),
+                        updatedAtMs = cursor.getLong(6),
+                        editable = cursor.getInt(7) != 0,
+                    )
+                )
+            }
+        }
+    }
+
     private fun putClient(db: SQLiteDatabase, scope: String, key: String, client: ServerCrmClient, now: Long) {
         db.insertWithOnConflict("clients", null, ContentValues().apply {
             put("scope", scope); put("client_key", key); put("phone", client.phone)
@@ -160,8 +240,15 @@ internal class ClientsCacheRepository private constructor(context: Context) :
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
-    private fun readCurrentState(db: SQLiteDatabase, scope: String, key: String): Pair<ClientsObjectMerge.CrmState, ClientsObjectMerge.PhaseState> =
-        db.rawQuery("SELECT crm_active,crm_updated_ms,phase,phase_updated_ms FROM current_user_state WHERE scope=? AND client_key=?", arrayOf(scope, key)).use { cursor ->
+    private fun readCurrentState(
+        db: SQLiteDatabase,
+        scope: String,
+        key: String,
+    ): Pair<ClientsObjectMerge.CrmState, ClientsObjectMerge.PhaseState> =
+        db.rawQuery(
+            "SELECT crm_active,crm_updated_ms,phase,phase_updated_ms FROM current_user_state WHERE scope=? AND client_key=?",
+            arrayOf(scope, key),
+        ).use { cursor ->
             if (!cursor.moveToFirst()) {
                 ClientsObjectMerge.CrmState(null, 0L) to ClientsObjectMerge.PhaseState(null, 0L)
             } else {
@@ -178,15 +265,24 @@ internal class ClientsCacheRepository private constructor(context: Context) :
     }
 
     private fun putOtherUserState(db: SQLiteDatabase, scope: String, key: String, incoming: ServerCrmUserState) {
-        val existing = db.rawQuery("SELECT display_name,crm_active,crm_updated_ms,phase,phase_updated_ms FROM other_user_state WHERE scope=? AND client_key=? AND user_id=?", arrayOf(scope, key, incoming.userId)).use { cursor ->
+        val existing = db.rawQuery(
+            "SELECT display_name,crm_active,crm_updated_ms,phase,phase_updated_ms FROM other_user_state WHERE scope=? AND client_key=? AND user_id=?",
+            arrayOf(scope, key, incoming.userId),
+        ).use { cursor ->
             if (!cursor.moveToFirst()) null else ExistingOther(
                 cursor.getString(0),
                 ClientsObjectMerge.CrmState(if (cursor.isNull(1)) null else cursor.getInt(1) != 0, cursor.getLong(2)),
                 ClientsObjectMerge.PhaseState(if (cursor.isNull(3)) null else cursor.getInt(3), cursor.getLong(4)),
             )
         }
-        val crm = ClientsObjectMerge.crm(existing?.crm ?: ClientsObjectMerge.CrmState(null, 0L), ClientsObjectMerge.CrmState(incoming.crmActive, incoming.crmUpdatedAtMs))
-        val phase = ClientsObjectMerge.phase(existing?.phase ?: ClientsObjectMerge.PhaseState(null, 0L), ClientsObjectMerge.PhaseState(incoming.phase, incoming.phaseUpdatedAtMs))
+        val crm = ClientsObjectMerge.crm(
+            existing?.crm ?: ClientsObjectMerge.CrmState(null, 0L),
+            ClientsObjectMerge.CrmState(incoming.crmActive, incoming.crmUpdatedAtMs),
+        )
+        val phase = ClientsObjectMerge.phase(
+            existing?.phase ?: ClientsObjectMerge.PhaseState(null, 0L),
+            ClientsObjectMerge.PhaseState(incoming.phase, incoming.phaseUpdatedAtMs),
+        )
         db.insertWithOnConflict("other_user_state", null, ContentValues().apply {
             put("scope", scope); put("client_key", key); put("user_id", incoming.userId)
             put("display_name", incoming.displayName.ifBlank { existing?.name.orEmpty() })
@@ -196,7 +292,10 @@ internal class ClientsCacheRepository private constructor(context: Context) :
     }
 
     private fun putNote(db: SQLiteDatabase, scope: String, key: String, note: ServerCrmNote) {
-        val existingUpdated = db.rawQuery("SELECT updated_at_ms FROM client_note WHERE scope=? AND note_id=?", arrayOf(scope, note.id)).use { cursor ->
+        val existingUpdated = db.rawQuery(
+            "SELECT updated_at_ms FROM client_note WHERE scope=? AND note_id=?",
+            arrayOf(scope, note.id),
+        ).use { cursor ->
             if (cursor.moveToFirst()) cursor.getLong(0) else -1L
         }
         if (!ClientsObjectMerge.noteUpdatedAt(existingUpdated, note.updatedAtMs)) return
@@ -205,17 +304,6 @@ internal class ClientsCacheRepository private constructor(context: Context) :
             put("author_name", note.authorName); put("company_id", note.companyId); put("text_value", note.text)
             put("created_at_ms", note.createdAtMs); put("updated_at_ms", note.updatedAtMs); put("editable", if (note.editable) 1 else 0)
         }, SQLiteDatabase.CONFLICT_REPLACE)
-    }
-
-    private fun latestNote(scope: String, key: String): String? = readableDatabase.rawQuery(
-        "SELECT text_value,author_name FROM client_note WHERE scope=? AND client_key=? ORDER BY updated_at_ms DESC,created_at_ms DESC LIMIT 1",
-        arrayOf(scope, key),
-    ).use { cursor ->
-        if (!cursor.moveToFirst()) null else {
-            val text = cursor.getString(0).orEmpty()
-            val author = cursor.getString(1).orEmpty().trim()
-            if (author.isBlank()) text else "$author: $text"
-        }
     }
 
     private fun scope(config: AppConfig): String {
@@ -241,7 +329,11 @@ internal class ClientsCacheRepository private constructor(context: Context) :
         if (value == null) putNull(key) else put(key, value)
     }
 
-    private data class ExistingOther(val name: String, val crm: ClientsObjectMerge.CrmState, val phase: ClientsObjectMerge.PhaseState)
+    private data class ExistingOther(
+        val name: String,
+        val crm: ClientsObjectMerge.CrmState,
+        val phase: ClientsObjectMerge.PhaseState,
+    )
 
     companion object {
         private const val DB_NAME = "relationship_manager_clients.db"

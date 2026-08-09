@@ -13,26 +13,25 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.card.MaterialCardView
 
-/** Compact planning card for an explicitly enabled CRM contact or server-backed contact. */
+/** Compact planning card for a server-backed Relationship Manager client. */
 internal class HomeCrmContactRowRenderer(
     private val activity: Activity,
     private val dp: (Int) -> Int,
     private val roundedRect: (color: Int, radius: Int, strokeColor: Int, strokeWidth: Int) -> GradientDrawable,
     private val scopeChipsUi: HomeCompanyScopeChipsUi,
-    private val openContactNotes: (PhoneCallRecord, String) -> Unit,
+    private val openContactNotes: (String, String) -> Unit,
     private val openDialer: (String) -> Unit,
 ) {
     private val notesUi by lazy { TimelineNotesUi(activity, dp, roundedRect) }
 
     fun compactRow(
-        contact: PhoneCallRecord,
+        client: ServerCrmClient,
         displayName: String,
         contactNote: String?,
         companyLabels: List<HomeCompanyScopeLabel>?,
-        latestCallNote: HomeCallNote? = null,
         highlightQuery: String,
     ): MaterialCardView {
-        val title = displayName.ifBlank { contact.number }
+        val title = displayName.ifBlank { client.phone }
         val card = MaterialCardView(activity).apply {
             radius = dp(12).toFloat()
             strokeWidth = dp(1)
@@ -42,7 +41,7 @@ internal class HomeCrmContactRowRenderer(
             isClickable = true
             isFocusable = true
             contentDescription = activity.getString(R.string.runtime_open_crm_history_for, title)
-            setOnClickListener { openContactNotes(contact, title) }
+            setOnClickListener { openContactNotes(client.phone, title) }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -52,50 +51,29 @@ internal class HomeCrmContactRowRenderer(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(9), dp(8), dp(9))
-            addView(dialButton(contact.number))
+            addView(dialButton(client.phone))
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                addView(titleView(title, highlightQuery, companyLabels, contact.number))
-                addView(numberView(contact.number, highlightQuery))
+                addView(titleView(title, highlightQuery, companyLabels, client.isCrm == true))
+                addView(numberView(client.phone, highlightQuery))
                 notesUi.addGeneralContactNote(
                     column = this,
-                    phone = contact.number,
+                    phone = client.phone,
                     contactNote = contactNote,
                     highlightQuery = highlightQuery,
                     visible = true,
                 )
                 notesUi.addCompanyGeneralNotes(
                     column = this,
-                    phone = contact.number,
+                    phone = client.phone,
                     labels = companyLabels,
                     highlightQuery = highlightQuery,
                     visible = true,
                 )
-                notesUi.addCallNote(
-                    column = this,
-                    call = contact,
-                    callNote = latestCallNote,
-                    highlightQuery = highlightQuery,
-                    statusForCall = ::noteSyncStatus,
-                    companyLabels = companyLabels,
-                )
             })
         })
         return card
-    }
-
-    private fun noteSyncStatus(call: PhoneCallRecord): String? {
-        if (CallReportDeferredCompanyAssignmentStore.isCallPending(activity, call.number, call.direction, call.startedAt)) {
-            return activity.getString(R.string.dynamic_note_pending_company_choice)
-        }
-        if (CompanyCallNoteOutbox.isCallPending(activity, call.number, call.direction, call.startedAt)) {
-            return activity.getString(R.string.dynamic_note_pending_server_sync)
-        }
-        if (!CallReportTopicNoteOutbox.isCallPending(activity, call.number, call.direction, call.startedAt)) return null
-        val failure = CallReportTopicNoteOutbox.lastFailure(activity)
-        return if (failure.isBlank()) activity.getString(R.string.dynamic_note_pending_server_sync)
-        else activity.getString(R.string.dynamic_note_pending_server_sync_failed, failure)
     }
 
     private fun dialButton(number: String): ImageButton = ImageButton(activity).apply {
@@ -113,11 +91,9 @@ internal class HomeCrmContactRowRenderer(
         title: String,
         query: String,
         labels: List<HomeCompanyScopeLabel>?,
-        phone: String,
+        crmClient: Boolean,
     ): TextView {
         val color = activity.getColor(R.color.calllog_text)
-        val crmClient = CallReportRemoteAccess.isReady(ConfigStore.load(activity.applicationContext)) &&
-            CrmContactSyncStore.isEnabled(activity.applicationContext, phone)
         return TextView(activity).apply {
             val identity = SearchTextHighlighter.highlightedText(title, query, color)
             text = scopeChipsUi.inlineCrmIdentity(identity, labels, crmClient = crmClient, serverBacked = true)

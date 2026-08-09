@@ -43,6 +43,7 @@ internal data class ServerCrmClient(
     val notes: List<ServerCrmNote>,
     val searchSnippet: String,
 ) {
+    /** Legacy adapter for older call-log based consumers. The Clients screen does not use it. */
     fun toPhoneCallRecord(): PhoneCallRecord = PhoneCallRecord(
         number = phone,
         name = name,
@@ -59,6 +60,7 @@ internal data class ServerCrmContactsPage(
     val limit: Int,
     val offset: Int,
 ) {
+    /** Legacy adapter kept for older call-log based consumers only. */
     val calls: List<PhoneCallRecord> get() = clients.map(ServerCrmClient::toPhoneCallRecord)
 }
 
@@ -129,7 +131,7 @@ internal object ServerCrmContactsClient {
 
     internal fun parsePage(
         json: JSONObject,
-        filterState: HomeCrmFilterState,
+        @Suppress("UNUSED_PARAMETER") filterState: HomeCrmFilterState,
         requestedLimit: Int,
         requestedOffset: Int,
     ): ServerCrmContactsPage {
@@ -137,7 +139,7 @@ internal object ServerCrmContactsClient {
         val clients = buildList {
             for (index in 0 until contacts.length()) {
                 val item = contacts.optJSONObject(index) ?: continue
-                parseClient(item, filterState)?.let(::add)
+                parseClient(item)?.let(::add)
             }
         }.distinctBy { it.identity.ifBlank { it.normalizedPhone } }
         val returnedLimit = json.optInt("limit", requestedLimit).takeIf { it > 0 } ?: requestedLimit
@@ -153,14 +155,12 @@ internal object ServerCrmContactsClient {
         return ServerCrmContactsPage(clients, total, returnedLimit, returnedOffset)
     }
 
-    private fun parseClient(item: JSONObject, filterState: HomeCrmFilterState): ServerCrmClient? {
+    private fun parseClient(item: JSONObject): ServerCrmClient? {
         val phone = item.optString("phone").trim().ifBlank { item.optString("number").trim() }
         val normalized = PhoneNormalizer.key(phone)
         if (normalized.isBlank()) return null
         val isCrm = item.booleanOrNull("is_crm")
-        if (filterState.crmOnly && isCrm == false) return null
         val phase = item.intOrNull("phase")?.takeIf(::validPhase)
-        if (filterState.hasPhaseFilter && phase != null && phase !in filterState.phases) return null
         val rawSnippet = item.optString("search_match_text").trim()
             .ifBlank { item.optString("search_snippet").trim() }
             .ifBlank { item.optString("matched_note").trim() }

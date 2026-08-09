@@ -20,13 +20,19 @@ internal class HomeCompanyGeneralNotesController(
     private var labelsByPhoneKey: Map<String, List<HomeCompanyScopeLabel>> = initialSnapshot.labelsByPhoneKey
     private var serverBackedPhoneKeys: Set<String> = initialSnapshot.serverBackedPhoneKeys
 
-    fun labelsFor(calls: List<PhoneCallRecord>): Map<String, List<HomeCompanyScopeLabel>> {
-        val keys = calls.map { HomeCallPageLoader.noteKey(it.number) }.filter { it.isNotBlank() }.toSet()
+    fun labelsFor(calls: List<PhoneCallRecord>): Map<String, List<HomeCompanyScopeLabel>> =
+        labelsForPhones(calls.map { it.number })
+
+    fun labelsForPhones(phones: List<String>): Map<String, List<HomeCompanyScopeLabel>> {
+        val keys = phones.map { HomeCallPageLoader.noteKey(it) }.filter { it.isNotBlank() }.toSet()
         return labelsByPhoneKey.filterKeys { it in keys }
     }
 
-    fun serverBackedPhoneKeysFor(calls: List<PhoneCallRecord>): Set<String> {
-        val keys = calls.mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it.number) }
+    fun serverBackedPhoneKeysFor(calls: List<PhoneCallRecord>): Set<String> =
+        serverBackedPhoneKeysForPhones(calls.map { it.number })
+
+    fun serverBackedPhoneKeysForPhones(phones: List<String>): Set<String> {
+        val keys = phones.mapTo(linkedSetOf()) { HomeCallPageLoader.noteKey(it) }
             .filterTo(linkedSetOf()) { it.isNotBlank() }
         return serverBackedPhoneKeys.filterTo(linkedSetOf()) { it in keys }
     }
@@ -37,9 +43,12 @@ internal class HomeCompanyGeneralNotesController(
     }
 
     fun refresh(calls: List<PhoneCallRecord>) {
+        refreshPhones(calls.map { it.number })
+    }
+
+    fun refreshPhones(phones: List<String>) {
         val config = ConfigStore.load(context.applicationContext)
-        val phones = calls
-            .map { it.number }
+        val requestedPhones = phones
             .filter { HomeCallPageLoader.noteKey(it).isNotBlank() }
             .distinctBy { HomeCallPageLoader.noteKey(it) }
             .take(20)
@@ -47,12 +56,12 @@ internal class HomeCompanyGeneralNotesController(
             config.remoteEnabled.toString(),
             config.baseUrl,
             config.accessToken,
-            phones.joinToString("|") { HomeCallPageLoader.noteKey(it) },
+            requestedPhones.joinToString("|") { HomeCallPageLoader.noteKey(it) },
         ).joinToString("#")
         if (nextSignature == requestSignature) return
         requestSignature = nextSignature
 
-        if (!CallReportRemoteAccess.isReady(config) || phones.isEmpty()) {
+        if (!CallReportRemoteAccess.isReady(config) || requestedPhones.isEmpty()) {
             if (labelsByPhoneKey.isNotEmpty() || serverBackedPhoneKeys.isNotEmpty()) {
                 labelsByPhoneKey = emptyMap()
                 serverBackedPhoneKeys = emptySet()
@@ -68,11 +77,11 @@ internal class HomeCompanyGeneralNotesController(
         val currentGeneration = generation.incrementAndGet()
         executor.execute {
             val fresh = runCatching {
-                HomeCompanyGeneralNoteLabels.fetch(context.applicationContext, config, phones)
+                HomeCompanyGeneralNoteLabels.fetch(context.applicationContext, config, requestedPhones)
             }.getOrDefault(HomeCompanyScopeSnapshot())
             val merged = HomeCompanyScopeSnapshotCache.mergeAndStore(
                 context = context.applicationContext,
-                requestedPhones = phones,
+                requestedPhones = requestedPhones,
                 fresh = fresh,
             )
             handler.post {

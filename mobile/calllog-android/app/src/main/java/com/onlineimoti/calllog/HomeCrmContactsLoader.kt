@@ -46,29 +46,21 @@ internal class HomeCrmContactsLoader(
         val cachedPage = runCatching {
             repository.loadPage(config, filterState, searchQuery, pageSize, requestedOffset)
         }.getOrNull()
-        val legacySnapshot = if (cachedPage == null && searchQuery.isBlank()) runCatching {
-            HomeCrmContactsSnapshotCache.read(appContext, config, filterState, requestedPage, pageSize)
-        }.getOrNull() else null
-        val hasCache = cachedPage != null || legacySnapshot != null
+        val hasCache = cachedPage != null
 
         val busyToken = HomeBusyTooltipUi.begin(activity, HomeBusyWork.CLIENTS)
         busyTokens += busyToken
-        when {
-            cachedPage != null -> contactsContent.render(
-                data = cachedPage.data,
+        if (cachedPage != null) {
+            contactsContent.render(
+                clients = cachedPage.clients,
                 pageSize = pageSize,
                 refreshCompanyLabels = false,
                 totalItems = cachedPage.total,
                 serverOffset = cachedPage.offset,
                 stale = true,
             )
-            legacySnapshot != null -> contactsContent.render(
-                data = legacySnapshot,
-                pageSize = pageSize,
-                refreshCompanyLabels = false,
-                stale = true,
-            )
-            else -> contactsContent.showLoading()
+        } else {
+            contactsContent.showLoading()
         }
 
         executor.execute {
@@ -86,31 +78,9 @@ internal class HomeCrmContactsLoader(
                 )
             }
             val renderResult = pageResult.mapCatching { serverPage ->
-                val calls = serverPage.calls.map(::enrichWithLocalName)
-                val contactNotes = HomeCallPageLoader.contactNotes(appContext, calls).toMutableMap()
-                val callNotes = linkedMapOf<String, HomeCallNote>()
-                runCatching { HomeCrmClientServerNotes.snapshot(appContext, calls) }.getOrNull()?.let { notes ->
-                    contactNotes.putAll(notes.contactNotesByNumber)
-                    callNotes.putAll(notes.callNotesByCall)
-                }
-                serverPage.clients.forEach { client ->
-                    val latest = client.notes.maxByOrNull { note -> maxOf(note.updatedAtMs, note.createdAtMs) } ?: return@forEach
-                    val key = HomeCallPageLoader.noteKey(client.phone)
-                    if (key.isNotBlank()) {
-                        contactNotes[key] = if (latest.authorName.isBlank()) latest.text else "${latest.authorName}: ${latest.text}"
-                    }
-                }
-                val data = HomeRenderData(
-                    calls = calls,
-                    contactNotesByNumber = contactNotes,
-                    contactNamesByNumber = calls.associate { call -> HomeCallPageLoader.noteKey(call.number) to call.displayName },
-                    callNotesByCall = callNotes,
-                )
+                val clients = serverPage.clients.map(::enrichWithLocalName)
                 runCatching { repository.storePage(appContext, config, filterState, searchQuery, serverPage) }
-                if (searchQuery.isBlank()) runCatching {
-                    HomeCrmContactsSnapshotCache.write(appContext, config, filterState, requestedPage, pageSize, data)
-                }
-                ServerRenderPage(data, serverPage.total, serverPage.limit, serverPage.offset)
+                ServerRenderPage(clients, serverPage.total, serverPage.limit, serverPage.offset)
             }
 
             handler.post {
@@ -121,7 +91,7 @@ internal class HomeCrmContactsLoader(
                         contactsContent.renderEmpty(pageSize)
                     } else {
                         contactsContent.render(
-                            data = result.data,
+                            clients = result.clients,
                             pageSize = pageSize,
                             totalItems = result.total,
                             serverOffset = result.offset,
@@ -159,13 +129,13 @@ internal class HomeCrmContactsLoader(
         busyTokens.toList().forEach(::finishBusy)
     }
 
-    private fun enrichWithLocalName(contact: PhoneCallRecord): PhoneCallRecord {
-        val localName = ContactGroupFilter.resolveDisplayName(activity.applicationContext, contact.number).orEmpty().trim()
-        return if (localName.isBlank()) contact else contact.copy(name = localName)
+    private fun enrichWithLocalName(client: ServerCrmClient): ServerCrmClient {
+        val localName = ContactGroupFilter.resolveDisplayName(activity.applicationContext, client.phone).orEmpty().trim()
+        return if (localName.isBlank()) client else client.copy(name = localName)
     }
 
     private data class ServerRenderPage(
-        val data: HomeRenderData,
+        val clients: List<ServerCrmClient>,
         val total: Int,
         val limit: Int,
         val offset: Int,
