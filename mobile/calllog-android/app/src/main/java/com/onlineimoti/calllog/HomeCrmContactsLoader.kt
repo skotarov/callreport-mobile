@@ -88,7 +88,7 @@ internal class HomeCrmContactsLoader(
             val renderResult = pageResult.mapCatching { serverPage ->
                 val calls = serverPage.calls.map(::enrichWithLocalName)
                 val contactNotes = HomeCallPageLoader.contactNotes(appContext, calls).toMutableMap()
-                val callNotes = linkedMapOf<String, String>()
+                val callNotes = linkedMapOf<String, HomeCallNote>()
                 runCatching { HomeCrmClientServerNotes.snapshot(appContext, calls) }.getOrNull()?.let { notes ->
                     contactNotes.putAll(notes.contactNotesByNumber)
                     callNotes.putAll(notes.callNotesByCall)
