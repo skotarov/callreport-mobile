@@ -245,10 +245,12 @@ internal class HomeCrmContactsContentView(
     }
 
     private fun showInlineStatus(text: String, onClick: (() -> Unit)?) {
-        binding.homeStatusText.text = text
-        binding.homeStatusText.visibility = View.VISIBLE
-        binding.homeStatusText.isClickable = onClick != null
-        binding.homeStatusText.setOnClickListener(if (onClick == null) null else View.OnClickListener { onClick() })
+        clearInlineStatus()
+        addStatusRow(
+            text = text,
+            tagValue = INLINE_STATUS_TAG,
+            onClick = onClick,
+        )
     }
 
     private fun clearInlineStatus() {
@@ -256,9 +258,14 @@ internal class HomeCrmContactsContentView(
         binding.homeStatusText.visibility = View.GONE
         binding.homeStatusText.isClickable = false
         binding.homeStatusText.setOnClickListener(null)
+        for (index in binding.homeCallsContainer.childCount - 1 downTo 0) {
+            if (binding.homeCallsContainer.getChildAt(index).tag == INLINE_STATUS_TAG) {
+                binding.homeCallsContainer.removeViewAt(index)
+            }
+        }
     }
 
-    private fun addStatusRow(text: String, tagValue: String? = null) {
+    private fun addStatusRow(text: String, tagValue: String? = null, onClick: (() -> Unit)? = null) {
         binding.homeCallsContainer.addView(TextView(activity).apply {
             this.text = text
             tag = tagValue
@@ -266,6 +273,8 @@ internal class HomeCrmContactsContentView(
             textSize = 14f
             setTextColor(Color.rgb(100, 116, 139))
             setPadding(dp(18), dp(28), dp(18), dp(28))
+            isClickable = onClick != null
+            setOnClickListener(if (onClick == null) null else View.OnClickListener { onClick() })
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         })
     }
@@ -273,7 +282,7 @@ internal class HomeCrmContactsContentView(
     private fun removeStatusRows() {
         for (index in binding.homeCallsContainer.childCount - 1 downTo 0) {
             when (binding.homeCallsContainer.getChildAt(index).tag) {
-                SERVER_LOADING_STATUS_TAG, EMPTY_STATUS_TAG, ERROR_STATUS_TAG -> binding.homeCallsContainer.removeViewAt(index)
+                SERVER_LOADING_STATUS_TAG, EMPTY_STATUS_TAG, ERROR_STATUS_TAG, INLINE_STATUS_TAG -> binding.homeCallsContainer.removeViewAt(index)
             }
         }
     }
@@ -298,6 +307,7 @@ internal class HomeCrmContactsContentView(
         const val SERVER_LOADING_STATUS_TAG = "relationship_manager_clients_server_loading"
         const val EMPTY_STATUS_TAG = "relationship_manager_clients_empty"
         const val ERROR_STATUS_TAG = "relationship_manager_clients_error"
+        const val INLINE_STATUS_TAG = "relationship_manager_clients_inline_status"
         const val CLIENT_ROW_TAG_PREFIX = "relationship_manager_client_row:"
     }
 }
