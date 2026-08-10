@@ -35,7 +35,7 @@ internal class HomeCrmContactsLoader(
 
     fun renderAsync(pageSize: Int, expectedGeneration: Int) {
         val filterState = crmFilters.state()
-        val forceCrmMarkerRefresh = filterState.crmOnly && !lastCrmOnlyState
+        val syncCrmMarkersBeforeFilter = filterState.crmOnly && !lastCrmOnlyState
         lastCrmOnlyState = filterState.crmOnly
         val requestedPage = pageIndex().coerceAtLeast(0)
         val requestedOffset = requestedPage * pageSize
@@ -64,18 +64,21 @@ internal class HomeCrmContactsLoader(
         }
 
         executor.execute {
-            if (forceCrmMarkerRefresh) runCatching {
+            val crmMarkersSynced = !syncCrmMarkersBeforeFilter ||
                 CrmContactSyncStore.refreshFromServer(appContext, force = true)
-            }
 
-            val pageResult = runCatching {
-                HomeCrmContactCandidatesServer.loadPage(
-                    context = appContext,
-                    filterState = filterState,
-                    searchQuery = searchQuery,
-                    limit = pageSize,
-                    offset = requestedOffset,
-                )
+            val pageResult = if (!crmMarkersSynced) {
+                Result.failure(IllegalStateException("CRM marker synchronization failed"))
+            } else {
+                runCatching {
+                    HomeCrmContactCandidatesServer.loadPage(
+                        context = appContext,
+                        filterState = filterState,
+                        searchQuery = searchQuery,
+                        limit = pageSize,
+                        offset = requestedOffset,
+                    )
+                }
             }
             val renderResult = pageResult.mapCatching { serverPage ->
                 val clients = serverPage.clients.map(::enrichWithLocalName)
