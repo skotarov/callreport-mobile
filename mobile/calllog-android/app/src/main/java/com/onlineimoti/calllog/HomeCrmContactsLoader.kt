@@ -117,7 +117,7 @@ internal class HomeCrmContactsLoader(
         searchQuery: String,
     ): Boolean = expectedGeneration == generation.get() &&
         !activity.isFinishing && !activity.isDestroyed && isCrmContactsMode() &&
-        activePhoneFilter().isBlank() && activeSearchQuery().trim() == searchQuery &&
+        activeSearchQuery().trim() == searchQuery &&
         pageIndex() == requestedPage && crmFilters.state() == filterState
 
     private fun finishBusy(token: Long) {
