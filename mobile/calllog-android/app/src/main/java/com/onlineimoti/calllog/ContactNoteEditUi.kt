@@ -91,7 +91,16 @@ internal class ContactNoteEditUi(
     }
 
     private fun initialText(current: ContactNoteEditUiState): String {
-        if (!current.isGeneralNote && current.initialNoteText.isNotBlank()) return current.initialNoteText
+        // initialNoteText is valid only when it is tied to a concrete call. A form
+        // opened for a phone/contact without call identity can carry unscoped/main
+        // text from its launcher; using that text in the blue tab makes the two tabs
+        // appear to share one value. With no call identity, blue must start from its
+        // own call-note store (normally empty) instead of borrowing yellow text.
+        if (
+            !current.isGeneralNote &&
+            current.callAt > 0L &&
+            current.initialNoteText.isNotBlank()
+        ) return current.initialNoteText
         return if (current.isGeneralNote) {
             ContactNoteReader.generalNoteForPhone(activity, current.phone)
         } else {
