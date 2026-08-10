@@ -43,6 +43,19 @@ internal object CallNoteWriter {
                 if (saved && text.trim().isNotBlank() && activeSession == null) PendingCallNoteStore.reconcileSoon(context, phone)
                 return CallNoteWriteResult(saved, false, CallNoteTarget(pendingDirection, 0L, 0L), savedAsPending = true)
             }
+            // The yellow/main and blue/call tabs are independent editor modes.
+            // ContactNoteFormWorkflow deliberately calls this writer with
+            // syncToCrm=false. In that explicit blue mode, a missing call target
+            // must never silently turn the blue text into the yellow main note.
+            // Legacy direct callers that still request CRM sync keep the historical
+            // call-or-general fallback for backward compatibility.
+            if (!syncToCrm) {
+                return CallNoteWriteResult(
+                    saved = false,
+                    savedAsGeneralNote = false,
+                    target = CallNoteTarget(direction, 0L, 0L),
+                )
+            }
             return writeGeneral(context, phone, text, syncToCrm)
         }
         val saved = NotePersistence.saveOrDeleteCallNote(
