@@ -8,11 +8,16 @@ import java.security.MessageDigest
  * Moves CRM marker data from the profile namespaces used before stable user IDs
  * to the current authenticated user's stable user-ID namespace.
  *
- * Only aliases proven by the current authenticated profile (its current email
- * and phone) are considered. The old unscoped `crm_contact_sync` store is
- * intentionally not claimed here because it has no trustworthy profile owner.
+ * Proven profile aliases (current email and phone) are always safe to migrate.
+ * The oldest unscoped `crm_contact_sync` store has no embedded owner, so it is
+ * claimed at most once by the first stable authenticated profile on this app
+ * installation. The claim owner is persisted before another profile can reuse
+ * those legacy markers, and imported markers are queued for server sync.
  */
 internal object CrmContactProfileScopeMigration {
+    private const val LEGACY_UNSCOPED_PREFS = "crm_contact_sync"
+    private const val META_PREFS = "crm_contact_sync_meta"
+    private const val KEY_LEGACY_OWNER = "legacy_owner_v1"
     private const val PROFILE_PREFS_PREFIX = "crm_contact_sync_profile_"
     private const val PENDING_PREFS_PREFIX = "crm_contact_sync_pending_"
     private const val RECORD_PREFS_PREFIX = "crm_contact_sync_records_v2_"
@@ -37,22 +42,86 @@ internal object CrmContactProfileScopeMigration {
         val targetScope = session.userId.trim()
         if (targetScope.isBlank()) return 0
 
-        // Before userId became the preferred profile scope, email was preferred
-        // over phone. Process phone first and email second so an equally old
-        // email-side explicit edit remains the better legacy fallback.
-        val sourceScopes = linkedSetOf<String>().apply {
-            PhoneNormalizer.key(session.userPhone)
-                .takeIf { it.isNotBlank() && it != targetScope }
-                ?.let(::add)
-            session.userEmail.trim().lowercase()
-                .takeIf { it.isNotBlank() && it != targetScope }
-                ?.let(::add)
-        }
-        if (sourceScopes.isEmpty()) return 0
-
         return synchronized(lock) {
-            migrateScopes(appContext, sourceScopes.toList(), targetScope)
+            var migrated = claimLegacyUnscopedMarkers(appContext, targetScope)
+
+            // Before userId became the preferred profile scope, email was preferred
+            // over phone. Process phone first and email second so an equally old
+            // email-side explicit edit remains the better legacy fallback.
+            val sourceScopes = linkedSetOf<String>().apply {
+                PhoneNormalizer.key(session.userPhone)
+                    .takeIf { it.isNotBlank() && it != targetScope }
+                    ?.let(::add)
+                session.userEmail.trim().lowercase()
+                    .takeIf { it.isNotBlank() && it != targetScope }
+                    ?.let(::add)
+            }
+            if (sourceScopes.isNotEmpty()) {
+                migrated += migrateScopes(appContext, sourceScopes.toList(), targetScope)
+            }
+            migrated
         }
+    }
+
+    /**
+     * Older app versions stored the hand/person CRM marker without a profile
+     * namespace. There is no historical owner field to recover, so the only
+     * safe deterministic migration is a one-time claim by the first stable
+     * authenticated profile on this installation. Existing user-scoped state
+     * always wins, and imported active markers are also written to pending so
+     * the normal CrmContactSyncStore flow uploads them to that user's server CRM.
+     */
+    private fun claimLegacyUnscopedMarkers(context: Context, targetScope: String): Int {
+        val scopeHash = hash(targetScope)
+        val meta = context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
+        val existingOwner = meta.getString(KEY_LEGACY_OWNER, "").orEmpty()
+        if (existingOwner.isNotBlank() && existingOwner != scopeHash) return 0
+
+        val legacy = context.getSharedPreferences(LEGACY_UNSCOPED_PREFS, Context.MODE_PRIVATE)
+        val legacyActive = linkedSetOf<String>()
+        legacy.all.forEach { (rawKey, rawValue) ->
+            val key = PhoneNormalizer.key(rawKey)
+            if (key.isNotBlank() && rawValue as? Boolean == true) legacyActive += key
+        }
+
+        if (legacyActive.isEmpty()) {
+            // Record the owner even for an empty old store. That prevents a later
+            // profile on the same installation from ever claiming unowned data.
+            if (existingOwner.isBlank()) meta.edit().putString(KEY_LEGACY_OWNER, scopeHash).commit()
+            return 0
+        }
+
+        val targetRecords = readRecords(context, targetScope).toMutableMap()
+        val targetPending = readPending(context, targetScope).toMutableMap()
+        val adopted = linkedMapOf<String, StoredRecord>()
+
+        legacyActive.forEach { key ->
+            // A stable-profile state is authoritative over timestamp-less legacy
+            // data, including an explicit inactive state/tombstone.
+            if (targetRecords.containsKey(key) || targetPending.containsKey(key)) return@forEach
+            val record = StoredRecord(phone = key, active = true, updatedAtMs = 0L)
+            targetRecords[key] = record
+            targetPending[key] = record
+            adopted[key] = record
+        }
+
+        if (adopted.isNotEmpty()) {
+            val recordEditor = recordPrefs(context, targetScope).edit()
+            val pendingEditor = pendingRecordPrefs(context, targetScope).edit()
+            val activeEditor = profilePrefs(context, targetScope).edit()
+            adopted.forEach { (key, record) ->
+                recordEditor.putString(key, encode(record))
+                pendingEditor.putString(key, encode(record))
+                activeEditor.putBoolean(key, true)
+            }
+            if (!recordEditor.commit() || !pendingEditor.commit() || !activeEditor.commit()) return 0
+        }
+
+        // Persist the claimant before deleting the only ownerless copy. If the
+        // metadata write fails, leave legacy intact so migration can retry.
+        if (!meta.edit().putString(KEY_LEGACY_OWNER, scopeHash).commit()) return 0
+        if (!legacy.edit().clear().commit()) return 0
+        return adopted.size
     }
 
     private fun migrateScopes(context: Context, sourceScopes: List<String>, targetScope: String): Int {
