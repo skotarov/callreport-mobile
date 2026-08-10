@@ -50,8 +50,11 @@ internal class HomeTimelineCoordinator(
             return
         }
         when {
-            activeSearchQuery().isNotBlank() -> searchController.renderSearchCallsAsync()
+            // Clients must always stay on the server-backed loader, including while
+            // searching. That loader sends the whole filter state (CRM -> company ->
+            // phase -> search) to the authoritative endpoint before pagination.
             contactsMode -> contactsLoader.renderAsync(size, contactsGeneration)
+            activeSearchQuery().isNotBlank() -> searchController.renderSearchCallsAsync()
             crmEnabled -> callsLoader.renderCrmCallsAsync(size, callsGeneration)
             else -> callsLoader.renderLocalCalls(size)
         }
