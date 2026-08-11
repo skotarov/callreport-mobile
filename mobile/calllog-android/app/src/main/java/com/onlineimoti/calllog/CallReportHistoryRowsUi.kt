@@ -57,7 +57,7 @@ internal class CallReportHistoryRowsUi(
         val companyNames = principal.companies.associate { it.id to it.name }
         val page = paginationUi.currentPage(rows)
         root.addView(titleRow())
-        latestCallWithoutNote(latestLocalCall, localNotes)?.let { call ->
+        latestCallWithoutNote(latestLocalCall, localNotes, rows)?.let { call ->
             root.addView(ListThemeUi.applyRowSpacing(
                 addLatestCallNoteCard(call) { onEditCallNote(call.toContactCallNote()) },
                 dp,
@@ -95,13 +95,20 @@ internal class CallReportHistoryRowsUi(
     private fun latestCallWithoutNote(
         latestCall: PhoneCallRecord?,
         localNotes: List<ContactCallNote>,
+        rows: List<CallReportHistoryRow>,
     ): PhoneCallRecord? {
         val call = latestCall ?: return null
-        val alreadyHasNote = localNotes.any { note ->
+        val alreadyHasLocalNote = localNotes.any { note ->
             note.callAt == call.startedAt &&
                 (note.direction.isBlank() || call.direction.isBlank() || note.direction == call.direction)
         }
-        return call.takeUnless { alreadyHasNote }
+        val alreadyHasServerNote = rows.any { row ->
+            row.kind == CallReportHistoryRowKind.NOTE &&
+                row.serverEvent != null &&
+                row.timeMs == call.startedAt &&
+                (row.direction.isBlank() || call.direction.isBlank() || row.direction == call.direction)
+        }
+        return call.takeUnless { alreadyHasLocalNote || alreadyHasServerNote }
     }
 
     private fun titleRow(): LinearLayout = LinearLayout(activity).apply {
@@ -186,7 +193,7 @@ internal class CallReportHistoryRowsUi(
         remoteEnabled: Boolean,
     ) {
         if (localLoading || (remoteEnabled && serverLoading)) return
-        if (rows.isEmpty() && latestCallWithoutNote(latestCall, localNotes) == null) {
+        if (rows.isEmpty() && latestCallWithoutNote(latestCall, localNotes, rows) == null) {
             container.addView(status("Няма SMS или бележки за този номер"))
         }
     }
