@@ -1,5 +1,7 @@
 <resources>
     <string name="home_overflow_menu_content_description">More options</string>
     <string name="home_overflow_phone_log">Phone call log</string>
+    <string name="home_overflow_new_contact">New contact</string>
+    <string name="home_overflow_favorites">Favorites</string>
     <string name="home_overflow_settings">Settings</string>
 </resources>
