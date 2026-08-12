@@ -1,5 +1,7 @@
 <resources>
     <string name="home_overflow_menu_content_description">Още опции</string>
     <string name="home_overflow_phone_log">Дневник на телефона</string>
+    <string name="home_overflow_new_contact">Нов контакт</string>
+    <string name="home_overflow_favorites">Любими</string>
     <string name="home_overflow_settings">Настройки</string>
 </resources>
