@@ -51,14 +51,19 @@ internal class HomeCrmContactsLoader(
         val busyToken = HomeBusyTooltipUi.begin(activity, HomeBusyWork.CLIENTS)
         busyTokens += busyToken
         if (cachedPage != null) {
-            contactsContent.render(
-                clients = cachedPage.clients,
-                pageSize = pageSize,
-                refreshCompanyLabels = false,
-                totalItems = cachedPage.total,
-                serverOffset = cachedPage.offset,
-                stale = true,
-            )
+            val cachedClients = filterCrmOnly(cachedPage.clients, filterState)
+            if (filterState.crmOnly && cachedClients.isEmpty()) {
+                contactsContent.showLoading()
+            } else {
+                contactsContent.render(
+                    clients = cachedClients,
+                    pageSize = pageSize,
+                    refreshCompanyLabels = false,
+                    totalItems = cachedPage.total,
+                    serverOffset = cachedPage.offset,
+                    stale = true,
+                )
+            }
         } else {
             contactsContent.showLoading()
         }
@@ -81,7 +86,7 @@ internal class HomeCrmContactsLoader(
                 }
             }
             val renderResult = pageResult.mapCatching { serverPage ->
-                val clients = serverPage.clients.map(::enrichWithLocalName)
+                val clients = filterCrmOnly(serverPage.clients, filterState).map(::enrichWithLocalName)
                 runCatching { repository.storePage(appContext, config, filterState, searchQuery, serverPage) }
                 ServerRenderPage(clients, serverPage.total, serverPage.limit, serverPage.offset)
             }
@@ -90,7 +95,7 @@ internal class HomeCrmContactsLoader(
                 finishBusy(busyToken)
                 if (!isCurrent(expectedGeneration, requestedPage, filterState, searchQuery)) return@post
                 renderResult.onSuccess { result ->
-                    if (result.total == 0) {
+                    if (result.clients.isEmpty()) {
                         contactsContent.renderEmpty(pageSize)
                     } else {
                         contactsContent.render(
@@ -130,6 +135,18 @@ internal class HomeCrmContactsLoader(
 
     private fun finishAllBusy() {
         busyTokens.toList().forEach(::finishBusy)
+    }
+
+    /** Keep the CRM-only filter identical to the hand/person marker shown on each Clients row. */
+    private fun filterCrmOnly(
+        clients: List<ServerCrmClient>,
+        filterState: HomeCrmFilterState,
+    ): List<ServerCrmClient> {
+        if (!filterState.crmOnly) return clients
+        val appContext = activity.applicationContext
+        return clients.filter { client ->
+            client.isCrm == true || CrmContactSyncStore.isEnabled(appContext, client.phone)
+        }
     }
 
     private fun enrichWithLocalName(client: ServerCrmClient): ServerCrmClient {
