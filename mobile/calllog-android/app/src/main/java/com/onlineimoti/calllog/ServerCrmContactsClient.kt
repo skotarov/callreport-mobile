@@ -287,8 +287,10 @@ internal object ServerCrmContactsQuery {
             "access_token" to config.accessToken,
             "limit" to limit.coerceIn(1, 100).toString(),
             "offset" to offset.coerceAtLeast(0).toString(),
+            // Make the two base Clients modes explicit for every request:
+            // 0 = all server-visible clients, 1 = current profile's private CRM clients.
+            "crm_only" to if (filterState.crmOnly) "1" else "0",
         ).apply {
-            if (filterState.crmOnly) put("crm_only", "1")
             if (phases.isNotEmpty()) {
                 val phase = phases.joinToString(",")
                 put("phase", phase)
