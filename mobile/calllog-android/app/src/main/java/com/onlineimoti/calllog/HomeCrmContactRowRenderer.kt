@@ -32,6 +32,8 @@ internal class HomeCrmContactRowRenderer(
         highlightQuery: String,
     ): MaterialCardView {
         val title = displayName.ifBlank { client.phone }
+        val crmClient = client.isCrm == true ||
+            CrmContactSyncStore.isEnabled(activity.applicationContext, client.phone)
         val card = MaterialCardView(activity).apply {
             radius = dp(12).toFloat()
             strokeWidth = dp(1)
@@ -55,7 +57,7 @@ internal class HomeCrmContactRowRenderer(
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                addView(titleView(title, highlightQuery, companyLabels, client.isCrm == true))
+                addView(titleView(title, highlightQuery, companyLabels, crmClient))
                 addView(numberView(client.phone, highlightQuery))
                 notesUi.addGeneralContactNote(
                     column = this,
