@@ -25,8 +25,12 @@ internal object HomeOverflowMenu {
                     .setIcon(R.drawable.ic_menu_crm_calls)
             }
             if (localDeviceActions) {
+                menu.add(0, MENU_NEW_CONTACT, 25, activity.getString(R.string.home_overflow_new_contact))
+                    .setIcon(R.drawable.ic_menu_new_contact)
                 menu.add(0, MENU_PHONE_CONTACTS, 30, activity.getString(R.string.runtime_menu_phone_contacts))
                     .setIcon(R.drawable.ic_menu_contacts)
+                menu.add(0, MENU_FAVORITE_CONTACTS, 35, activity.getString(R.string.home_overflow_favorites))
+                    .setIcon(R.drawable.ic_menu_favorite)
                 menu.add(0, MENU_SMS, 40, activity.getString(R.string.runtime_menu_sms))
                     .setIcon(R.drawable.ic_menu_sms)
                 menu.add(0, MENU_CALENDAR, 50, activity.getString(R.string.runtime_menu_calendar))
@@ -47,8 +51,16 @@ internal object HomeOverflowMenu {
                         HomeCrmTimelineModeToggle.toggleFromOverflow()
                         true
                     }
+                    MENU_NEW_CONTACT -> {
+                        openNewContact(activity)
+                        true
+                    }
                     MENU_PHONE_CONTACTS -> {
                         openDefaultContacts(activity)
+                        true
+                    }
+                    MENU_FAVORITE_CONTACTS -> {
+                        openFavoriteContacts(activity)
                         true
                     }
                     MENU_SMS -> {
@@ -70,11 +82,38 @@ internal object HomeOverflowMenu {
         }
     }
 
+    private fun openNewContact(activity: AppCompatActivity) {
+        val insertIntent = Intent(Intent.ACTION_INSERT, ContactsContract.Contacts.CONTENT_URI)
+        if (!tryStart(activity, insertIntent)) {
+            openDefaultContacts(activity)
+        }
+    }
+
     private fun openDefaultContacts(activity: AppCompatActivity) {
         val contactsIntent = Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI)
         val fallbackIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CONTACTS)
         runCatching { activity.startActivity(contactsIntent) }
             .recoverCatching { activity.startActivity(fallbackIntent) }
+    }
+
+    /**
+     * Asks the installed/default Contacts app for its starred contacts view.
+     * ContactsContract exposes starred contacts through the standard Contacts URI selection;
+     * OEM contact apps that support this intent can render it as their Favorites section.
+     */
+    private fun openFavoriteContacts(activity: AppCompatActivity) {
+        val favoritesIntent = Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI).apply {
+            putExtra("android.provider.extra.STARRED_ONLY", true)
+        }
+        val starredUriIntent = Intent(
+            Intent.ACTION_VIEW,
+            ContactsContract.Contacts.CONTENT_URI.buildUpon()
+                .appendQueryParameter("starred", "1")
+                .build(),
+        )
+        if (!tryStart(activity, favoritesIntent) && !tryStart(activity, starredUriIntent)) {
+            openDefaultContacts(activity)
+        }
     }
 
     /** Opens the system/default calendar directly on today's date. */
@@ -106,4 +145,6 @@ internal object HomeOverflowMenu {
     private const val MENU_SMS = 4
     private const val MENU_CALENDAR = 5
     private const val MENU_SETTINGS = 6
+    private const val MENU_NEW_CONTACT = 7
+    private const val MENU_FAVORITE_CONTACTS = 8
 }
