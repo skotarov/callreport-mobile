@@ -236,6 +236,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
             editorReady = noteInput != null,
             persistCurrent = { saveForTransition(input.text?.toString().orEmpty()) },
             applyNext = { nextCompanyId ->
+                preferredCompanyId = nextCompanyId
                 topicState = topicState.copy(selectedCompanyId = nextCompanyId)
                 scopeTextController?.refresh(nextCompanyId, input)
             },
@@ -357,11 +358,26 @@ class ContactNoteEditActivity : FontScaledActivity() {
             Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()
             return
         }
+        if (!target.isGeneral) resolveCallTargetForEditor()
         isGeneralNote = target.isGeneral
         serverClientEventId = currentServerEventId()
         topicState = initialTopicState()
         persistedEditorText = ""
         renderEditor()
+    }
+
+    private fun resolveCallTargetForEditor() {
+        val target = CallNoteTargetResolver.resolve(
+            context = applicationContext,
+            phone = phone,
+            directionHint = direction,
+            callAtHint = callAt,
+            durationHint = durationSeconds,
+            actionIssuedAt = actionIssuedAt,
+        )
+        direction = target.direction
+        callAt = target.callAt
+        durationSeconds = target.durationSeconds
     }
 
     private fun saveAndClose(noteText: String) {
