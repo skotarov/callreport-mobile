@@ -20,10 +20,6 @@ internal object HomeOverflowMenu {
                 menu.add(0, MENU_PHONE_CALL_LOG, 10, activity.getString(R.string.home_overflow_phone_log))
                     .setIcon(R.drawable.ic_menu_call_history)
             }
-            if (localDeviceActions && HomeCrmTimelineModeToggle.isOverflowActionVisible()) {
-                menu.add(0, MENU_CRM_TIMELINE, 20, activity.getString(R.string.runtime_menu_crm_calls))
-                    .setIcon(R.drawable.ic_menu_crm_calls)
-            }
             if (localDeviceActions) {
                 menu.add(0, MENU_NEW_CONTACT, 25, activity.getString(R.string.home_overflow_new_contact))
                     .setIcon(R.drawable.ic_menu_new_contact)
@@ -45,10 +41,6 @@ internal object HomeOverflowMenu {
                             Intent(activity, SystemCallHistoryActivity::class.java)
                                 .putExtra(SystemCallHistoryActivity.EXTRA_MODE, SystemCallHistoryActivity.MODE_GENERAL),
                         )
-                        true
-                    }
-                    MENU_CRM_TIMELINE -> {
-                        HomeCrmTimelineModeToggle.toggleFromOverflow()
                         true
                     }
                     MENU_NEW_CONTACT -> {
@@ -140,7 +132,6 @@ internal object HomeOverflowMenu {
     }.getOrDefault(false)
 
     private const val MENU_PHONE_CALL_LOG = 1
-    private const val MENU_CRM_TIMELINE = 2
     private const val MENU_PHONE_CONTACTS = 3
     private const val MENU_SMS = 4
     private const val MENU_CALENDAR = 5
