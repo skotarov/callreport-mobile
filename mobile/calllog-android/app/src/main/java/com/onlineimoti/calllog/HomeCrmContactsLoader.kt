@@ -43,9 +43,14 @@ internal class HomeCrmContactsLoader(
         val appContext = activity.applicationContext
         val config = ConfigStore.load(appContext)
         val repository = ClientsCacheRepository.get(appContext)
-        val cachedPage = runCatching {
-            repository.loadPage(config, filterState, searchQuery, pageSize, requestedOffset)
-        }.getOrNull()
+        val bypassCache = HomeRefreshRenderPolicy.consumeBypassClientsCache()
+        val cachedPage = if (bypassCache) {
+            null
+        } else {
+            runCatching {
+                repository.loadPage(config, filterState, searchQuery, pageSize, requestedOffset)
+            }.getOrNull()
+        }
         val hasCache = cachedPage != null
 
         val busyToken = HomeBusyTooltipUi.begin(activity, HomeBusyWork.CLIENTS)
