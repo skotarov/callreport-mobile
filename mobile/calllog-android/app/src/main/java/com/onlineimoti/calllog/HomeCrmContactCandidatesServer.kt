@@ -24,16 +24,14 @@ internal object HomeCrmContactCandidatesServer {
         searchQuery: String = "",
         limit: Int,
         offset: Int,
+        accessibleCompanyIds: List<String> = emptyList(),
     ): ServerCrmContactsPage {
         val appContext = context.applicationContext
         CrmContactProfileScopeMigration.migrateKnownAliases(appContext)
         CrmContactSyncStore.refreshFromServer(appContext)
         val config = ConfigStore.load(appContext)
+        val companyIds = resolveAccessibleCompanyIds(appContext, config, accessibleCompanyIds)
 
-        // No selected filter means exactly: every client from every company the
-        // signed-in profile may access. Do not rely on the legacy unscoped endpoint;
-        // each company-scoped request is known to work in production. Merge duplicate
-        // phones first and paginate only after the complete accessible-company set is built.
         if (!filterState.isActive) {
             return loadAllAccessibleCompaniesPage(
                 context = appContext,
@@ -42,15 +40,10 @@ internal object HomeCrmContactCandidatesServer {
                 searchQuery = searchQuery,
                 limit = limit,
                 offset = offset,
+                companyIds = companyIds,
             )
         }
 
-        // The hand/person marker shown on a Clients row comes from the synchronized
-        // profile CRM store (with server is_crm only as an additional hint). Do not ask
-        // older/mixed server deployments to apply crm_only=1 because that can use a
-        // different legacy profile scope and return an empty list even for rows that
-        // Android correctly marks as CRM. Fetch the broad scope first, then apply the
-        // exact same CRM predicate locally before pagination.
         if (filterState.crmOnly) {
             return loadPersonalCrmPage(
                 context = appContext,
@@ -59,6 +52,7 @@ internal object HomeCrmContactCandidatesServer {
                 searchQuery = searchQuery,
                 limit = limit,
                 offset = offset,
+                companyIds = companyIds,
             )
         }
 
@@ -71,8 +65,6 @@ internal object HomeCrmContactCandidatesServer {
             context = appContext,
         )
 
-        // Company-scoped requests are already known to work on the mixed production
-        // data. Preserve their normal server pagination and semantics.
         if (filterState.hasCompanyFilter || primary.clients.isNotEmpty() || primary.total > 0) {
             return primary
         }
@@ -84,10 +76,10 @@ internal object HomeCrmContactCandidatesServer {
             searchQuery = searchQuery,
             limit = limit,
             offset = offset,
+            companyIds = companyIds,
         ) ?: primary
     }
 
-    /** Every accessible firm's clients, with no personal/unassigned injection. */
     private fun loadAllAccessibleCompaniesPage(
         context: Context,
         config: AppConfig,
@@ -95,10 +87,11 @@ internal object HomeCrmContactCandidatesServer {
         searchQuery: String,
         limit: Int,
         offset: Int,
+        companyIds: List<String>,
     ): ServerCrmContactsPage {
         val merged = linkedMapOf<String, ServerCrmClient>()
         val broadState = filterState.copy(crmOnly = false, companyIds = emptySet())
-        accessibleCompanyIds(context, config).forEach { companyId ->
+        companyIds.forEach { companyId ->
             collectScope(
                 context = context,
                 config = config,
@@ -110,11 +103,6 @@ internal object HomeCrmContactCandidatesServer {
         return paginate(merged.values.sortedWith(clientOrdering()), limit, offset)
     }
 
-    /**
-     * CRM filtering is profile-owned Android state. Fetch all rows matching the other
-     * filters, keep only rows carrying the same hand/person predicate as the renderer,
-     * and paginate only after that filtering.
-     */
     private fun loadPersonalCrmPage(
         context: Context,
         config: AppConfig,
@@ -122,6 +110,7 @@ internal object HomeCrmContactCandidatesServer {
         searchQuery: String,
         limit: Int,
         offset: Int,
+        companyIds: List<String>,
     ): ServerCrmContactsPage {
         val broadState = filterState.copy(crmOnly = false)
         val merged = linkedMapOf<String, ServerCrmClient>()
@@ -135,7 +124,7 @@ internal object HomeCrmContactCandidatesServer {
                 destination = merged,
             )
         } else {
-            accessibleCompanyIds(context, config).forEach { companyId ->
+            companyIds.forEach { companyId ->
                 collectScope(
                     context = context,
                     config = config,
@@ -201,11 +190,12 @@ internal object HomeCrmContactCandidatesServer {
         searchQuery: String,
         limit: Int,
         offset: Int,
+        companyIds: List<String>,
     ): ServerCrmContactsPage? {
         val broadState = filterState.copy(crmOnly = false)
         val merged = linkedMapOf<String, ServerCrmClient>()
 
-        accessibleCompanyIds(context, config).forEach { companyId ->
+        companyIds.forEach { companyId ->
             collectScope(
                 context = context,
                 config = config,
@@ -260,12 +250,27 @@ internal object HomeCrmContactCandidatesServer {
         return paginate(items, limit, offset)
     }
 
-    private fun accessibleCompanyIds(context: Context, config: AppConfig): List<String> = runCatching {
-        CallReportTopicCompaniesRepository.load(context, config).companies
-    }.getOrDefault(emptyList())
-        .map { it.id.trim() }
-        .filter { it.isNotBlank() }
-        .distinct()
+    private fun resolveAccessibleCompanyIds(
+        context: Context,
+        config: AppConfig,
+        preferredIds: List<String>,
+    ): List<String> {
+        val preferred = preferredIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (preferred.isNotEmpty()) return preferred
+
+        val cached = CallReportTopicCompaniesCache.read(context, config)?.companies.orEmpty()
+            .map { it.id.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (cached.isNotEmpty()) return cached
+
+        return runCatching {
+            CallReportTopicCompaniesRepository.refresh(context, config).companies
+        }.getOrDefault(emptyList())
+            .map { it.id.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
 
     private fun collectScope(
         context: Context,
