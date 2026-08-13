@@ -1,16 +1,21 @@
 package com.onlineimoti.calllog
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
 
 /** Keeps HomeActivity focused on state coordination rather than menu plumbing. */
 internal object HomeOverflowMenu {
     fun show(activity: AppCompatActivity, anchor: View, openSettings: () -> Unit) {
+        val favoritePhonesByMenuId = linkedMapOf<Int, String>()
         PopupMenu(activity, anchor).apply {
             // AppCompat allows consistently visible menu icons across Android skins.
             setForceShowIcon(true)
@@ -27,14 +32,28 @@ internal object HomeOverflowMenu {
                     .setIcon(R.drawable.ic_menu_contacts)
                 menu.add(0, MENU_FAVORITE_CONTACTS, 35, activity.getString(R.string.home_overflow_favorites))
                     .setIcon(R.drawable.ic_menu_favorite)
-                menu.add(0, MENU_SMS, 40, activity.getString(R.string.runtime_menu_sms))
+                loadFavoriteContacts(activity).forEachIndexed { index, favorite ->
+                    val itemId = MENU_FAVORITE_CONTACT_BASE + index
+                    favoritePhonesByMenuId[itemId] = favorite.phone
+                    menu.add(
+                        0,
+                        itemId,
+                        FAVORITE_CONTACT_ORDER_BASE + index,
+                        "\u2003${favorite.name}",
+                    )
+                }
+                menu.add(0, MENU_SMS, 1_000, activity.getString(R.string.runtime_menu_sms))
                     .setIcon(R.drawable.ic_menu_sms)
-                menu.add(0, MENU_CALENDAR, 50, activity.getString(R.string.runtime_menu_calendar))
+                menu.add(0, MENU_CALENDAR, 1_010, activity.getString(R.string.runtime_menu_calendar))
                     .setIcon(R.drawable.ic_menu_calendar)
             }
-            menu.add(0, MENU_SETTINGS, 60, activity.getString(R.string.home_overflow_settings))
+            menu.add(0, MENU_SETTINGS, 1_020, activity.getString(R.string.home_overflow_settings))
                 .setIcon(R.drawable.ic_menu_settings)
             setOnMenuItemClickListener { item ->
+                favoritePhonesByMenuId[item.itemId]?.let { phone ->
+                    openDialer(activity, phone)
+                    return@setOnMenuItemClickListener true
+                }
                 when (item.itemId) {
                     MENU_PHONE_CALL_LOG -> {
                         activity.startActivity(
@@ -72,6 +91,57 @@ internal object HomeOverflowMenu {
             }
             show()
         }
+    }
+
+    private fun loadFavoriteContacts(activity: AppCompatActivity): List<FavoriteContact> {
+        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return emptyList()
+        }
+        val favorites = mutableListOf<FavoriteContact>()
+        runCatching {
+            activity.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                arrayOf(
+                    ContactsContract.Contacts._ID,
+                    ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+                ),
+                "${ContactsContract.Contacts.STARRED}=1 AND ${ContactsContract.Contacts.HAS_PHONE_NUMBER}>0",
+                null,
+                "${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} COLLATE NOCASE ASC",
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                while (cursor.moveToNext()) {
+                    val contactId = cursor.getLong(idIndex)
+                    val phone = preferredPhone(activity, contactId)
+                    if (phone.isBlank()) continue
+                    val name = cursor.getString(nameIndex).orEmpty().trim().ifBlank { phone }
+                    favorites += FavoriteContact(name = name, phone = phone)
+                }
+            }
+        }
+        return favorites
+    }
+
+    private fun preferredPhone(activity: AppCompatActivity, contactId: Long): String = runCatching {
+        activity.contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}=?",
+            arrayOf(contactId.toString()),
+            "${ContactsContract.Data.IS_SUPER_PRIMARY} DESC, ${ContactsContract.Data.IS_PRIMARY} DESC",
+        )?.use { cursor ->
+            val numberIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            while (cursor.moveToNext()) {
+                val number = cursor.getString(numberIndex).orEmpty().trim()
+                if (number.isNotBlank()) return@use number
+            }
+            ""
+        }.orEmpty()
+    }.getOrDefault("")
+
+    private fun openDialer(activity: AppCompatActivity, phone: String) {
+        tryStart(activity, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", phone, null)))
     }
 
     private fun openNewContact(activity: AppCompatActivity) {
@@ -131,6 +201,11 @@ internal object HomeOverflowMenu {
         true
     }.getOrDefault(false)
 
+    private data class FavoriteContact(
+        val name: String,
+        val phone: String,
+    )
+
     private const val MENU_PHONE_CALL_LOG = 1
     private const val MENU_PHONE_CONTACTS = 3
     private const val MENU_SMS = 4
@@ -138,4 +213,6 @@ internal object HomeOverflowMenu {
     private const val MENU_SETTINGS = 6
     private const val MENU_NEW_CONTACT = 7
     private const val MENU_FAVORITE_CONTACTS = 8
+    private const val MENU_FAVORITE_CONTACT_BASE = 10_000
+    private const val FAVORITE_CONTACT_ORDER_BASE = 100
 }
