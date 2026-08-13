@@ -26,13 +26,27 @@ internal object HomeCrmContactCandidatesServer {
         offset: Int,
     ): ServerCrmContactsPage {
         val appContext = context.applicationContext
-        // Older builds keyed private CRM markers by the profile email/phone.
-        // Recover those proven aliases before synchronizing the current userId scope.
         CrmContactProfileScopeMigration.migrateKnownAliases(appContext)
-        // Keep the existing LWW CRM store canonical. Its pending local edits survive
-        // offline operation and are reconciled before the Clients request is made.
         CrmContactSyncStore.refreshFromServer(appContext)
         val config = ConfigStore.load(appContext)
+
+        // The hand/person marker shown on a Clients row comes from the synchronized
+        // profile CRM store (with server is_crm only as an additional hint). Do not ask
+        // older/mixed server deployments to apply crm_only=1 because that can use a
+        // different legacy profile scope and return an empty list even for rows that
+        // Android correctly marks as CRM. Fetch the broad scope first, then apply the
+        // exact same CRM predicate locally before pagination.
+        if (filterState.crmOnly) {
+            return loadPersonalCrmPage(
+                context = appContext,
+                config = config,
+                filterState = filterState,
+                searchQuery = searchQuery,
+                limit = limit,
+                offset = offset,
+            )
+        }
+
         val primary = ServerCrmContactsClient.lookupPage(
             config = config,
             filterState = filterState,
@@ -42,17 +56,12 @@ internal object HomeCrmContactCandidatesServer {
             context = appContext,
         )
 
-        // A company-scoped request is already the compatibility path that works on
-        // mixed/older server deployments. Never replace a legitimate empty page on it.
+        // Company-scoped requests are already known to work on the mixed production
+        // data. Preserve their normal server pagination and semantics.
         if (filterState.hasCompanyFilter || primary.clients.isNotEmpty() || primary.total > 0) {
             return primary
         }
 
-        // Some live deployments still return an empty unscoped Clients response while
-        // the same data is available as soon as company_id is supplied. Reconstruct the
-        // unscoped universe from those working scopes. This fallback is used only after
-        // a successful but empty primary response, so the normal authoritative contract
-        // remains preferred and automatically takes over once production is updated.
         return loadCompatibilityPage(
             context = appContext,
             config = config,
@@ -61,6 +70,102 @@ internal object HomeCrmContactCandidatesServer {
             limit = limit,
             offset = offset,
         ) ?: primary
+    }
+
+    /**
+     * CRM filtering is profile-owned Android state. Fetch all rows matching the other
+     * filters, keep only rows carrying the same hand/person predicate as the renderer,
+     * and paginate only after that filtering.
+     */
+    private fun loadPersonalCrmPage(
+        context: Context,
+        config: AppConfig,
+        filterState: HomeCrmFilterState,
+        searchQuery: String,
+        limit: Int,
+        offset: Int,
+    ): ServerCrmContactsPage {
+        val broadState = filterState.copy(crmOnly = false)
+        val merged = linkedMapOf<String, ServerCrmClient>()
+
+        if (filterState.hasCompanyFilter) {
+            // This is the important path for e.g. Maxim + hand/person. The firm query
+            // already works in production, so collect that full result without asking
+            // the server to interpret the personal CRM flag.
+            collectScope(
+                context = context,
+                config = config,
+                filterState = broadState,
+                searchQuery = searchQuery,
+                destination = merged,
+            )
+        } else {
+            // With no company selected, reconstruct the broad visible universe from the
+            // same company scopes that are known to work on mixed/legacy deployments.
+            val companies = runCatching {
+                CallReportTopicCompaniesRepository.load(context, config).companies
+            }.getOrDefault(emptyList())
+            val companyIds = companies.map { it.id.trim() }.filter { it.isNotBlank() }.distinct().toSet()
+            if (companyIds.isNotEmpty()) {
+                collectScope(
+                    context = context,
+                    config = config,
+                    filterState = broadState.copy(companyIds = companyIds),
+                    searchQuery = searchQuery,
+                    destination = merged,
+                )
+            }
+            collectScope(
+                context = context,
+                config = config,
+                filterState = broadState.copy(companyIds = setOf("none")),
+                searchQuery = searchQuery,
+                destination = merged,
+            )
+        }
+
+        // If an active personal CRM marker is absent from the old Clients endpoint,
+        // materialize it only when no company/phase restriction would make membership
+        // ambiguous. This keeps "my clients" complete without leaking it into a firm.
+        if (!filterState.hasCompanyFilter && !filterState.hasPhaseFilter) {
+            CrmContactSyncStore.activeRecords(context).forEach { marker ->
+                if (!matchesSearch(context, marker.phone, searchQuery)) return@forEach
+                val key = clientKey(marker.phone)
+                if (key.isBlank()) return@forEach
+                val existing = merged[key]
+                if (existing == null) {
+                    val localName = ContactGroupFilter.resolveDisplayName(context, marker.phone).orEmpty().trim()
+                    merged[key] = ServerCrmClient(
+                        identity = "profile-crm:$key",
+                        phone = marker.phone.ifBlank { key },
+                        normalizedPhone = PhoneNormalizer.normalize(marker.phone).ifBlank { key },
+                        name = localName,
+                        lastActivityAtMs = marker.updatedAtMs.coerceAtLeast(0L),
+                        isCrm = true,
+                        crmUpdatedAtMs = marker.updatedAtMs.coerceAtLeast(0L),
+                        phase = null,
+                        phaseUpdatedAtMs = 0L,
+                        companyIds = emptySet(),
+                        userStates = emptyList(),
+                        notes = emptyList(),
+                        searchSnippet = "",
+                    )
+                } else {
+                    merged[key] = existing.copy(
+                        isCrm = true,
+                        crmUpdatedAtMs = maxOf(existing.crmUpdatedAtMs, marker.updatedAtMs),
+                    )
+                }
+            }
+        }
+
+        val crmClients = merged.values
+            .filter { client ->
+                client.isCrm == true || CrmContactSyncStore.isEnabled(context, client.phone)
+            }
+            .sortedWith(clientOrdering())
+
+        return paginate(crmClients, limit, offset)
     }
 
     private fun loadCompatibilityPage(
@@ -75,9 +180,6 @@ internal object HomeCrmContactCandidatesServer {
             CallReportTopicCompaniesRepository.load(context, config).companies
         }.getOrDefault(emptyList())
         val companyIds = companies.map { it.id.trim() }.filter { it.isNotBlank() }.distinct().toSet()
-
-        // CRM is personal state, not a company filter. Ask the old server for the broad
-        // client universe and apply the already-synchronized profile CRM markers locally.
         val broadState = filterState.copy(crmOnly = false)
         val merged = linkedMapOf<String, ServerCrmClient>()
 
@@ -91,8 +193,6 @@ internal object HomeCrmContactCandidatesServer {
             )
         }
 
-        // "none" is the server's backward-compatible spelling for personal/unassigned
-        // records. It is intentionally sent only inside this fallback path.
         collectScope(
             context = context,
             config = config,
@@ -101,9 +201,6 @@ internal object HomeCrmContactCandidatesServer {
             destination = merged,
         )
 
-        // An active personal CRM marker is itself server-owned relationship state. Add a
-        // lightweight row when an older Clients endpoint cannot materialize that number.
-        // Bare markers have no trustworthy phase, so they are not injected under a phase filter.
         if (!filterState.hasPhaseFilter) {
             CrmContactSyncStore.activeRecords(context).forEach { marker ->
                 if (!matchesSearch(context, marker.phone, searchQuery)) return@forEach
@@ -136,27 +233,9 @@ internal object HomeCrmContactCandidatesServer {
             }
         }
 
-        var items = merged.values.toList()
-        if (filterState.crmOnly) {
-            items = items.filter { client ->
-                client.isCrm == true || CrmContactSyncStore.isEnabled(context, client.phone)
-            }
-        }
-        items = items.sortedWith(
-            compareByDescending<ServerCrmClient> { it.lastActivityAtMs }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-                .thenBy { it.normalizedPhone },
-        )
-
+        val items = merged.values.sortedWith(clientOrdering())
         if (items.isEmpty()) return null
-        val safeOffset = offset.coerceAtLeast(0)
-        val safeLimit = limit.coerceAtLeast(1)
-        return ServerCrmContactsPage(
-            clients = items.drop(safeOffset).take(safeLimit),
-            total = items.size,
-            limit = safeLimit,
-            offset = safeOffset,
-        )
+        return paginate(items, limit, offset)
     }
 
     private fun collectScope(
@@ -189,6 +268,26 @@ internal object HomeCrmContactCandidatesServer {
             if (requestOffset >= page.total || page.clients.size < page.limit) return
         }
     }
+
+    private fun paginate(
+        items: List<ServerCrmClient>,
+        limit: Int,
+        offset: Int,
+    ): ServerCrmContactsPage {
+        val safeOffset = offset.coerceAtLeast(0)
+        val safeLimit = limit.coerceAtLeast(1)
+        return ServerCrmContactsPage(
+            clients = items.drop(safeOffset).take(safeLimit),
+            total = items.size,
+            limit = safeLimit,
+            offset = safeOffset,
+        )
+    }
+
+    private fun clientOrdering(): Comparator<ServerCrmClient> =
+        compareByDescending<ServerCrmClient> { it.lastActivityAtMs }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            .thenBy { it.normalizedPhone }
 
     private fun mergeClient(existing: ServerCrmClient, incoming: ServerCrmClient): ServerCrmClient {
         val newer = if (incoming.lastActivityAtMs >= existing.lastActivityAtMs) incoming else existing
