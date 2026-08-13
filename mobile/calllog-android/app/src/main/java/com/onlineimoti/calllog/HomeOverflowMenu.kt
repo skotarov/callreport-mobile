@@ -1,6 +1,9 @@
 package com.onlineimoti.calllog
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.provider.CalendarContract
 import android.provider.ContactsContract
@@ -9,8 +12,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
 
 /** Keeps HomeActivity focused on state coordination rather than menu plumbing. */
 internal object HomeOverflowMenu {
@@ -35,12 +36,13 @@ internal object HomeOverflowMenu {
                 loadFavoriteContacts(activity).forEachIndexed { index, favorite ->
                     val itemId = MENU_FAVORITE_CONTACT_BASE + index
                     favoritePhonesByMenuId[itemId] = favorite.phone
-                    menu.add(
+                    val menuItem = menu.add(
                         0,
                         itemId,
                         FAVORITE_CONTACT_ORDER_BASE + index,
                         "\u2003${favorite.name}",
                     )
+                    menuItem.icon = favorite.photo ?: ContextCompat.getDrawable(activity, R.drawable.ic_menu_favorite)
                 }
                 menu.add(0, MENU_SMS, 1_000, activity.getString(R.string.runtime_menu_sms))
                     .setIcon(R.drawable.ic_menu_sms)
@@ -104,6 +106,7 @@ internal object HomeOverflowMenu {
                 arrayOf(
                     ContactsContract.Contacts._ID,
                     ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+                    ContactsContract.Contacts.PHOTO_THUMBNAIL_URI,
                 ),
                 "${ContactsContract.Contacts.STARRED}=1 AND ${ContactsContract.Contacts.HAS_PHONE_NUMBER}>0",
                 null,
@@ -111,16 +114,27 @@ internal object HomeOverflowMenu {
             )?.use { cursor ->
                 val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
                 val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                val photoIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_THUMBNAIL_URI)
                 while (cursor.moveToNext()) {
                     val contactId = cursor.getLong(idIndex)
                     val phone = preferredPhone(activity, contactId)
                     if (phone.isBlank()) continue
                     val name = cursor.getString(nameIndex).orEmpty().trim().ifBlank { phone }
-                    favorites += FavoriteContact(name = name, phone = phone)
+                    val photo = loadContactPhoto(activity, cursor.getString(photoIndex))
+                    favorites += FavoriteContact(name = name, phone = phone, photo = photo)
                 }
             }
         }
         return favorites
+    }
+
+    private fun loadContactPhoto(activity: AppCompatActivity, thumbnailUri: String?): Drawable? {
+        if (thumbnailUri.isNullOrBlank()) return null
+        return runCatching {
+            activity.contentResolver.openInputStream(Uri.parse(thumbnailUri))?.use { stream ->
+                Drawable.createFromStream(stream, "favorite_contact")
+            }
+        }.getOrNull()
     }
 
     private fun preferredPhone(activity: AppCompatActivity, contactId: Long): String = runCatching {
@@ -204,6 +218,7 @@ internal object HomeOverflowMenu {
     private data class FavoriteContact(
         val name: String,
         val phone: String,
+        val photo: Drawable?,
     )
 
     private const val MENU_PHONE_CALL_LOG = 1
