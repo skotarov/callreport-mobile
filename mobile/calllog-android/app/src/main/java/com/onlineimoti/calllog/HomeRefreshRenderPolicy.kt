@@ -5,6 +5,7 @@ internal object HomeRefreshRenderPolicy {
     private var keepExistingRowsOnce = false
     private var keepExistingRowsHeld = false
     private var forceRebuildOnce = false
+    private var bypassClientsCacheOnce = false
 
     @Synchronized
     fun requestKeepExistingRows() {
@@ -16,6 +17,12 @@ internal object HomeRefreshRenderPolicy {
     fun requestForceRebuild() {
         forceRebuildOnce = true
         keepExistingRowsOnce = false
+    }
+
+    /** A manual Clients pull must wait for a fresh server response instead of rendering stale SQLite rows first. */
+    @Synchronized
+    fun requestBypassClientsCache() {
+        bypassClientsCacheOnce = true
     }
 
     /** Keeps every refresh non-destructive until the matching screen flow is finished. */
@@ -43,6 +50,13 @@ internal object HomeRefreshRenderPolicy {
         return requested
     }
 
+    @Synchronized
+    fun consumeBypassClientsCache(): Boolean {
+        val requested = bypassClientsCacheOnce
+        bypassClientsCacheOnce = false
+        return requested
+    }
+
     /** Same data still needs a rebuild when Android no longer has rendered rows. */
     fun shouldRebuildPage(
         dataUnchanged: Boolean,
@@ -55,5 +69,6 @@ internal object HomeRefreshRenderPolicy {
         keepExistingRowsOnce = false
         keepExistingRowsHeld = false
         forceRebuildOnce = false
+        bypassClientsCacheOnce = false
     }
 }
