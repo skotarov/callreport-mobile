@@ -3,10 +3,14 @@ package com.onlineimoti.calllog
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.provider.CalendarContract
 import android.provider.ContactsContract
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -36,11 +40,19 @@ internal object HomeOverflowMenu {
                 loadFavoriteContacts(activity).forEachIndexed { index, favorite ->
                     val itemId = MENU_FAVORITE_CONTACT_BASE + index
                     favoritePhonesByMenuId[itemId] = favorite.phone
+                    val title = SpannableString("\u2003${favorite.name}").apply {
+                        setSpan(
+                            BackgroundColorSpan(FAVORITE_CONTACT_BACKGROUND),
+                            0,
+                            length,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                        )
+                    }
                     val menuItem = menu.add(
                         0,
                         itemId,
                         FAVORITE_CONTACT_ORDER_BASE + index,
-                        "\u2003${favorite.name}",
+                        title,
                     )
                     menuItem.icon = favorite.photo ?: ContextCompat.getDrawable(activity, R.drawable.ic_menu_favorite)
                 }
@@ -230,4 +242,5 @@ internal object HomeOverflowMenu {
     private const val MENU_FAVORITE_CONTACTS = 8
     private const val MENU_FAVORITE_CONTACT_BASE = 10_000
     private const val FAVORITE_CONTACT_ORDER_BASE = 100
+    private val FAVORITE_CONTACT_BACKGROUND = Color.argb(18, 128, 128, 128)
 }
