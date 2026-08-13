@@ -60,6 +60,15 @@ internal class HomeCrmFiltersController(
 
     fun hasActiveFilters(): Boolean = state().isActive
 
+    /** Exact company ids currently backing the visible Clients company buttons. */
+    fun availableCompanyIds(): List<String> {
+        loadCachedCompanies()
+        return companies
+            .map { it.id.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
     fun filterSearchResults(calls: List<PhoneCallRecord>): List<PhoneCallRecord> {
         val filterState = state()
         val phaseFiltered = HomeCrmFilterEngine.filterLocal(activity.applicationContext, calls, filterState)
@@ -132,7 +141,7 @@ internal class HomeCrmFiltersController(
     private fun loadCachedCompanies() {
         val config = ConfigStore.load(activity.applicationContext)
         val cached = CallReportTopicCompaniesCache.read(activity.applicationContext, config)?.companies.orEmpty()
-        if (cached != companies) companies = cached
+        if (cached.isNotEmpty() && cached != companies) companies = cached
     }
 
     private fun toggleCrmOnly() {
