@@ -35,6 +35,7 @@ internal class HomeCrmContactsLoader(
 
     fun renderAsync(pageSize: Int, expectedGeneration: Int) {
         val filterState = crmFilters.state()
+        val visibleCompanyIds = crmFilters.availableCompanyIds()
         val syncCrmMarkersBeforeFilter = filterState.crmOnly && !lastCrmOnlyState
         lastCrmOnlyState = filterState.crmOnly
         val requestedPage = pageIndex().coerceAtLeast(0)
@@ -87,6 +88,7 @@ internal class HomeCrmContactsLoader(
                         searchQuery = searchQuery,
                         limit = pageSize,
                         offset = requestedOffset,
+                        accessibleCompanyIds = visibleCompanyIds,
                     )
                 }
             }
