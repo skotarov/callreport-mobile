@@ -41,6 +41,13 @@ internal class HomeActivityRuntimeController(
         invalidateCrmContacts()
         HomeCrmPhaseLookup.invalidate()
         refreshCompanies(true)
+
+        // A manual refresh on Clients means "give me the current server truth".
+        // Do not let an old SQLite page snapshot be rendered as if it were the refresh result.
+        if (isCrmContactsMode()) {
+            HomeRefreshRenderPolicy.requestBypassClientsCache()
+        }
+
         runCatching {
             refreshExecutor.execute {
                 runCatching {
