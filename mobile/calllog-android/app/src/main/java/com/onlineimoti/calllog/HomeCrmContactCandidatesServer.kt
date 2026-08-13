@@ -100,17 +100,15 @@ internal object HomeCrmContactCandidatesServer {
                 destination = merged,
             )
         } else {
-            // With no company selected, reconstruct the broad visible universe from the
-            // same company scopes that are known to work on mixed/legacy deployments.
-            val companies = runCatching {
-                CallReportTopicCompaniesRepository.load(context, config).companies
-            }.getOrDefault(emptyList())
-            val companyIds = companies.map { it.id.trim() }.filter { it.isNotBlank() }.distinct().toSet()
-            if (companyIds.isNotEmpty()) {
+            // With no firm selected, load every accessible firm separately. A single
+            // comma-separated multi-company request is not trusted here because older
+            // production endpoints are only proven to work for one company_id at a time.
+            // Merge by normalized phone, then apply the personal CRM predicate once.
+            accessibleCompanyIds(context, config).forEach { companyId ->
                 collectScope(
                     context = context,
                     config = config,
-                    filterState = broadState.copy(companyIds = companyIds),
+                    filterState = broadState.copy(companyIds = setOf(companyId)),
                     searchQuery = searchQuery,
                     destination = merged,
                 )
@@ -176,18 +174,16 @@ internal object HomeCrmContactCandidatesServer {
         limit: Int,
         offset: Int,
     ): ServerCrmContactsPage? {
-        val companies = runCatching {
-            CallReportTopicCompaniesRepository.load(context, config).companies
-        }.getOrDefault(emptyList())
-        val companyIds = companies.map { it.id.trim() }.filter { it.isNotBlank() }.distinct().toSet()
         val broadState = filterState.copy(crmOnly = false)
         val merged = linkedMapOf<String, ServerCrmClient>()
 
-        if (companyIds.isNotEmpty()) {
+        // Keep the no-filter compatibility path identical to the proven company path:
+        // query every accessible company separately and merge the results.
+        accessibleCompanyIds(context, config).forEach { companyId ->
             collectScope(
                 context = context,
                 config = config,
-                filterState = broadState.copy(companyIds = companyIds),
+                filterState = broadState.copy(companyIds = setOf(companyId)),
                 searchQuery = searchQuery,
                 destination = merged,
             )
@@ -237,6 +233,13 @@ internal object HomeCrmContactCandidatesServer {
         if (items.isEmpty()) return null
         return paginate(items, limit, offset)
     }
+
+    private fun accessibleCompanyIds(context: Context, config: AppConfig): List<String> = runCatching {
+        CallReportTopicCompaniesRepository.load(context, config).companies
+    }.getOrDefault(emptyList())
+        .map { it.id.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
 
     private fun collectScope(
         context: Context,
