@@ -4,7 +4,7 @@ import android.content.Context
 
 internal object HomeCrmContactCandidatesServer {
     private const val FALLBACK_CHUNK_SIZE = 100
-    private const val FALLBACK_MAX_ITEMS = 2_000
+    private const val FALLBACK_MAX_ITEMS = 10_000
 
     fun load(
         context: Context,
@@ -29,6 +29,21 @@ internal object HomeCrmContactCandidatesServer {
         CrmContactProfileScopeMigration.migrateKnownAliases(appContext)
         CrmContactSyncStore.refreshFromServer(appContext)
         val config = ConfigStore.load(appContext)
+
+        // No selected filter means exactly: every client from every company the
+        // signed-in profile may access. Do not rely on the legacy unscoped endpoint;
+        // each company-scoped request is known to work in production. Merge duplicate
+        // phones first and paginate only after the complete accessible-company set is built.
+        if (!filterState.isActive) {
+            return loadAllAccessibleCompaniesPage(
+                context = appContext,
+                config = config,
+                filterState = filterState,
+                searchQuery = searchQuery,
+                limit = limit,
+                offset = offset,
+            )
+        }
 
         // The hand/person marker shown on a Clients row comes from the synchronized
         // profile CRM store (with server is_crm only as an additional hint). Do not ask
@@ -72,6 +87,29 @@ internal object HomeCrmContactCandidatesServer {
         ) ?: primary
     }
 
+    /** Every accessible firm's clients, with no personal/unassigned injection. */
+    private fun loadAllAccessibleCompaniesPage(
+        context: Context,
+        config: AppConfig,
+        filterState: HomeCrmFilterState,
+        searchQuery: String,
+        limit: Int,
+        offset: Int,
+    ): ServerCrmContactsPage {
+        val merged = linkedMapOf<String, ServerCrmClient>()
+        val broadState = filterState.copy(crmOnly = false, companyIds = emptySet())
+        accessibleCompanyIds(context, config).forEach { companyId ->
+            collectScope(
+                context = context,
+                config = config,
+                filterState = broadState.copy(companyIds = setOf(companyId)),
+                searchQuery = searchQuery,
+                destination = merged,
+            )
+        }
+        return paginate(merged.values.sortedWith(clientOrdering()), limit, offset)
+    }
+
     /**
      * CRM filtering is profile-owned Android state. Fetch all rows matching the other
      * filters, keep only rows carrying the same hand/person predicate as the renderer,
@@ -89,9 +127,6 @@ internal object HomeCrmContactCandidatesServer {
         val merged = linkedMapOf<String, ServerCrmClient>()
 
         if (filterState.hasCompanyFilter) {
-            // This is the important path for e.g. Maxim + hand/person. The firm query
-            // already works in production, so collect that full result without asking
-            // the server to interpret the personal CRM flag.
             collectScope(
                 context = context,
                 config = config,
@@ -100,10 +135,6 @@ internal object HomeCrmContactCandidatesServer {
                 destination = merged,
             )
         } else {
-            // With no firm selected, load every accessible firm separately. A single
-            // comma-separated multi-company request is not trusted here because older
-            // production endpoints are only proven to work for one company_id at a time.
-            // Merge by normalized phone, then apply the personal CRM predicate once.
             accessibleCompanyIds(context, config).forEach { companyId ->
                 collectScope(
                     context = context,
@@ -122,9 +153,6 @@ internal object HomeCrmContactCandidatesServer {
             )
         }
 
-        // If an active personal CRM marker is absent from the old Clients endpoint,
-        // materialize it only when no company/phase restriction would make membership
-        // ambiguous. This keeps "my clients" complete without leaking it into a firm.
         if (!filterState.hasCompanyFilter && !filterState.hasPhaseFilter) {
             CrmContactSyncStore.activeRecords(context).forEach { marker ->
                 if (!matchesSearch(context, marker.phone, searchQuery)) return@forEach
@@ -177,8 +205,6 @@ internal object HomeCrmContactCandidatesServer {
         val broadState = filterState.copy(crmOnly = false)
         val merged = linkedMapOf<String, ServerCrmClient>()
 
-        // Keep the no-filter compatibility path identical to the proven company path:
-        // query every accessible company separately and merge the results.
         accessibleCompanyIds(context, config).forEach { companyId ->
             collectScope(
                 context = context,
