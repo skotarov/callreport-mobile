@@ -91,6 +91,7 @@ internal object CallReportSyncEventFactory {
             status = sms.status,
             occurredAtMs = sms.occurredAtMs,
             durationSeconds = 0L,
+            note = sms.body,
         )
 
     private fun fromProviderEvent(
@@ -103,10 +104,11 @@ internal object CallReportSyncEventFactory {
         status: String,
         occurredAtMs: Long,
         durationSeconds: Long,
+        note: String? = null,
     ): CallReportSyncEvent? {
         if (providerId.isBlank() || phone.isBlank() || occurredAtMs <= 0L) return null
-        // The per-contact switch is the sole authorization for sending communication metadata.
-        if (!CrmContactSyncStore.isEnabled(context.applicationContext, phone)) return null
+        // Privacy authorization is intentionally decided by the worker immediately
+        // before upload. The factory only builds a canonical event from provider data.
         val deviceId = CallReportInstallationId.get(context)
         val resolvedName = contactName.trim().ifBlank {
             ContactGroupFilter.resolveDisplayName(context, phone).orEmpty().trim()
@@ -123,6 +125,7 @@ internal object CallReportSyncEventFactory {
             providerRowId = providerId,
             deviceId = deviceId,
             appVersion = BuildConfig.VERSION_NAME,
+            note = note,
         )
     }
 
