@@ -91,6 +91,7 @@ internal object CallReportSyncClient {
         put("contact_name", contactName)
         put("occurred_at_ms", occurredAtMs)
         put("duration_seconds", durationSeconds)
+        if (companyId.isNotBlank()) put("company_id", companyId)
         note?.let { value -> put("note", value) }
         if (updatedAtMs > 0L) put("updated_at_ms", updatedAtMs)
         if (editExistingNote) {
