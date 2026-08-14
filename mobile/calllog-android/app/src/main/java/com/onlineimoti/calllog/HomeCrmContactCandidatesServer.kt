@@ -33,6 +33,21 @@ internal object HomeCrmContactCandidatesServer {
         val companyIds = resolveAccessibleCompanyIds(appContext, config, accessibleCompanyIds)
 
         if (!filterState.isActive) {
+            // The server is authoritative for the unfiltered Clients screen. An empty
+            // company selection means "all clients visible to this profile", not none.
+            // Prefer that canonical request so server-side pagination/search remain intact.
+            val primary = ServerCrmContactsClient.lookupPage(
+                config = config,
+                filterState = filterState,
+                searchQuery = searchQuery,
+                limit = limit,
+                offset = offset,
+                context = appContext,
+            )
+            if (primary.clients.isNotEmpty() || primary.total > 0) return primary
+
+            // Backward compatibility for older deployments that only return rows from
+            // explicitly company-scoped requests.
             return loadAllAccessibleCompaniesPage(
                 context = appContext,
                 config = config,
