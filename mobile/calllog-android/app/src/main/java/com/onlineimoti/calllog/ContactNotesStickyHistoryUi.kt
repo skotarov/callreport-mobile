@@ -19,9 +19,13 @@ internal object ContactNotesStickyActionPolicy {
     fun shouldStick(actionTopOnScreen: Int, viewportTopOnScreen: Int): Boolean =
         actionTopOnScreen <= viewportTopOnScreen
 
-    /** Keep the compact identity visible once the original name starts scrolling out. */
-    fun shouldShowCompactIdentity(scrollY: Int, nameStartScrollY: Int, actionsPinned: Boolean): Boolean =
-        actionsPinned || scrollY >= nameStartScrollY
+    /** Show compact identity as soon as the original identity starts entering the fixed top bar. */
+    fun shouldShowCompactIdentity(
+        originalNameTopOnScreen: Int?,
+        topBarBottomOnScreen: Int,
+        actionsPinned: Boolean,
+    ): Boolean = actionsPinned ||
+        (originalNameTopOnScreen != null && originalNameTopOnScreen <= topBarBottomOnScreen)
 }
 
 /** Builds History with fixed top identity/actions and a fixed bottom list-mode switch. */
@@ -57,6 +61,9 @@ internal class ContactNotesStickyHistoryUi(
         val actionRow = stickyHeader?.actionRow
         val stickyActionRow = stickyHeader?.stickyActionRow
         (topBar?.parent as? ViewGroup)?.removeView(topBar)
+        val originalIdentityName = stickyHeader?.compactTitle?.let { compactTitle ->
+            findOriginalIdentityName(root, compactTitle)
+        }
 
         val historyScroll = ScrollView(activity).apply {
             isFillViewport = true
@@ -149,10 +156,19 @@ internal class ContactNotesStickyHistoryUi(
             }
 
             stickyHeader?.compactTitle?.let { compactTitle ->
+                val bar = topBar
+                val originalNameTop = originalIdentityName
+                    ?.takeIf { it.isAttachedToWindow }
+                    ?.let(::topOnScreen)
+                val topBarBottom = if (bar != null && bar.isAttachedToWindow) {
+                    topOnScreen(bar) + bar.height
+                } else {
+                    topOnScreen(historyScroll)
+                }
                 val showCompact = compactTitle.text.isNotBlank() &&
                     ContactNotesStickyActionPolicy.shouldShowCompactIdentity(
-                        scrollY = historyScroll.scrollY,
-                        nameStartScrollY = dp(COMPACT_TITLE_NAME_START_DP),
+                        originalNameTopOnScreen = originalNameTop,
+                        topBarBottomOnScreen = topBarBottom,
                         actionsPinned = actionsPinned,
                     )
                 val titleVisibility = if (showCompact) View.VISIBLE else View.INVISIBLE
@@ -356,6 +372,21 @@ internal class ContactNotesStickyHistoryUi(
         return screenLocation[1]
     }
 
+    private fun findOriginalIdentityName(view: View, compactTitle: TextView): TextView? {
+        if (view is TextView &&
+            view !== compactTitle &&
+            view.text.toString() == compactTitle.text.toString() &&
+            view.textSize > compactTitle.textSize
+        ) {
+            return view
+        }
+        val group = view as? ViewGroup ?: return null
+        for (index in 0 until group.childCount) {
+            findOriginalIdentityName(group.getChildAt(index), compactTitle)?.let { return it }
+        }
+        return null
+    }
+
     private fun findActionAnchor(view: View): View? {
         if (view.tag is ContactNotesStickyActions) return view
         val group = view as? ViewGroup ?: return null
@@ -382,6 +413,5 @@ internal class ContactNotesStickyHistoryUi(
         const val MODE_ICON_PILL_RADIUS_DP = 16
         const val CALL_BUTTON_SIZE_DP = 54
         const val TOP_BAR_Z_DP = 1
-        const val COMPACT_TITLE_NAME_START_DP = 90
     }
 }
