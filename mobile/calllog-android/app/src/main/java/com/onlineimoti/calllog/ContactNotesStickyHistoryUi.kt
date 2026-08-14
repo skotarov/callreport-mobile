@@ -99,6 +99,8 @@ internal class ContactNotesStickyHistoryUi(
         }
         val screen = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
+            clipChildren = false
+            clipToPadding = false
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -206,6 +208,8 @@ internal class ContactNotesStickyHistoryUi(
     ): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
+        clipChildren = false
+        clipToPadding = false
         setBackgroundColor(ContextCompat.getColor(activity, R.color.calllog_bg))
         elevation = 0f
         stateListAnimator = null
@@ -233,6 +237,8 @@ internal class ContactNotesStickyHistoryUi(
     }
 
     private fun callButton(): FrameLayout = FrameLayout(activity).apply {
+        clipChildren = false
+        clipToPadding = false
         layoutParams = LinearLayout.LayoutParams(
             0,
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -246,7 +252,9 @@ internal class ContactNotesStickyHistoryUi(
                 shape = GradientDrawable.OVAL
                 setColor(ContextCompat.getColor(activity, R.color.callreport_icon_background))
             }
-            elevation = dp(3).toFloat()
+            elevation = 0f
+            stateListAnimator = null
+            translationY = -dp(CALL_BUTTON_SIZE_DP / 2).toFloat()
             setPadding(dp(15), dp(15), dp(15), dp(15))
             isClickable = true
             isFocusable = true
