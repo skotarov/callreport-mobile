@@ -23,6 +23,7 @@ class ContactNotesHeaderUi(
 ) {
     private val actions by lazy { ContactNotesHeaderActionsUi(activity, dp) }
     private val chatActions by lazy { ContactNotesChatActionsUi(activity, dp) }
+    private val identityAvatar by lazy { ContactHeaderIdentityAvatarUi(activity, dp) }
 
     fun headerRow(
         title: String,
@@ -150,11 +151,16 @@ class ContactNotesHeaderUi(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
+            addView(identityAvatar.create(phone, contactExists, serverBacked).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(76), dp(76)).apply {
+                    bottomMargin = dp(6)
+                }
+            })
             if (contactExists && displayName.isNotBlank()) {
-                addView(identityPrimaryRow(contactNameText(displayName), serverBacked))
+                addView(identityPrimaryRow(contactNameText(displayName), false))
                 if (phone.isNotBlank()) addView(phoneNumberText(phone, prominent = false))
             } else if (phone.isNotBlank()) {
-                addView(identityPrimaryRow(phoneNumberText(phone, prominent = true), serverBacked))
+                addView(identityPrimaryRow(phoneNumberText(phone, prominent = true), false))
             }
         }
     }
