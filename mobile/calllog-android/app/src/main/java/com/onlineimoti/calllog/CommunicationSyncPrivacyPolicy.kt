@@ -22,9 +22,18 @@ internal object CommunicationSyncPrivacyPolicy {
         phone: String,
         direction: String,
         occurredAtMs: Long,
-    ): Boolean = shouldShare(context, phone) ||
-        CompanySharedCallStore.isMarked(context, phone, direction, occurredAtMs)
+    ): Boolean = shouldShareCall(
+        crmEnabled = CrmContactSyncStore.isEnabled(context, phone),
+        unknownNumber = ContactServerCompanyScope.isUnknownNumber(context, phone),
+        exactCompanyCall = CompanySharedCallStore.isMarked(context, phone, direction, occurredAtMs),
+    )
 
     internal fun shouldShare(crmEnabled: Boolean, unknownNumber: Boolean): Boolean =
         crmEnabled || unknownNumber
+
+    internal fun shouldShareCall(
+        crmEnabled: Boolean,
+        unknownNumber: Boolean,
+        exactCompanyCall: Boolean,
+    ): Boolean = crmEnabled || unknownNumber || exactCompanyCall
 }
