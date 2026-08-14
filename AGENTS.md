@@ -88,6 +88,17 @@ Empty/unselected filter means no restriction on that dimension:
 - Phase selected: filter by the current signed-in user's own phase state only.
 - Colleagues' CRM/care state and phases may be displayed as useful status, but they must not decide the current user's personal CRM or phase filter results.
 
+### No-company filter compatibility rule
+
+This is a dedicated compatibility rule for Clients requests and must not be generalized to company-filtered requests:
+
+- If the company filter is empty and the CRM filter is OFF, the request is the neutral "all visible clients" scope. Do **not** send `crm_only=0`; omit the `crm_only` parameter entirely.
+- If the company filter is empty and the CRM filter is ON, send `crm_only=1`.
+- If one or more companies are selected, preserve the current explicit company-filter behavior: send the selected `company_id` value(s) and keep `crm_only=0/1` explicit according to the CRM filter state.
+- Do not "simplify" these branches into one universal `crm_only=0/1` rule. Mixed/legacy server deployments may interpret the mere presence of `crm_only` as an enabled CRM restriction even when the value is `0`.
+- Fixes for the empty-company case must not change company-filtered pagination, server search, phase filtering, cache semantics, or result ordering unless the user explicitly asks for those changes.
+- Treat working company-filter behavior as higher-risk regression territory: when changing the no-company case, isolate the change and add/keep regression coverage proving that selected-company requests remain unchanged.
+
 ### CRM / care markers are per user
 
 - CRM means: "this user is actively taking care of this client". It does not mean "this record is a client".
