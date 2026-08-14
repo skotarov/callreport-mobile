@@ -26,6 +26,7 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
     private lateinit var nextButton: MaterialButton
     private lateinit var pageText: TextView
     private lateinit var edgePager: EdgePageScrollController
+    private var inlineProgress: ProgressBar? = null
     private var pageIndex = 0
     private var loading = false
     private var hasNext = false
@@ -40,11 +41,11 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
         setContentView(createContent())
         updatePaginationVisibility()
         edgePager = EdgePageScrollController(
-            canPrevious = { pageIndex > 0 },
+            canPrevious = { !PageLoadingModeStore.usesPrefetch(this) && pageIndex > 0 },
             canNext = { PageLoadingModeStore.usesPrefetch(this) && hasNext },
             previousPage = ::previousPage,
             nextPage = ::nextPage,
-            pageReady = { !loading && progress.visibility != View.VISIBLE },
+            pageReady = { !loading },
         ).also { it.bind(scrollView, listContainer) }
         renderPage()
     }
@@ -60,7 +61,10 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (::paginationContainer.isInitialized) updatePaginationVisibility()
-        if (::listContainer.isInitialized && !loading) renderPage()
+        if (::listContainer.isInitialized && !loading) {
+            pageIndex = 0
+            renderPage()
+        }
     }
 
     override fun onDestroy() {
@@ -173,7 +177,13 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
         }
         if (loading) return
         loading = true
-        progress.visibility = View.VISIBLE
+        val prefetch = PageLoadingModeStore.usesPrefetch(this)
+        val append = prefetch && pageIndex > 0
+        if (prefetch) {
+            showInlineProgress(clearRows = !append)
+        } else {
+            progress.visibility = View.VISIBLE
+        }
         statusText.text = "Зареждане на SMS…"
         previousButton.isEnabled = false
         nextButton.isEnabled = false
@@ -192,14 +202,16 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
                 if (isFinishing || isDestroyed || requestedPage != pageIndex) return@runOnUiThread
                 loading = false
                 progress.visibility = View.GONE
+                removeInlineProgress()
                 hasNext = loaded.size > pageSize
                 val messages = loaded.take(pageSize)
-                renderRows(messages, displayNames)
+                renderRows(messages, displayNames, append)
                 val first = requestedPage * pageSize + 1
                 val last = requestedPage * pageSize + messages.size
                 statusText.text = when {
                     messages.isEmpty() && requestedPage == 0 -> "Няма SMS в телефона"
                     messages.isEmpty() -> "Няма повече SMS"
+                    prefetch -> "SMS по дата: 1–$last"
                     else -> "SMS по дата: $first–$last"
                 }
                 pageText.text = "Страница ${requestedPage + 1}"
@@ -212,6 +224,28 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
         }
     }
 
+    private fun showInlineProgress(clearRows: Boolean) {
+        removeInlineProgress()
+        if (clearRows) listContainer.removeAllViews()
+        inlineProgress = ProgressBar(this).also { spinner ->
+            listContainer.addView(spinner, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(10)
+                bottomMargin = dp(10)
+            })
+        }
+    }
+
+    private fun removeInlineProgress() {
+        inlineProgress?.let { spinner ->
+            (spinner.parent as? LinearLayout)?.removeView(spinner)
+        }
+        inlineProgress = null
+    }
+
     private fun updatePaginationVisibility() {
         paginationContainer.visibility = if (PageLoadingModeStore.usesPrefetch(this)) View.GONE else View.VISIBLE
     }
@@ -220,6 +254,7 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
         loading = false
         hasNext = false
         progress.visibility = View.GONE
+        removeInlineProgress()
         listContainer.removeAllViews()
         statusText.text = "Нужно е разрешение за четене на SMS"
         pageText.text = ""
@@ -238,8 +273,12 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
         })
     }
 
-    private fun renderRows(messages: List<SmsTimelineMessage>, displayNames: Map<String, String>) {
-        listContainer.removeAllViews()
+    private fun renderRows(
+        messages: List<SmsTimelineMessage>,
+        displayNames: Map<String, String>,
+        append: Boolean,
+    ) {
+        if (!append) listContainer.removeAllViews()
         messages.forEach { message ->
             val row = smsRow(message, displayNames[message.providerId].orEmpty())
             listContainer.addView(ListThemeUi.applyRowSpacing(row, ::dp))
