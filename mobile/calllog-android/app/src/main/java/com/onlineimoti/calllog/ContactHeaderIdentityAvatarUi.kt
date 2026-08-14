@@ -1,6 +1,7 @@
 package com.onlineimoti.calllog
 
 import android.Manifest
+import android.app.Activity
 import android.content.ContentUris
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -18,7 +19,7 @@ import androidx.core.content.ContextCompat
 
 /** Avatar used by the expanded History contact identity. */
 internal class ContactHeaderIdentityAvatarUi(
-    private val activity: ContactNotesActivity,
+    private val activity: Activity,
     private val dp: (Int) -> Int,
 ) {
     fun create(
