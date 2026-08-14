@@ -213,7 +213,9 @@ class ContactNotesHeaderUi(
                 dp(ACTION_ROW_HEIGHT_DP),
             )
         }
-        ContactNotesHeaderActionPolicy.ordered(contactExists).forEachIndexed { index, kind ->
+        ContactNotesHeaderActionPolicy.ordered(contactExists)
+            .filterNot { it == ContactNotesHeaderAction.CALL }
+            .forEachIndexed { index, kind ->
             val button = when (kind) {
                 ContactNotesHeaderAction.CRM -> actions.crmSyncButton(
                     enabled = crmSyncEnabled,
