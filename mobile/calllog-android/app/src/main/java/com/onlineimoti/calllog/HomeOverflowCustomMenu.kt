@@ -82,7 +82,7 @@ internal object HomeOverflowCustomMenu {
                 favoritesBlock.addView(favoriteRow(activity, dp, favorite).apply {
                     setOnClickListener {
                         popup.dismiss()
-                        openDialer(activity, favorite.phone)
+                        openFavoriteContact(activity, favorite)
                     }
                 })
             }
@@ -257,8 +257,17 @@ internal object HomeOverflowCustomMenu {
         }.orEmpty()
     }.getOrDefault("")
 
-    private fun openDialer(activity: AppCompatActivity, phone: String) {
-        tryStart(activity, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", phone, null)))
+    private fun openFavoriteContact(activity: AppCompatActivity, favorite: FavoriteContact) {
+        if (FavoriteContactsBehaviorStore.directDialEnabled(activity)) {
+            tryStart(activity, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", favorite.phone, null)))
+            return
+        }
+        tryStart(
+            activity,
+            Intent(activity, ContactNotesActivity::class.java)
+                .putExtra(ContactNotesActivity.EXTRA_PHONE, favorite.phone)
+                .putExtra(ContactNotesActivity.EXTRA_TITLE, favorite.name.ifBlank { favorite.phone }),
+        )
     }
 
     private fun openNewContact(activity: AppCompatActivity) {

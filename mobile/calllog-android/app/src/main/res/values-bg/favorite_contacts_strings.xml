@@ -1,0 +1,5 @@
+<resources>
+    <string name="favorite_contacts_behavior_title">Любими контакти</string>
+    <string name="favorite_contacts_direct_dial">Набирай директно любимите контакти</string>
+    <string name="favorite_contacts_behavior_description">Изключено: натискането на любим контакт отваря неговата „История“ в Relationship Manager. Включено: отваря директно набирането на номера.</string>
+</resources>

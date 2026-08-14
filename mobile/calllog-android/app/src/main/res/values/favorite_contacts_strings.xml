@@ -1,0 +1,5 @@
+<resources>
+    <string name="favorite_contacts_behavior_title">Favorite contacts</string>
+    <string name="favorite_contacts_direct_dial">Dial favorite contacts directly</string>
+    <string name="favorite_contacts_behavior_description">Off: tapping a favorite opens that contact’s History in Relationship Manager. On: tapping a favorite opens the phone dialer.</string>
+</resources>
