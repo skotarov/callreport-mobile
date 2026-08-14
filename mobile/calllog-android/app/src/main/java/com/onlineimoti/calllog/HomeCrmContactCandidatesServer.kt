@@ -61,6 +61,23 @@ internal object HomeCrmContactCandidatesServer {
         }
 
         if (filterState.crmOnly) {
+            if (!filterState.hasCompanyFilter) {
+                // With "My clients" enabled and no company selected, ask the server
+                // directly for the current user's CRM clients across the neutral
+                // all-company scope. Do not depend on the local company list/cache.
+                val primary = ServerCrmContactsClient.lookupPage(
+                    config = config,
+                    filterState = filterState,
+                    searchQuery = searchQuery,
+                    limit = limit,
+                    offset = offset,
+                    context = appContext,
+                )
+                if (primary.clients.isNotEmpty() || primary.total > 0) return primary
+            }
+
+            // Compatibility fallback for older deployments that need explicit company
+            // scopes before the current user's CRM markers can be reconstructed.
             return loadPersonalCrmPage(
                 context = appContext,
                 config = config,
