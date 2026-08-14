@@ -22,10 +22,19 @@ class ContactServerCompanyScopePolicyTest {
     }
 
     @Test
-    fun rejectsKnownNonCrmContact() {
+    fun knownNonCrmContactStaysUnavailableWithoutExplicitCompanyNoteIntent() {
         assertFalse(ContactServerCompanyScopePolicy.isAvailable(
             crmEnabled = false,
             unknownNumber = false,
+        ))
+    }
+
+    @Test
+    fun explicitCompanyNoteAllowsKnownNonCrmContact() {
+        assertTrue(ContactServerCompanyScopePolicy.isAvailable(
+            crmEnabled = false,
+            unknownNumber = false,
+            explicitCompanyNotesAllowed = true,
         ))
     }
 }
