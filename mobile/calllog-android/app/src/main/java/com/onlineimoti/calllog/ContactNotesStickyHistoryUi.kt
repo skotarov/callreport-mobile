@@ -33,6 +33,7 @@ internal class ContactNotesStickyHistoryUi(
     private var layoutChangeListener: View.OnLayoutChangeListener? = null
     private var savedScrollY = 0
     private val screenLocation = IntArray(2)
+    private val externalActions by lazy { ContactNotesExternalActions(activity) }
 
     fun resetScrollPosition() {
         savedScrollY = 0
@@ -221,12 +222,44 @@ internal class ContactNotesStickyHistoryUi(
             selectedMode = selectedMode,
             onModeSelected = onModeSelected,
         ))
+        addView(callButton())
         addView(modeButton(
             textValue = "Обаждания",
             drawableRes = R.drawable.ic_history_clock,
             mode = ContactHistoryListMode.FULL_LOG,
             selectedMode = selectedMode,
             onModeSelected = onModeSelected,
+        ))
+    }
+
+    private fun callButton(): FrameLayout = FrameLayout(activity).apply {
+        gravity = Gravity.CENTER
+        layoutParams = LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            1f,
+        )
+        addView(ImageView(activity).apply {
+            setImageResource(R.drawable.ic_phone_call)
+            setColorFilter(Color.WHITE)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(ContextCompat.getColor(activity, R.color.callreport_icon_background))
+            }
+            elevation = dp(3).toFloat()
+            setPadding(dp(15), dp(15), dp(15), dp(15))
+            isClickable = true
+            isFocusable = true
+            contentDescription = activity.getString(R.string.dynamic_action_call)
+            setOnClickListener {
+                val phone = activity.intent?.getStringExtra(ContactNotesActivity.EXTRA_PHONE).orEmpty()
+                externalActions.openDialer(phone)
+            }
+        }, FrameLayout.LayoutParams(
+            dp(CALL_BUTTON_SIZE_DP),
+            dp(CALL_BUTTON_SIZE_DP),
+            Gravity.CENTER,
         ))
     }
 
@@ -334,5 +367,6 @@ internal class ContactNotesStickyHistoryUi(
         const val MODE_ICON_PILL_WIDTH_DP = 56
         const val MODE_ICON_PILL_HEIGHT_DP = 28
         const val MODE_ICON_PILL_RADIUS_DP = 16
+        const val CALL_BUTTON_SIZE_DP = 54
     }
 }
