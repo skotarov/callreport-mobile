@@ -127,10 +127,10 @@ internal class ContactNoteTopicFieldUi(
         val destination = ContactNoteStorageDestinationPolicy.resolve(selectedCompanyId, fallbackLocalOnly)
         return when {
             AppLocaleText.isBulgarian() && destination == ContactNoteStorageDestination.LOCAL ->
-                "Тази бележка се пази само локално"
-            AppLocaleText.isBulgarian() -> "Бележката се пази на сървъра"
-            destination == ContactNoteStorageDestination.LOCAL -> "This note is stored only locally"
-            else -> "The note is stored on the server"
+                "Лична бележка — пази се само на телефона"
+            AppLocaleText.isBulgarian() -> "Фирмена бележка — пази се на сървъра"
+            destination == ContactNoteStorageDestination.LOCAL -> "Personal note — stored only on this phone"
+            else -> "Company note — stored on the server"
         }
     }
 
