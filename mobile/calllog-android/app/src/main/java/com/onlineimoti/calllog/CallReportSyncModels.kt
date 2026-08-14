@@ -16,6 +16,8 @@ internal data class CallReportSyncEvent(
     val providerRowId: String,
     val deviceId: String,
     val appVersion: String,
+    /** Active organization selected by the authenticated session; server must validate it. */
+    val companyId: String = "",
     /** null means do not alter a server note; an empty string explicitly clears it. */
     val note: String? = null,
     /** Client-side ordering metadata for a queued mutable server-note edit. */
@@ -113,6 +115,7 @@ internal object CallReportSyncEventFactory {
         val resolvedName = contactName.trim().ifBlank {
             ContactGroupFilter.resolveDisplayName(context, phone).orEmpty().trim()
         }
+        val organizationId = CompanySessionStore.load(context)?.organizationId.orEmpty().trim()
         return CallReportSyncEvent(
             clientEventId = "$deviceId:$type:$providerId",
             communicationType = type,
@@ -125,6 +128,7 @@ internal object CallReportSyncEventFactory {
             providerRowId = providerId,
             deviceId = deviceId,
             appVersion = BuildConfig.VERSION_NAME,
+            companyId = organizationId,
             note = note,
         )
     }
