@@ -4,10 +4,16 @@ import android.content.Context
 import android.provider.CallLog
 
 /**
- * Contacts mode ultimately comes from the authenticated Relationship Manager
- * profile. While the server is synchronizing, the CRM-only filter can render
- * the profile's local marker cache immediately.
+ * Legacy compatibility wrapper around the canonical server-backed Clients loader.
+ *
+ * Runtime Clients filtering, pagination and compatibility fallback belong in
+ * [HomeCrmContactCandidatesServer]. Do not add parallel Clients business logic here.
+ * While the server is synchronizing, the CRM-only filter can still render the profile's
+ * local marker cache immediately through [loadLocal].
  */
+@Deprecated(
+    message = "Legacy wrapper; server-backed Clients logic belongs in HomeCrmContactCandidatesServer",
+)
 internal object HomeCrmContactCandidates {
     private const val UNKNOWN_CRM_LOOKBACK_MS = 14L * 24L * 60L * 60L * 1_000L
 

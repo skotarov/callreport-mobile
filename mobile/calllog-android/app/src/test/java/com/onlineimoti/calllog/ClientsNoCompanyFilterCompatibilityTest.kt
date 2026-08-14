@@ -2,6 +2,7 @@ package com.onlineimoti.calllog
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ClientsNoCompanyFilterCompatibilityTest {
@@ -55,5 +56,19 @@ class ClientsNoCompanyFilterCompatibilityTest {
         val p = params(HomeCrmFilterState(companyIds = setOf("company-7"), crmOnly = true))
         assertEquals("company-7", p["company_id"])
         assertEquals("1", p["crm_only"])
+    }
+
+    @Test fun noCompanyEmptyPayloadMustFallBackEvenIfServerMetadataClaimsRows() {
+        val reportedTotal = 27
+        assertTrue(reportedTotal > 0)
+        assertFalse(ClientsPrimaryPagePolicy.shouldAccept(rowCount = 0, hasCompanyFilter = false))
+    }
+
+    @Test fun noCompanyPayloadWithRowsCanStopFallback() {
+        assertTrue(ClientsPrimaryPagePolicy.shouldAccept(rowCount = 1, hasCompanyFilter = false))
+    }
+
+    @Test fun selectedCompanyEmptyPayloadRemainsAuthoritative() {
+        assertTrue(ClientsPrimaryPagePolicy.shouldAccept(rowCount = 0, hasCompanyFilter = true))
     }
 }

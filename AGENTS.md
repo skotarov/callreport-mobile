@@ -1,8 +1,8 @@
-# Project rules for CallReport Mobile
+# Project rules for Relationship Manager Mobile
 
 ## Repository layout
 
-This repository is `skotarov/callreport-mobile`.
+This repository is `skotarov/relationship-manager-mobile`.
 
 The Android project is here:
 
@@ -28,13 +28,17 @@ Known values:
 
 ## Work style
 
-When the user says “направи го” for this repo:
+When the user says “направи го” for Android/mobile work:
 
+- Work only in `skotarov/relationship-manager-mobile` and only on branch `main`, unless the user explicitly names a different repository or branch.
+- Never use the old `skotarov/callreport-mobile` repository as an implementation target.
+- Before any edit, fetch the latest `refs/heads/main` and read `AGENTS.md` from that exact `main`; do not rely on a previously fetched copy, even from the same conversation.
 - Change `main` directly unless the user explicitly asks for a PR or branch.
 - For APK/build/install questions, inspect only:
   - `mobile/calllog-android/app/build.gradle.kts`
   - `.github/workflows/android-build.yml`
 - After writing a file, verify the saved file once.
+- After the final write/commit, re-fetch `refs/heads/main` and verify that the expected commit is the actual HEAD.
 
 ## Edit-size rule
 
@@ -47,6 +51,18 @@ Use this order of preference:
 3. Only rewrite a whole file when the file is genuinely small or the user explicitly asks for a full refactor.
 
 For files such as `ContactNoteReader.kt`, prefer adding a helper such as `NotePersistence.kt` instead of replacing the entire file.
+
+## Runtime-path verification rule
+
+Before changing an existing Android behavior, establish the active runtime path from the current `main` instead of assuming that a similarly named class is the implementation in use.
+
+- Trace from the actual Activity/Fragment/Service construction through the controller/coordinator/loader to the final data source or renderer.
+- A matching class name, old implementation, wrapper, helper or compatibility adapter is not proof that the code is active.
+- If a wrapper only delegates, keep business logic in the canonical implementation and mark the wrapper clearly so future changes are not added there by mistake.
+- For the current Clients implementation, the expected path is `HomeActivity` (defined in `HomeActivityPaged.kt`) -> `HomeTimelineCoordinator` -> `HomeCrmContactsLoader` -> `HomeCrmContactCandidatesServer` -> `ServerCrmContactsClient`. Re-verify this path from the latest `main` before every behavioral change; do not assume it will remain true forever.
+- When compatibility fallback depends on a returned payload, an empty payload is still empty even if metadata such as `total` or `count` is non-zero. Metadata alone must not suppress fallback unless the endpoint contract explicitly guarantees that behavior.
+- For every fixed regression, add or update a behavioral test for the exact failure mode, not only a test of generated URL/query parameters.
+- Diagnostic logging for runtime-path/fallback decisions may log source name, row count, total count and filter flags, but must not log phone numbers, note text, names, access tokens or other client PII.
 
 ## Communication sharing rules
 

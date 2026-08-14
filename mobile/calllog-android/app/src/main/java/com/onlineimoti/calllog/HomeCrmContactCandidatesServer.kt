@@ -1,8 +1,10 @@
 package com.onlineimoti.calllog
 
 import android.content.Context
+import android.util.Log
 
 internal object HomeCrmContactCandidatesServer {
+    private const val TAG = "ClientsLoader"
     private const val FALLBACK_CHUNK_SIZE = 100
     private const val FALLBACK_MAX_ITEMS = 10_000
 
@@ -44,13 +46,16 @@ internal object HomeCrmContactCandidatesServer {
                 offset = offset,
                 context = appContext,
             )
-            if (primary.clients.isNotEmpty()) return primary
+            logPageSource("primary-neutral", primary, filterState)
+            if (ClientsPrimaryPagePolicy.shouldAccept(primary.clients.size, hasCompanyFilter = false)) {
+                return primary
+            }
 
             // Some mixed/legacy deployments report a broad non-zero total while returning
             // no rows for the neutral company scope. An empty page must therefore fall
             // through to explicit accessible-company scopes instead of being accepted
             // solely because total > 0.
-            return loadAllAccessibleCompaniesPage(
+            val fallback = loadAllAccessibleCompaniesPage(
                 context = appContext,
                 config = config,
                 filterState = filterState,
@@ -59,6 +64,8 @@ internal object HomeCrmContactCandidatesServer {
                 offset = offset,
                 companyIds = companyIds,
             )
+            logPageSource("fallback-all-companies", fallback, filterState)
+            return fallback
         }
 
         if (filterState.crmOnly) {
@@ -74,12 +81,15 @@ internal object HomeCrmContactCandidatesServer {
                     offset = offset,
                     context = appContext,
                 )
-                if (primary.clients.isNotEmpty()) return primary
+                logPageSource("primary-my-clients", primary, filterState)
+                if (ClientsPrimaryPagePolicy.shouldAccept(primary.clients.size, hasCompanyFilter = false)) {
+                    return primary
+                }
             }
 
             // Compatibility fallback for older deployments that need explicit company
             // scopes before the current user's CRM markers can be reconstructed.
-            return loadPersonalCrmPage(
+            val fallback = loadPersonalCrmPage(
                 context = appContext,
                 config = config,
                 filterState = filterState,
@@ -88,6 +98,8 @@ internal object HomeCrmContactCandidatesServer {
                 offset = offset,
                 companyIds = companyIds,
             )
+            logPageSource("fallback-my-clients", fallback, filterState)
+            return fallback
         }
 
         val primary = ServerCrmContactsClient.lookupPage(
@@ -98,12 +110,13 @@ internal object HomeCrmContactCandidatesServer {
             offset = offset,
             context = appContext,
         )
+        logPageSource("primary-filtered", primary, filterState)
 
-        if (filterState.hasCompanyFilter || primary.clients.isNotEmpty()) {
+        if (ClientsPrimaryPagePolicy.shouldAccept(primary.clients.size, filterState.hasCompanyFilter)) {
             return primary
         }
 
-        return loadCompatibilityPage(
+        val fallback = loadCompatibilityPage(
             context = appContext,
             config = config,
             filterState = filterState,
@@ -111,7 +124,12 @@ internal object HomeCrmContactCandidatesServer {
             limit = limit,
             offset = offset,
             companyIds = companyIds,
-        ) ?: primary
+        )
+        if (fallback != null) {
+            logPageSource("fallback-filtered", fallback, filterState)
+            return fallback
+        }
+        return primary
     }
 
     private fun loadAllAccessibleCompaniesPage(
@@ -395,6 +413,19 @@ internal object HomeCrmContactCandidatesServer {
             userStates = users,
             notes = notes,
             searchSnippet = newer.searchSnippet.ifBlank { older.searchSnippet },
+        )
+    }
+
+    private fun logPageSource(
+        source: String,
+        page: ServerCrmContactsPage,
+        filterState: HomeCrmFilterState,
+    ) {
+        Log.d(
+            TAG,
+            "source=$source rows=${page.clients.size} total=${page.total} offset=${page.offset} " +
+                "limit=${page.limit} crmOnly=${filterState.crmOnly} " +
+                "companyFilter=${filterState.hasCompanyFilter} phaseFilter=${filterState.hasPhaseFilter}",
         )
     }
 
