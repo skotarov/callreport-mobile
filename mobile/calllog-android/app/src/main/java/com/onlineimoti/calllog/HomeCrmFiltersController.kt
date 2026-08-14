@@ -16,6 +16,12 @@ import com.onlineimoti.calllog.databinding.ActivityHomeBinding
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
+internal fun shouldReloadClientsAfterCompanyRefresh(
+    accessibleCompanyIdsChanged: Boolean,
+    selectionChanged: Boolean,
+    hasCompanyFilter: Boolean,
+): Boolean = selectionChanged || (accessibleCompanyIdsChanged && !hasCompanyFilter)
+
 internal class HomeCrmFiltersController(
     private val activity: HomeActivity,
     private val binding: ActivityHomeBinding,
@@ -112,10 +118,29 @@ internal class HomeCrmFiltersController(
             handler.post {
                 if (requestGeneration != companyGeneration.get() || activity.isFinishing || activity.isDestroyed) return@post
                 if (companies == loaded) return@post
+                val previousCompanyIds = companies
+                    .map { it.id.trim() }
+                    .filter { it.isNotBlank() }
+                    .toSet()
                 companies = loaded
                 val selectionChanged = removeUnavailableCompanySelections()
+                val accessibleCompanyIdsChanged = previousCompanyIds != companies
+                    .map { it.id.trim() }
+                    .filter { it.isNotBlank() }
+                    .toSet()
                 renderButtons()
-                if (selectionChanged) onFilterChanged()
+                if (
+                    shouldReloadClientsAfterCompanyRefresh(
+                        accessibleCompanyIdsChanged = accessibleCompanyIdsChanged,
+                        selectionChanged = selectionChanged,
+                        hasCompanyFilter = state.companyIds.isNotEmpty(),
+                    )
+                ) {
+                    // The no-company Clients fallback depends on the accessible company list.
+                    // If that list arrived after the first render, reload once so an initially
+                    // empty scope does not remain stuck until the user taps a filter button.
+                    onFilterChanged()
+                }
             }
         }
     }
