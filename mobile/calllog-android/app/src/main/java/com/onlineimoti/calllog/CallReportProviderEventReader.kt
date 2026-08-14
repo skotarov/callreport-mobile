@@ -9,7 +9,8 @@ import androidx.core.content.ContextCompat
 
 /**
  * Sync-only reader. It deliberately does not change the existing Home readers or UI model.
- * It reads a bounded recent window and never includes SMS text in server payloads.
+ * It reads a bounded recent window. SMS text is read only so the privacy policy can decide
+ * whether the exact company-visible communication may be uploaded.
  */
 internal object CallReportProviderEventReader {
     internal data class PhoneEvent(
@@ -28,6 +29,7 @@ internal object CallReportProviderEventReader {
         val direction: String,
         val status: String,
         val occurredAtMs: Long,
+        val body: String,
     )
 
     fun recentPhoneEvents(context: Context, limit: Int): List<PhoneEvent> {
@@ -85,6 +87,7 @@ internal object CallReportProviderEventReader {
             Telephony.Sms.ADDRESS,
             Telephony.Sms.DATE,
             Telephony.Sms.TYPE,
+            Telephony.Sms.BODY,
         )
         return runCatching {
             buildList {
@@ -99,13 +102,23 @@ internal object CallReportProviderEventReader {
                     val addressIndex = cursor.getColumnIndex(Telephony.Sms.ADDRESS)
                     val dateIndex = cursor.getColumnIndex(Telephony.Sms.DATE)
                     val typeIndex = cursor.getColumnIndex(Telephony.Sms.TYPE)
+                    val bodyIndex = cursor.getColumnIndex(Telephony.Sms.BODY)
                     while (cursor.moveToNext() && size < limit.coerceIn(1, 500)) {
                         val phone = cursor.getString(addressIndex).orEmpty().trim()
                         val id = cursor.getLong(idIndex).toString()
                         val occurredAt = cursor.getLong(dateIndex)
                         if (phone.isBlank() || id.isBlank() || occurredAt <= 0L) continue
                         val meta = smsMeta(cursor.getInt(typeIndex))
-                        add(SmsEvent(id, phone, meta.direction, meta.status, occurredAt))
+                        add(
+                            SmsEvent(
+                                providerId = id,
+                                phone = phone,
+                                direction = meta.direction,
+                                status = meta.status,
+                                occurredAtMs = occurredAt,
+                                body = cursor.getString(bodyIndex).orEmpty(),
+                            ),
+                        )
                     }
                 }
             }
