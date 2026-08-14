@@ -21,16 +21,20 @@ class EnabledContactCommunicationSyncWorker(
 
         val events = buildList {
             CallReportProviderEventReader.recentPhoneEvents(applicationContext, CALL_SYNC_LIMIT)
-                .filter { CrmContactSyncStore.isEnabled(applicationContext, it.phone) }
+                .filter { CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, it.phone) }
                 .mapNotNullTo(this) { CallReportSyncEventFactory.fromPhoneCall(applicationContext, it) }
             CallReportProviderEventReader.recentSmsEvents(applicationContext, SMS_SYNC_LIMIT)
-                .filter { CrmContactSyncStore.isEnabled(applicationContext, it.phone) }
+                .filter { CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, it.phone) }
                 .mapNotNullTo(this) { CallReportSyncEventFactory.fromSms(applicationContext, it) }
         }.distinctBy { it.clientEventId }.sortedByDescending { it.occurredAtMs }
 
         try {
             events.chunked(MAX_BATCH_SIZE).forEach { candidates ->
-                val batch = candidates.filter { CrmContactSyncStore.isEnabled(applicationContext, it.phone) }
+                // Re-check immediately before upload because the user may have added
+                // a number to Contacts or changed the CRM/care marker meanwhile.
+                val batch = candidates.filter {
+                    CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, it.phone)
+                }
                 if (batch.isNotEmpty()) {
                     val confirmed = CallReportSyncClient.sync(config, batch)
                     ServerRecordIndex.markConfirmed(applicationContext, confirmed)
