@@ -26,9 +26,10 @@ internal object ContactServerCompanyScope {
     fun isUnknownNumber(context: Context, phone: String): Boolean {
         if (phone.isBlank()) return false
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-            // Without permission we cannot confirm a real personal contact. Treat
-            // it as unknown so company communication is not accidentally omitted.
-            return true
+            // Privacy fail-safe: without Contacts access we cannot prove that a
+            // number is unknown to this user, so never share it on that assumption.
+            // Explicit CRM/care markers are checked separately by the sync policy.
+            return false
         }
         return RmRealContactLookup.findContactId(context, phone) <= 0L
     }
