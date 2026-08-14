@@ -54,7 +54,17 @@ internal object SmsMessageSender {
         require(parts.isNotEmpty()) { "Не успях да подготвя текста за изпращане." }
 
         sendAndAwaitConfirmation(appContext, manager, phone, body, parts)
-        Outcome(historySaved = saveToSystemSentMessages(appContext, phone, body))
+        val historySaved = saveToSystemSentMessages(appContext, phone, body)
+        if (historySaved) {
+            // The sync worker performs the final privacy check. Known personal
+            // contacts that are not CRM/care remain entirely on this device.
+            CallReportSyncScheduler.enqueueCatchUp(
+                appContext,
+                reason = "sms_sent",
+                initialDelayMillis = 500L,
+            )
+        }
+        Outcome(historySaved = historySaved)
     }
 
     private fun sendAndAwaitConfirmation(
