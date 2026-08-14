@@ -53,7 +53,7 @@ internal class ContactNotesSectionsUi(
             }
             section.addView(noteCard)
             // The phase belongs to the phone contact, not to a specific company.
-            // Show it once, immediately under the final server-company note and never under Local.
+            // Show it once, immediately under the final server-company note and never under Personal.
             if (isLastCompany) companyPhaseBar?.invoke()?.let(section::addView)
         }
     }
@@ -67,7 +67,7 @@ internal class ContactNotesSectionsUi(
         val pendingCompanyChoice = CallReportDeferredCompanyAssignmentStore.isGeneralPending(activity, phone)
         val pendingServerSync = CallReportNoteOutbox.isGeneralPending(activity, phone)
         val pending = pendingCompanyChoice || pendingServerSync
-        section.addView(companyNameLabel(activity.getString(R.string.note_local_company)))
+        section.addView(companyNameLabel(if (AppLocaleText.isBulgarian()) "Лична" else "Personal"))
         section.addView(
             cards.generalNoteCard(
                 textValue = generalNote.ifBlank { activity.getString(R.string.dynamic_notes_add_general) },
