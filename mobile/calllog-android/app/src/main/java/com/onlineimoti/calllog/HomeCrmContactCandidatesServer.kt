@@ -47,7 +47,8 @@ internal object HomeCrmContactCandidatesServer {
             if (primary.clients.isNotEmpty() || primary.total > 0) return primary
 
             // Backward compatibility for older deployments that only return rows from
-            // explicitly company-scoped requests.
+            // explicitly scoped requests. The neutral scope includes both every
+            // accessible company and personal/unassigned server records.
             return loadAllAccessibleCompaniesPage(
                 context = appContext,
                 config = config,
@@ -115,6 +116,13 @@ internal object HomeCrmContactCandidatesServer {
                 destination = merged,
             )
         }
+        collectScope(
+            context = context,
+            config = config,
+            filterState = broadState.copy(companyIds = setOf("none")),
+            searchQuery = searchQuery,
+            destination = merged,
+        )
         return paginate(merged.values.sortedWith(clientOrdering()), limit, offset)
     }
 
