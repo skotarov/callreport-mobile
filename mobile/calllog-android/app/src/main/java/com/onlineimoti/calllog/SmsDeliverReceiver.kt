@@ -23,6 +23,13 @@ class SmsDeliverReceiver : BroadcastReceiver() {
                 val appContext = context.applicationContext
                 saveToInboxIfMissing(appContext, phone, body, receivedAt)
                 SmsIncomingNotifications.show(appContext, phone, body, receivedAt)
+                // The provider row is now available. Privacy is checked again inside
+                // the worker before any metadata or SMS text leaves the phone.
+                CallReportSyncScheduler.enqueueCatchUp(
+                    appContext,
+                    reason = "sms_received",
+                    initialDelayMillis = 500L,
+                )
                 appContext.sendBroadcast(
                     Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(appContext.packageName),
                 )
