@@ -73,6 +73,14 @@ internal object CallNoteTopicWriter {
         val result = CallNoteWriteResult(saved, false, target)
         if (!saved) return result
 
+        // The company note authorizes sharing this concrete call even when the
+        // number is otherwise a known personal contact. It never opens future calls.
+        CompanySharedCallStore.mark(context, phone, target.direction, target.callAt)
+        CallReportSyncScheduler.enqueueCatchUp(
+            context.applicationContext,
+            reason = "company_call_note",
+            initialDelayMillis = 500L,
+        )
         PendingCallNoteStore.clearResolvedForCall(context, phone, target.direction, target.callAt)
         HomeCrmCompanyMembershipStore.invalidate(context, phone)
         return result
