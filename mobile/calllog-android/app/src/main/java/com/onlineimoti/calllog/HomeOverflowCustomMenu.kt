@@ -25,10 +25,10 @@ import kotlin.math.min
 internal object HomeOverflowCustomMenu {
     fun show(activity: AppCompatActivity, anchor: View, openSettings: () -> Unit) {
         val dp = { value: Int -> (value * activity.resources.displayMetrics.density).toInt() }
-        val popupWidth = min(dp(360), activity.resources.displayMetrics.widthPixels - dp(24))
+        val popupWidth = min(dp(340), activity.resources.displayMetrics.widthPixels - dp(24))
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), dp(12), dp(10), dp(12))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
             background = rounded(Color.WHITE, dp(10).toFloat())
             elevation = dp(8).toFloat()
         }
@@ -69,7 +69,7 @@ internal object HomeOverflowCustomMenu {
             val favorites = loadFavoriteContacts(activity)
             val favoritesBlock = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(6), dp(4), dp(6), dp(8))
+                setPadding(dp(5), dp(3), dp(5), dp(5))
                 background = rounded(Color.rgb(246, 247, 252), dp(14).toFloat())
             }
             favoritesBlock.addView(menuRow(activity, dp, R.drawable.ic_menu_favorite, activity.getString(R.string.home_overflow_favorites)).apply {
@@ -89,8 +89,8 @@ internal object HomeOverflowCustomMenu {
             root.addView(
                 favoritesBlock,
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                    topMargin = dp(2)
-                    bottomMargin = dp(4)
+                    topMargin = dp(1)
+                    bottomMargin = dp(2)
                 },
             )
 
@@ -109,7 +109,8 @@ internal object HomeOverflowCustomMenu {
             View.MeasureSpec.makeMeasureSpec(popupWidth, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
         )
-        popup.showAsDropDown(anchor, -(popupWidth - anchor.width), -anchor.height)
+        // Keep the three-dot trigger visible above the popup so tapping it again dismisses the menu.
+        popup.showAsDropDown(anchor, -(popupWidth - anchor.width), 0)
     }
 
     private fun menuRow(
@@ -120,8 +121,8 @@ internal object HomeOverflowCustomMenu {
     ): View = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(10), dp(4), dp(10), dp(4))
-        minimumHeight = dp(54)
+        setPadding(dp(9), dp(2), dp(9), dp(2))
+        minimumHeight = dp(48)
         isClickable = true
         isFocusable = true
         background = selectableBackground(activity)
@@ -130,16 +131,16 @@ internal object HomeOverflowCustomMenu {
             setImageResource(iconRes)
             imageTintList = ContextCompat.getColorStateList(activity, R.color.home_menu_icon)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-        }, LinearLayout.LayoutParams(dp(30), dp(30)))
+        }, LinearLayout.LayoutParams(dp(28), dp(28)))
 
         addView(TextView(activity).apply {
             text = title
-            textSize = 18f
+            textSize = 17f
             setTextColor(Color.rgb(39, 39, 39))
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 1
-        }, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
-            marginStart = dp(12)
+        }, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+            marginStart = dp(11)
         })
     }
 
@@ -150,8 +151,8 @@ internal object HomeOverflowCustomMenu {
     ): View = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(30), dp(3), dp(8), dp(3))
-        minimumHeight = dp(48)
+        setPadding(dp(28), dp(2), dp(7), dp(2))
+        minimumHeight = dp(43)
         isClickable = true
         isFocusable = true
         background = selectableBackground(activity)
@@ -166,18 +167,18 @@ internal object HomeOverflowCustomMenu {
             scaleType = if (favorite.photo != null) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.CENTER_INSIDE
             clipToOutline = true
             outlineProvider = ViewOutlineProvider.BACKGROUND
-            if (favorite.photo == null) setPadding(dp(8), dp(8), dp(8), dp(8))
-        }, LinearLayout.LayoutParams(dp(38), dp(38)))
+            if (favorite.photo == null) setPadding(dp(7), dp(7), dp(7), dp(7))
+        }, LinearLayout.LayoutParams(dp(34), dp(34)))
 
         addView(TextView(activity).apply {
             text = favorite.name
-            textSize = 17f
+            textSize = 16f
             setTextColor(Color.rgb(39, 39, 39))
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 1
             isSingleLine = true
-        }, LinearLayout.LayoutParams(0, dp(42), 1f).apply {
-            marginStart = dp(14)
+        }, LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+            marginStart = dp(12)
         })
     }
 
