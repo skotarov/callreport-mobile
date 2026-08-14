@@ -13,7 +13,7 @@
     <string name="crm_history_add_note_at">+ Add a note to %1$s</string>
     <string name="crm_history_add_latest">+ Add a note to the latest call</string>
     <string name="crm_history_latest_without_note">latest call without note</string>
-    <string name="crm_history_local_note">local note</string>
+    <string name="crm_history_local_note">personal note</string>
     <string name="crm_history_sms">SMS</string>
     <string name="crm_history_property">Property: %1$s</string>
     <string name="crm_history_crm_label">CRM</string>
