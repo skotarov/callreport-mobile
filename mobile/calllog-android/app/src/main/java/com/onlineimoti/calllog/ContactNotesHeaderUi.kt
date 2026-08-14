@@ -69,7 +69,7 @@ class ContactNotesHeaderUi(
         val topBar = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.TRANSPARENT)
+            setBackgroundColor(activity.getColor(R.color.calllog_bg))
             elevation = 0f
             stateListAnimator = null
             addView(actions.backButton(
