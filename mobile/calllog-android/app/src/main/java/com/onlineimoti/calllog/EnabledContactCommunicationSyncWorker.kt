@@ -21,7 +21,14 @@ class EnabledContactCommunicationSyncWorker(
 
         val events = buildList {
             CallReportProviderEventReader.recentPhoneEvents(applicationContext, CALL_SYNC_LIMIT)
-                .filter { CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, it.phone) }
+                .filter {
+                    CommunicationSyncPrivacyPolicy.shouldShareCall(
+                        applicationContext,
+                        it.phone,
+                        it.direction,
+                        it.occurredAtMs,
+                    )
+                }
                 .mapNotNullTo(this) { CallReportSyncEventFactory.fromPhoneCall(applicationContext, it) }
             CallReportProviderEventReader.recentSmsEvents(applicationContext, SMS_SYNC_LIMIT)
                 .filter { CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, it.phone) }
@@ -32,12 +39,31 @@ class EnabledContactCommunicationSyncWorker(
             events.chunked(MAX_BATCH_SIZE).forEach { candidates ->
                 // Re-check immediately before upload because the user may have added
                 // a number to Contacts or changed the CRM/care marker meanwhile.
-                val batch = candidates.filter {
-                    CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, it.phone)
+                val batch = candidates.filter { event ->
+                    if (event.communicationType == "phone") {
+                        CommunicationSyncPrivacyPolicy.shouldShareCall(
+                            applicationContext,
+                            event.phone,
+                            event.direction,
+                            event.occurredAtMs,
+                        )
+                    } else {
+                        CommunicationSyncPrivacyPolicy.shouldShare(applicationContext, event.phone)
+                    }
                 }
                 if (batch.isNotEmpty()) {
                     val confirmed = CallReportSyncClient.sync(config, batch)
                     ServerRecordIndex.markConfirmed(applicationContext, confirmed)
+                    batch.asSequence()
+                        .filter { it.communicationType == "phone" && it.clientEventId in confirmed }
+                        .forEach { event ->
+                            CompanySharedCallStore.clear(
+                                applicationContext,
+                                event.phone,
+                                event.direction,
+                                event.occurredAtMs,
+                            )
+                        }
                 }
             }
             Result.success()
