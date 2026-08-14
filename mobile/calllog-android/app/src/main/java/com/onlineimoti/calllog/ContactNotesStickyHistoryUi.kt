@@ -233,7 +233,6 @@ internal class ContactNotesStickyHistoryUi(
     }
 
     private fun callButton(): FrameLayout = FrameLayout(activity).apply {
-        gravity = Gravity.CENTER
         layoutParams = LinearLayout.LayoutParams(
             0,
             LinearLayout.LayoutParams.MATCH_PARENT,
