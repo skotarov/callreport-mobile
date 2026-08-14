@@ -44,11 +44,12 @@ internal object HomeCrmContactCandidatesServer {
                 offset = offset,
                 context = appContext,
             )
-            if (primary.clients.isNotEmpty() || primary.total > 0) return primary
+            if (primary.clients.isNotEmpty()) return primary
 
-            // Backward compatibility for older deployments that only return rows from
-            // explicitly scoped requests. The neutral scope includes both every
-            // accessible company and personal/unassigned server records.
+            // Some mixed/legacy deployments report a broad non-zero total while returning
+            // no rows for the neutral company scope. An empty page must therefore fall
+            // through to explicit accessible-company scopes instead of being accepted
+            // solely because total > 0.
             return loadAllAccessibleCompaniesPage(
                 context = appContext,
                 config = config,
@@ -73,7 +74,7 @@ internal object HomeCrmContactCandidatesServer {
                     offset = offset,
                     context = appContext,
                 )
-                if (primary.clients.isNotEmpty() || primary.total > 0) return primary
+                if (primary.clients.isNotEmpty()) return primary
             }
 
             // Compatibility fallback for older deployments that need explicit company
@@ -98,7 +99,7 @@ internal object HomeCrmContactCandidatesServer {
             context = appContext,
         )
 
-        if (filterState.hasCompanyFilter || primary.clients.isNotEmpty() || primary.total > 0) {
+        if (filterState.hasCompanyFilter || primary.clients.isNotEmpty()) {
             return primary
         }
 
