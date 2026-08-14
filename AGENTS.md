@@ -48,6 +48,17 @@ Use this order of preference:
 
 For files such as `ContactNoteReader.kt`, prefer adding a helper such as `NotePersistence.kt` instead of replacing the entire file.
 
+## Communication sharing rules
+
+- Unknown numbers: sync calls and SMS to the company server.
+- Known CRM/care contacts: sync calls and SMS.
+- Known personal non-CRM contacts: keep calls/SMS private.
+- A company note on one personal call shares only that exact call, not future calls.
+- SMS sync includes the message text.
+- Personal notes never sync; company notes do.
+- Server author identity comes from the authenticated token, not Android payload fields.
+- Colleague-owned server records are visible only through company access, show the colleague name, stay read-only, and render muted.
+
 ## Clients architecture and sync contract
 
 The `Clients` screen is a server-backed Relationship Manager view. Treat the rules below as product behavior, not as an implementation detail.
