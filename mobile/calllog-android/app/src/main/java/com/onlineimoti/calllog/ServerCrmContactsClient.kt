@@ -287,10 +287,16 @@ internal object ServerCrmContactsQuery {
             "access_token" to config.accessToken,
             "limit" to limit.coerceIn(1, 100).toString(),
             "offset" to offset.coerceAtLeast(0).toString(),
-            // Make the two base Clients modes explicit for every request:
-            // 0 = all server-visible clients, 1 = current profile's private CRM clients.
-            "crm_only" to if (filterState.crmOnly) "1" else "0",
         ).apply {
+            // Dedicated no-company rule: an absent company filter is the neutral
+            // "all visible clients" scope. Older/mixed deployments may interpret
+            // the mere presence of crm_only as enabled even when its value is 0,
+            // so omit it only for this neutral scope. Company-filtered requests keep
+            // their existing explicit 0/1 semantics unchanged.
+            when {
+                filterState.crmOnly -> put("crm_only", "1")
+                companyIds.isNotEmpty() -> put("crm_only", "0")
+            }
             if (phases.isNotEmpty()) {
                 val phase = phases.joinToString(",")
                 put("phase", phase)
