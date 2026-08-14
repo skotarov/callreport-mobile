@@ -10,16 +10,15 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 
 internal data class ContactNoteTopicState(
     val visible: Boolean,
     val loading: Boolean = false,
     val companies: List<CallReportTopicCompany> = emptyList(),
     val selectedCompanyId: String = "",
-    /** Main-note forms expose a local-only option before server companies. */
+    /** Main-note forms expose a private/personal option before server companies. */
     val includeLocalOption: Boolean = false,
-    /** No server company is available for this form; keep only the Local option visible. */
+    /** No server company is available for this form; keep only the personal option visible. */
     val localOnly: Boolean = false,
     /** Non-empty only when neither the server nor a cached company list could be loaded. */
     val loadError: String = "",
@@ -29,7 +28,7 @@ internal data class ContactNoteTopicState(
     val cachedCompaniesUpdatedAtMs: Long = 0L,
 ) {
     companion object {
-        /** Synthetic selection only; never sent to the server as a company id. */
+        /** Synthetic internal selection only; never sent to the server as a company id. */
         const val LOCAL_COMPANY_ID = "__callreport_local__"
     }
 }
@@ -74,7 +73,7 @@ internal object ContactNoteTopicSelector {
                 setPadding(0, dp(context, 2), dp(context, 4), dp(context, 2))
                 isEnabled = interactionEnabled
                 if (option.serverBacked) {
-                    ContextCompat.getDrawable(context, R.drawable.ic_cloud_note_filled)?.mutate()?.let { cloud ->
+                    androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_cloud_note_filled)?.mutate()?.let { cloud ->
                         cloud.setTint(context.getColor(R.color.callreport_icon_background))
                         cloud.setBounds(0, 0, dp(context, 17), dp(context, 17))
                         setCompoundDrawablesRelative(cloud, null, null, null)
@@ -112,9 +111,9 @@ internal object ContactNoteTopicSelector {
     }
 
     /**
-     * Every visible note form starts from a real destination. Local is preferred;
+     * Every visible note form starts from a real destination. Personal is preferred;
      * an existing allowed firm remains selected, while a removed permission falls
-     * back to Local instead of leaving a synthetic "Choose" row selected.
+     * back to Personal instead of leaving a synthetic "Choose" row selected.
      */
     internal fun resolvedSelectedCompanyId(state: ContactNoteTopicState): String {
         val ids = buildList {
@@ -135,7 +134,7 @@ internal object ContactNoteTopicSelector {
             listOf(
                 TopicOption(
                     ContactNoteTopicState.LOCAL_COMPANY_ID,
-                    context.getString(R.string.note_local_company),
+                    personalOptionLabel(),
                     serverBacked = false,
                 ),
             ) + serverOptions
@@ -143,6 +142,9 @@ internal object ContactNoteTopicSelector {
             serverOptions
         }
     }
+
+    private fun personalOptionLabel(): String =
+        if (AppLocaleText.isBulgarian()) "Лична" else "Personal"
 
     private fun statusLabel(context: Context, state: ContactNoteTopicState): String = when {
         state.loading -> context.getString(R.string.dynamic_note_companies_loading)
