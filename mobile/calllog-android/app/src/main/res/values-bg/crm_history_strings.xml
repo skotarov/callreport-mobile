@@ -13,7 +13,7 @@
     <string name="crm_history_add_note_at">+ Добави бележка към %1$s</string>
     <string name="crm_history_add_latest">+ Добави бележка към последния разговор</string>
     <string name="crm_history_latest_without_note">последен разговор без бележка</string>
-    <string name="crm_history_local_note">локална бележка</string>
+    <string name="crm_history_local_note">лична бележка</string>
     <string name="crm_history_sms">SMS</string>
     <string name="crm_history_property">Обява: %1$s</string>
     <string name="crm_history_crm_label">CRM</string>
