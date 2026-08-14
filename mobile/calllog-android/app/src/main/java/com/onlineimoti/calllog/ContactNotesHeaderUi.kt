@@ -82,7 +82,7 @@ class ContactNotesHeaderUi(
                 openChatSettings = ::openChatSettings,
             ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
         }
-        val createActionRow = {
+        val createActionRow = { showLabels: Boolean ->
             actionRow(
                 phone = phone,
                 title = title,
@@ -97,12 +97,13 @@ class ContactNotesHeaderUi(
                 openCalendarEvent = openCalendarEvent,
                 openDefaultContact = openDefaultContact,
                 toggleCrmSync = toggleCrmSync,
+                showLabels = showLabels,
             ).apply {
                 setBackgroundColor(activity.getColor(R.color.calllog_bg))
             }
         }
-        val actionRow = createActionRow()
-        val stickyActionRow = createActionRow()
+        val actionRow = createActionRow(true)
+        val stickyActionRow = createActionRow(false)
         val actionAnchor = FrameLayout(activity).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -203,14 +204,15 @@ class ContactNotesHeaderUi(
         openCalendarEvent: () -> Unit,
         openDefaultContact: () -> Unit,
         toggleCrmSync: () -> Unit,
+        showLabels: Boolean,
     ): LinearLayout {
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(0, dp(2), 0, dp(2))
+            setPadding(0, if (showLabels) dp(2) else 0, 0, if (showLabels) dp(2) else 0)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(ACTION_ROW_HEIGHT_DP),
+                dp(if (showLabels) ACTION_ROW_HEIGHT_DP else STICKY_ACTION_ROW_HEIGHT_DP),
             )
         }
         ContactNotesHeaderActionPolicy.ordered(contactExists)
@@ -264,7 +266,7 @@ class ContactNotesHeaderUi(
                 ContactNotesHeaderAction.CALL -> ""
             }
             val slotWeight = if (kind == ContactNotesHeaderAction.CRM) CRM_SLOT_WEIGHT else 1f
-            row.addView(actionSlot(button, label, insetStart = index == 0, weight = slotWeight))
+            row.addView(actionSlot(button, label, showLabels, insetStart = index == 0, weight = slotWeight))
         }
         return row
     }
@@ -275,7 +277,13 @@ class ContactNotesHeaderUi(
         Gravity.BOTTOM,
     )
 
-    private fun actionSlot(button: View, label: String, insetStart: Boolean, weight: Float): LinearLayout {
+    private fun actionSlot(
+        button: View,
+        label: String,
+        showLabel: Boolean,
+        insetStart: Boolean,
+        weight: Float,
+    ): LinearLayout {
         button.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             dp(ACTION_BUTTON_HEIGHT_DP),
@@ -286,19 +294,21 @@ class ContactNotesHeaderUi(
             if (insetStart) setPadding(dp(CRM_SLOT_START_PADDING_DP), 0, 0, 0)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
             addView(button)
-            addView(TextView(activity).apply {
-                text = label
-                textSize = 9f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(100, 116, 139))
-                gravity = Gravity.CENTER
-                maxLines = 1
-                includeFontPadding = false
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(ACTION_LABEL_HEIGHT_DP),
-                )
-            })
+            if (showLabel) {
+                addView(TextView(activity).apply {
+                    text = label
+                    textSize = 9f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(100, 116, 139))
+                    gravity = Gravity.CENTER
+                    maxLines = 1
+                    includeFontPadding = false
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        dp(ACTION_LABEL_HEIGHT_DP),
+                    )
+                })
+            }
         }
     }
 
@@ -394,6 +404,7 @@ class ContactNotesHeaderUi(
         const val CRM_SLOT_START_PADDING_DP = 2
         const val ACTION_ANCHOR_HEIGHT_DP = 58
         const val ACTION_ROW_HEIGHT_DP = 56
+        const val STICKY_ACTION_ROW_HEIGHT_DP = 48
         const val ACTION_BUTTON_HEIGHT_DP = 42
         const val ACTION_LABEL_HEIGHT_DP = 11
         const val CRM_SLOT_WEIGHT = 1.2f
