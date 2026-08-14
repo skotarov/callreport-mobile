@@ -28,4 +28,18 @@ class CommunicationSyncPrivacyPolicyTest {
             unknownNumber = false,
         ))
     }
+
+    @Test
+    fun companyNoteSharesOnlyItsExactKnownPersonalCall() {
+        assertTrue(CommunicationSyncPrivacyPolicy.shouldShareCall(
+            crmEnabled = false,
+            unknownNumber = false,
+            exactCompanyCall = true,
+        ))
+        assertFalse(CommunicationSyncPrivacyPolicy.shouldShareCall(
+            crmEnabled = false,
+            unknownNumber = false,
+            exactCompanyCall = false,
+        ))
+    }
 }
