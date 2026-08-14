@@ -106,6 +106,7 @@ internal class ContactNotesStickyHistoryUi(
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
             topBar?.let { bar ->
+                bar.translationZ = dp(TOP_BAR_Z_DP).toFloat()
                 addView(bar, LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     dp(FIXED_TOP_BAR_HEIGHT_DP),
@@ -375,5 +376,6 @@ internal class ContactNotesStickyHistoryUi(
         const val MODE_ICON_PILL_HEIGHT_DP = 28
         const val MODE_ICON_PILL_RADIUS_DP = 16
         const val CALL_BUTTON_SIZE_DP = 54
+        const val TOP_BAR_Z_DP = 1
     }
 }
