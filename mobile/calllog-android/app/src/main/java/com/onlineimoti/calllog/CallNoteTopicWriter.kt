@@ -9,6 +9,7 @@ internal object CallNoteTopicWriter {
         phone: String,
         text: String,
         companyId: String,
+        scheduleWorker: Boolean = true,
     ): CallNoteWriteResult {
         // A company/topic note is server-scoped metadata. It must not imply that
         // this device/user has marked the phone as a local CRM client.
@@ -16,7 +17,13 @@ internal object CallNoteTopicWriter {
         val cached = CallReportCompanyGeneralNoteStore.saveOrDelete(context, phone, companyId, text)
         if (!cached) return CallNoteWriteResult(false, true, CallNoteTarget("", 0L, 0L))
 
-        val queued = CallReportTopicNoteOutbox.enqueueGeneral(context, phone, text, companyId)
+        val queued = CallReportTopicNoteOutbox.enqueueGeneral(
+            context = context,
+            phone = phone,
+            note = text,
+            companyId = companyId,
+            scheduleWorker = scheduleWorker,
+        )
         if (!CompanyMainNoteSavePolicy.isSaved(cached, queued)) {
             // Never report success for a server-scoped note that only reached the
             // temporary local cache. Restore the previous cache value instead.
@@ -40,6 +47,7 @@ internal object CallNoteTopicWriter {
         existingClientEventId: String = "",
         authorProfileId: String = "",
         authorName: String = "",
+        scheduleWorker: Boolean = true,
     ): CallNoteWriteResult {
         val target = targetFor(context, phone, direction, callAt, durationSeconds, actionIssuedAt)
         if (!target.hasCall) {
@@ -69,6 +77,7 @@ internal object CallNoteTopicWriter {
             existingClientEventId = existingClientEventId,
             authorProfileId = authorProfileId,
             authorName = authorName,
+            scheduleWorker = scheduleWorker,
         )
         val result = CallNoteWriteResult(saved, false, target)
         if (!saved) return result
@@ -76,11 +85,13 @@ internal object CallNoteTopicWriter {
         // The company note authorizes sharing this concrete call even when the
         // number is otherwise a known personal contact. It never opens future calls.
         CompanySharedCallStore.mark(context, phone, target.direction, target.callAt)
-        CallReportSyncScheduler.enqueueCatchUp(
-            context.applicationContext,
-            reason = "company_call_note",
-            initialDelayMillis = 500L,
-        )
+        if (scheduleWorker) {
+            CallReportSyncScheduler.enqueueCatchUp(
+                context.applicationContext,
+                reason = "company_call_note",
+                initialDelayMillis = 500L,
+            )
+        }
         PendingCallNoteStore.clearResolvedForCall(context, phone, target.direction, target.callAt)
         HomeCrmCompanyMembershipStore.invalidate(context, phone)
         return result
