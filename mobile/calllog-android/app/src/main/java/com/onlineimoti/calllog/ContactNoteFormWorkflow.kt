@@ -113,6 +113,7 @@ internal object ContactNoteFormWorkflow {
         noteText: String,
         topicCompanyId: String,
         localOnlyFallback: Boolean = false,
+        scheduleServerSync: Boolean = true,
     ): ContactNoteFormSaveResult {
         val appContext = context.applicationContext
         val existingServerNoteId = draft.serverClientEventId.trim()
@@ -145,7 +146,13 @@ internal object ContactNoteFormWorkflow {
                 )
             }
             serverCompanyId.isNotBlank() && draft.isGeneralNote -> {
-                CallNoteTopicWriter.writeGeneral(appContext, draft.phone, noteText, serverCompanyId)
+                CallNoteTopicWriter.writeGeneral(
+                    context = appContext,
+                    phone = draft.phone,
+                    text = noteText,
+                    companyId = serverCompanyId,
+                    scheduleWorker = scheduleServerSync,
+                )
             }
             serverCompanyId.isNotBlank() -> {
                 CallNoteTopicWriter.writeCallOrGeneral(
@@ -158,6 +165,7 @@ internal object ContactNoteFormWorkflow {
                     actionIssuedAt = draft.actionIssuedAt,
                     companyId = serverCompanyId,
                     existingClientEventId = existingServerNoteId,
+                    scheduleWorker = scheduleServerSync,
                 )
             }
             draft.isGeneralNote -> {
