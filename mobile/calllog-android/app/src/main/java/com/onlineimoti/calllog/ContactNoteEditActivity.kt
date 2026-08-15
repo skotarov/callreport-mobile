@@ -276,6 +276,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         captureScopeTexts()
         val originalEventId = serverClientEventId
         var lastOutcome: ContactNoteEditSaveOutcome? = null
+        var queuedCompanySync = false
         for (companyId in scopeIds()) {
             val text = scopeTexts[companyId].orEmpty()
             val persisted = persistedScopeValues[companyId] ?: ContactNoteScopeValue()
@@ -284,24 +285,42 @@ class ContactNoteEditActivity : FontScaledActivity() {
             // Each company has its own server identity. Never reuse one company's
             // client_event_id while saving another field.
             serverClientEventId = persisted.serverClientEventId
+            val isCompanyScope = companyId != ContactNoteTopicState.LOCAL_COMPANY_ID
             val outcome = saveController.save(
                 noteText = text,
                 topicCompanyId = companyId,
                 localOnlyFallback = false,
+                scheduleServerSync = !isCompanyScope,
             )
             if (!outcome.saved) {
                 serverClientEventId = originalEventId
+                if (queuedCompanySync) scheduleQueuedCompanySync()
                 if (showOutcome) saveController.showOutcome(outcome)
                 return false
             }
+            if (isCompanyScope) queuedCompanySync = true
             persistedScopeValues[companyId] = persisted.copy(text = text)
             lastOutcome = outcome
         }
         serverClientEventId = originalEventId
+        if (queuedCompanySync) scheduleQueuedCompanySync()
         if (showOutcome) {
             saveController.showOutcome(lastOutcome ?: ContactNoteEditSaveOutcome(saved = true))
         }
         return true
+    }
+
+    private fun scheduleQueuedCompanySync() {
+        if (isGeneralNote) {
+            CallReportTopicNoteOutbox.requestSyncNow(applicationContext)
+        } else {
+            CompanyCallNoteOutbox.requestSyncNow(applicationContext)
+            CallReportSyncScheduler.enqueueCatchUp(
+                applicationContext,
+                reason = "company_call_note_batch",
+                initialDelayMillis = 500L,
+            )
+        }
     }
 
     private fun saveAndSwitch(target: UnifiedNoteKind, @Suppress("UNUSED_PARAMETER") ignoredText: String) {
