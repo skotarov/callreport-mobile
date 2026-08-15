@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.EditText
-import android.widget.RadioGroup
+import android.widget.LinearLayout
 import android.widget.Toast
 import java.util.concurrent.Executors
 
@@ -23,15 +23,13 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private var generalServerClientEventId = ""
     private var serverClientEventId = ""
     private var topicState = ContactNoteTopicState(visible = false)
-    private var topicControl: RadioGroup? = null
-    private var noteInput: EditText? = null
-    private var persistedEditorText = ""
+    private var fieldsContainer: LinearLayout? = null
+    private var focusedScopeId = ContactNoteTopicState.LOCAL_COMPANY_ID
     private var editorGeneration = 0
-    private var scopeTextController: ContactNoteScopeTextController? = null
-    private var currentScopeValue = ContactNoteScopeValue()
-    private var moveMode = false
-    private var moveInProgress = false
-    private var moveSourceCompanyId = ""
+    private val scopeInputs = linkedMapOf<String, EditText>()
+    private val scopeTexts = linkedMapOf<String, String>()
+    private val persistedScopeValues = linkedMapOf<String, ContactNoteScopeValue>()
+    private var serverScopeValues: Map<String, ContactNoteScopeValue>? = null
     private val topicExecutor = Executors.newSingleThreadExecutor()
     private val saveController by lazy {
         ContactNoteEditSaveController(
@@ -75,11 +73,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
             super.onBackPressed()
             return
         }
-        if (moveMode && !moveInProgress) {
-            cancelMoveMode()
-            return
-        }
-        requestCloseWithoutSaving(noteInput?.text?.toString().orEmpty())
+        requestCloseWithoutSaving("")
     }
 
     override fun onDestroy() {
@@ -91,47 +85,21 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private fun renderEditor() {
         editorGeneration += 1
         val generation = editorGeneration
-        topicControl = null
-        noteInput = null
-        scopeTextController = ContactNoteScopeTextController(
-            activity = this,
-            executor = topicExecutor,
-            draft = ::draft,
-            selectedCompanyId = { topicState.selectedCompanyId },
-            noteInput = { noteInput },
-            isActive = { generation == editorGeneration && !isFinishing && !isDestroyed },
-            initialScopeId = { preferredCompanyId.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID } },
-            initialValue = {
-                ContactNoteScopeValue(
-                    text = initialTextForScope(),
-                    serverClientEventId = serverClientEventId,
-                    confirmedServer = serverClientEventId.isNotBlank() &&
-                        ServerRecordIndex.isConfirmed(this, serverClientEventId),
-                )
-            },
-            onValueApplied = { _, value ->
-                currentScopeValue = value
-                persistedEditorText = value.text
-                serverClientEventId = value.serverClientEventId
-                storeCurrentServerEventId(value.serverClientEventId)
-                if (!isGeneralNote) initialNoteText = value.text
-                topicControl?.let(::bindTopicControl)
-            },
-        )
+        fieldsContainer = null
+        scopeInputs.clear()
+        scopeTexts.clear()
+        persistedScopeValues.clear()
+        serverScopeValues = null
+        seedInitialValues()
+
         setContentView(ContactNoteEditUi(
             activity = this,
             state = ::uiState,
-            onTopicSelected = ::selectTopicCompany,
-            onNoteInputReady = { input ->
-                noteInput = input
-                persistedEditorText = input.text?.toString().orEmpty()
-                if (topicState.visible) scopeTextController?.refresh(topicState.selectedCompanyId, input)
-            },
-            onTopicControlReady = { topicControl = it },
-            onMoveAction = ::toggleMoveMode,
+            textForScope = ::textForScope,
+            onScopeInputReady = ::onScopeInputReady,
+            onFieldsReady = { fieldsContainer = it },
             saveAndSwitch = ::saveAndSwitch,
             saveAndClose = ::saveAndClose,
-            deleteAndClose = ::deleteSelectedNote,
             saveAndOpenCalendar = ::saveAndOpenCalendar,
             close = ::requestCloseWithoutSaving,
         ).buildContent())
@@ -191,170 +159,154 @@ class ContactNoteEditActivity : FontScaledActivity() {
         topic = topicState,
         willEnableServerSync = ContactNoteFormWorkflow.willEnableServerSync(this, draft(), topicState),
         initialNoteText = if (isGeneralNote) "" else initialNoteText,
-        move = moveUiState(),
     )
+
+    private fun seedInitialValues() {
+        val localId = ContactNoteTopicState.LOCAL_COMPANY_ID
+        val localValue = ContactNoteScopeTextResolver.cachedValue(this, draft(), localId)
+        persistedScopeValues[localId] = localValue
+        scopeTexts[localId] = localValue.text
+
+        val initialScopeId = preferredCompanyId
+            .ifBlank { topicState.selectedCompanyId }
+            .ifBlank { localId }
+        if (initialScopeId != localId && (initialNoteText.isNotBlank() || serverClientEventId.isNotBlank())) {
+            val initialValue = ContactNoteScopeValue(
+                text = initialNoteText,
+                serverClientEventId = serverClientEventId,
+                confirmedServer = serverClientEventId.isNotBlank() && ServerRecordIndex.isConfirmed(this, serverClientEventId),
+            )
+            persistedScopeValues[initialScopeId] = initialValue
+            scopeTexts[initialScopeId] = initialValue.text
+        } else if (initialScopeId == localId && initialNoteText.isNotBlank() && localValue.text.isBlank()) {
+            val initialValue = localValue.copy(text = initialNoteText)
+            persistedScopeValues[localId] = initialValue
+            scopeTexts[localId] = initialValue.text
+        }
+    }
 
     private fun loadTopicCompanies(generation: Int) {
         val initialState = topicState
         topicExecutor.execute {
             val loadedState = ContactNoteFormWorkflow.loadTopics(applicationContext, initialState)
+            val loadedServerValues = if (loadedState.companies.isNotEmpty()) {
+                runCatching { ContactNoteScopeTextResolver.loadServerValues(applicationContext, draft()) }.getOrNull()
+            } else null
             runOnUiThread {
-                if (generation != editorGeneration || isFinishing || isDestroyed || !topicState.visible) return@runOnUiThread
+                if (generation != editorGeneration || isFinishing || isDestroyed) return@runOnUiThread
+                captureScopeTexts()
                 topicState = when {
                     preferredCompanyId == ContactNoteTopicState.LOCAL_COMPANY_ID ->
                         loadedState.copy(selectedCompanyId = ContactNoteTopicState.LOCAL_COMPANY_ID)
                     preferredCompanyId.isNotBlank() && loadedState.companies.any { it.id == preferredCompanyId } ->
                         loadedState.copy(selectedCompanyId = preferredCompanyId)
-                    preferredCompanyId.isNotBlank() && loadedState.loadError.isNotBlank() ->
-                        loadedState.copy(selectedCompanyId = preferredCompanyId)
                     else -> loadedState
                 }
-                topicControl?.let(::bindTopicControl)
-                noteInput?.let { scopeTextController?.refresh(topicState.selectedCompanyId, it) }
-            }
-        }
-    }
-
-    private fun bindTopicControl(control: RadioGroup) {
-        ContactNoteTopicFieldUi(this, ::dp).bind(
-            control = control,
-            state = topicState,
-            onSelected = { selected -> noteInput?.let { selectTopicCompany(selected, it) } },
-            moveState = moveUiState(),
-            onMoveAction = ::toggleMoveMode,
-        )
-    }
-
-    private fun selectTopicCompany(selectedCompanyId: String, input: EditText) {
-        if (moveMode) {
-            moveToCompany(selectedCompanyId, input)
-            return
-        }
-        val switched = ContactNoteScopeSwitchCoordinator.switch(
-            currentCompanyId = topicState.selectedCompanyId,
-            nextCompanyId = selectedCompanyId,
-            editorReady = noteInput != null,
-            persistCurrent = { saveForTransition(input.text?.toString().orEmpty()) },
-            applyNext = { nextCompanyId ->
-                preferredCompanyId = nextCompanyId
-                topicState = topicState.copy(selectedCompanyId = nextCompanyId)
-                scopeTextController?.refresh(nextCompanyId, input)
-            },
-        )
-        if (!switched) {
-            Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()
-            topicControl?.let(::bindTopicControl)
-        }
-    }
-
-    private fun moveUiState(): ContactNoteMoveUiState {
-        val selected = topicState.selectedCompanyId
-        val text = noteInput?.text?.toString().orEmpty()
-        return ContactNoteMoveUiState(
-            canMove = !moveInProgress && ContactNoteMovePolicy.canStart(
-                selectedCompanyId = selected,
-                value = currentScopeValue,
-                currentText = text,
-                companyCount = topicState.companies.size,
-            ),
-            selectingTarget = moveMode,
-            moving = moveInProgress,
-            sourceCompanyId = moveSourceCompanyId,
-        )
-    }
-
-    private fun toggleMoveMode() {
-        if (moveInProgress) return
-        if (moveMode) {
-            cancelMoveMode()
-            return
-        }
-        if (!moveUiState().canMove) return
-        moveMode = true
-        moveSourceCompanyId = topicState.selectedCompanyId
-        topicControl?.let(::bindTopicControl)
-    }
-
-    private fun cancelMoveMode() {
-        moveMode = false
-        moveSourceCompanyId = ""
-        topicControl?.let(::bindTopicControl)
-    }
-
-    private fun moveToCompany(targetCompanyId: String, input: EditText) {
-        val sourceCompanyId = moveSourceCompanyId
-        if (!ContactNoteMovePolicy.canTarget(sourceCompanyId, targetCompanyId)) {
-            Toast.makeText(this, "Избери друга фирма", Toast.LENGTH_SHORT).show()
-            topicControl?.let(::bindTopicControl)
-            return
-        }
-        val sourceValue = currentScopeValue
-        val targetValue = scopeTextController?.valueFor(targetCompanyId) ?: ContactNoteScopeValue()
-        if (targetValue.text.isNotBlank() && !targetValue.confirmedServer) {
-            Toast.makeText(this, "Изчакай бележката в целевата фирма да се синхронизира", Toast.LENGTH_SHORT).show()
-            topicControl?.let(::bindTopicControl)
-            return
-        }
-        val sourceText = input.text?.toString().orEmpty().trim()
-        if (!sourceValue.confirmedServer || sourceValue.serverClientEventId.isBlank() || sourceText.isBlank()) {
-            Toast.makeText(this, "Бележката още не е готова за преместване", Toast.LENGTH_SHORT).show()
-            cancelMoveMode()
-            return
-        }
-
-        moveInProgress = true
-        topicControl?.let(::bindTopicControl)
-        val request = ContactNoteMoveRequest(
-            noteKind = if (isGeneralNote) "main" else "call",
-            sourceCompanyId = sourceCompanyId,
-            targetCompanyId = targetCompanyId,
-            sourceClientEventId = sourceValue.serverClientEventId,
-            targetClientEventId = targetValue.serverClientEventId.takeIf { targetValue.confirmedServer }.orEmpty(),
-            phone = phone,
-            sourceNote = sourceText,
-        )
-        topicExecutor.execute {
-            val result = runCatching { ContactNoteMoveClient.move(applicationContext, request) }
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                result.onSuccess { moved ->
-                    ContactNoteMoveClient.applyLocalResult(
-                        applicationContext,
-                        draft(),
-                        sourceCompanyId,
-                        sourceValue.serverClientEventId,
-                        moved,
+                serverScopeValues = loadedServerValues
+                topicState.companies.forEach { company ->
+                    val value = ContactNoteScopeTextResolver.valueFor(
+                        companyId = company.id,
+                        draft = draft(),
+                        serverValues = loadedServerValues,
+                        context = this,
                     )
-                    preferredCompanyId = moved.targetCompanyId
-                    sendBroadcast(Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(packageName))
-                    Toast.makeText(
-                        this,
-                        "Бележката е преместена в ${moved.targetCompanyName.ifBlank { companyName(moved.targetCompanyId) }}",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    finish()
-                }.onFailure { error ->
-                    moveInProgress = false
-                    moveMode = true
-                    topicControl?.let(::bindTopicControl)
-                    Toast.makeText(
-                        this,
-                        error.message.orEmpty().ifBlank { "Бележката не можа да бъде преместена" },
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    // Preserve an explicit launcher value for this scope, but otherwise
+                    // let the authoritative server/cached value establish the baseline.
+                    if (!persistedScopeValues.containsKey(company.id) || scopeTexts[company.id] == persistedScopeValues[company.id]?.text) {
+                        persistedScopeValues[company.id] = value
+                        if (!scopeTexts.containsKey(company.id)) scopeTexts[company.id] = value.text
+                    }
                 }
+                bindAllFields()
             }
         }
     }
 
-    private fun companyName(companyId: String): String =
-        topicState.companies.firstOrNull { it.id == companyId }?.name.orEmpty().ifBlank { "другата фирма" }
+    private fun bindAllFields() {
+        val container = fieldsContainer ?: return
+        captureScopeTexts()
+        scopeInputs.clear()
+        ContactNoteMultiScopeFieldsUi(this, ::dp).bind(
+            container = container,
+            state = topicState,
+            kind = if (isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
+            textFor = ::textForScope,
+            onInputReady = ::onScopeInputReady,
+        )
+    }
 
-    private fun saveAndSwitch(target: UnifiedNoteKind, noteText: String) {
-        moveMode = false
-        moveSourceCompanyId = ""
+    private fun onScopeInputReady(companyId: String, input: EditText) {
+        scopeInputs[companyId] = input
+        if (!scopeTexts.containsKey(companyId)) scopeTexts[companyId] = input.text?.toString().orEmpty()
+        input.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) focusedScopeId = companyId
+        }
+    }
+
+    private fun textForScope(companyId: String): String {
+        scopeTexts[companyId]?.let { return it }
+        val value = persistedScopeValues[companyId] ?: ContactNoteScopeTextResolver.valueFor(
+            companyId = companyId,
+            draft = draft(),
+            serverValues = serverScopeValues,
+            context = this,
+        ).also { persistedScopeValues[companyId] = it }
+        return value.text
+    }
+
+    private fun captureScopeTexts() {
+        scopeInputs.forEach { (companyId, input) ->
+            scopeTexts[companyId] = input.text?.toString().orEmpty()
+        }
+    }
+
+    private fun scopeIds(): List<String> = buildList {
+        add(ContactNoteTopicState.LOCAL_COMPANY_ID)
+        topicState.companies.mapTo(this) { it.id }
+    }.filter { it.isNotBlank() }.distinct()
+
+    private fun hasUnsavedChanges(): Boolean {
+        captureScopeTexts()
+        return scopeIds().any { id ->
+            scopeTexts[id].orEmpty() != persistedScopeValues[id]?.text.orEmpty()
+        }
+    }
+
+    private fun saveAll(showOutcome: Boolean): Boolean {
+        captureScopeTexts()
+        val originalEventId = serverClientEventId
+        var lastOutcome: ContactNoteEditSaveOutcome? = null
+        for (companyId in scopeIds()) {
+            val text = scopeTexts[companyId].orEmpty()
+            val persisted = persistedScopeValues[companyId] ?: ContactNoteScopeValue()
+            if (text == persisted.text) continue
+
+            // Each company has its own server identity. Never reuse one company's
+            // client_event_id while saving another field.
+            serverClientEventId = persisted.serverClientEventId
+            val outcome = saveController.save(
+                noteText = text,
+                topicCompanyId = companyId,
+                localOnlyFallback = false,
+            )
+            if (!outcome.saved) {
+                serverClientEventId = originalEventId
+                if (showOutcome) saveController.showOutcome(outcome)
+                return false
+            }
+            persistedScopeValues[companyId] = persisted.copy(text = text)
+            lastOutcome = outcome
+        }
+        serverClientEventId = originalEventId
+        if (showOutcome) {
+            saveController.showOutcome(lastOutcome ?: ContactNoteEditSaveOutcome(saved = true))
+        }
+        return true
+    }
+
+    private fun saveAndSwitch(target: UnifiedNoteKind, @Suppress("UNUSED_PARAMETER") ignoredText: String) {
         if (target.isGeneral == isGeneralNote) return
-        if (!saveForTransition(noteText)) {
+        if (!saveAll(showOutcome = false)) {
             Toast.makeText(this, getString(R.string.dynamic_note_save_failed), Toast.LENGTH_SHORT).show()
             return
         }
@@ -362,7 +314,6 @@ class ContactNoteEditActivity : FontScaledActivity() {
         isGeneralNote = target.isGeneral
         serverClientEventId = currentServerEventId()
         topicState = initialTopicState()
-        persistedEditorText = ""
         renderEditor()
     }
 
@@ -380,81 +331,41 @@ class ContactNoteEditActivity : FontScaledActivity() {
         durationSeconds = target.durationSeconds
     }
 
-    private fun saveAndClose(noteText: String) {
-        val destination = selectedTopicCompanyIdOrNull() ?: return
-        val outcome = saveController.save(noteText, destination)
-        saveController.showOutcome(outcome)
-        if (outcome.saved) {
-            markCurrentTextPersisted(noteText)
-            finish()
-        }
+    private fun saveAndClose(@Suppress("UNUSED_PARAMETER") ignoredText: String) {
+        if (saveAll(showOutcome = true)) finish()
     }
 
-    private fun deleteSelectedNote() = saveAndClose("")
-
-    private fun requestCloseWithoutSaving(noteText: String) {
+    private fun requestCloseWithoutSaving(@Suppress("UNUSED_PARAMETER") ignoredText: String) {
         NoteEditorCloseConfirmation.request(
             activity = this,
-            hasUnsavedChanges = noteText != persistedEditorText,
+            hasUnsavedChanges = hasUnsavedChanges(),
             closeWithoutSaving = ::finish,
         )
     }
 
-    private fun saveForTransition(noteText: String): Boolean {
-        if (noteText == persistedEditorText) return true
-        val strictDestination = if (serverClientEventId.isNotBlank()) {
-            topicState.selectedCompanyId.ifBlank { preferredCompanyId }
-                .ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
-        } else ContactNoteFormWorkflow.selectedTopicOrLocalFallback(topicState)
-        val fallbackLocally = strictDestination == null
-        val destination = strictDestination ?: topicState.selectedCompanyId
-            .ifBlank { preferredCompanyId }.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
-        val outcome = saveController.save(
-            noteText,
-            destination,
-            topicState.loadError.isNotBlank() || fallbackLocally,
+    private fun saveAndOpenCalendar(@Suppress("UNUSED_PARAMETER") ignoredText: String) {
+        if (!saveAll(showOutcome = true)) return
+        ContactNoteCalendarActions.open(
+            this,
+            titleText,
+            phone,
+            isGeneralNote,
+            direction,
+            callAt,
+            durationSeconds,
+            focusedText(),
         )
-        if (!outcome.saved) return false
-        markCurrentTextPersisted(noteText)
-        return true
     }
 
-    private fun saveAndOpenCalendar(noteText: String) {
-        val destination = selectedTopicCompanyIdOrNull() ?: return
-        val outcome = saveController.save(noteText, destination)
-        saveController.showOutcome(outcome)
-        if (outcome.saved) {
-            markCurrentTextPersisted(noteText)
-            ContactNoteCalendarActions.open(
-                this, titleText, phone, isGeneralNote, direction,
-                callAt, durationSeconds, noteText,
-            )
-        }
+    private fun focusedText(): String {
+        captureScopeTexts()
+        return scopeTexts[focusedScopeId]
+            ?: scopeTexts[ContactNoteTopicState.LOCAL_COMPANY_ID]
+            .orEmpty()
     }
-
-    private fun selectedTopicCompanyIdOrNull(): String? {
-        if (serverClientEventId.isNotBlank()) return topicState.selectedCompanyId
-            .ifBlank { preferredCompanyId }.ifBlank { ContactNoteTopicState.LOCAL_COMPANY_ID }
-        return ContactNoteFormWorkflow.selectedTopicOrLocalFallback(topicState) ?: run {
-            Toast.makeText(this, getString(R.string.note_company_required), Toast.LENGTH_SHORT).show()
-            null
-        }
-    }
-
-    private fun markCurrentTextPersisted(noteText: String) {
-        persistedEditorText = noteText
-        if (!isGeneralNote) initialNoteText = noteText
-        storeCurrentServerEventId(serverClientEventId)
-    }
-
-    private fun initialTextForScope(): String = if (isGeneralNote) "" else initialNoteText
 
     private fun currentServerEventId(): String =
         if (isGeneralNote) generalServerClientEventId else callServerClientEventId
-
-    private fun storeCurrentServerEventId(value: String) {
-        if (isGeneralNote) generalServerClientEventId = value else callServerClientEventId = value
-    }
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
