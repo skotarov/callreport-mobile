@@ -62,21 +62,29 @@ internal class OverlayContactNoteFormController(
 
     fun saveAll(): Boolean {
         captureScopeTexts()
+        var queuedCompanySync = false
         for (companyId in scopeIds()) {
             val text = scopeTexts[companyId].orEmpty()
             val persisted = persistedScopeValues[companyId] ?: ContactNoteScopeValue()
             if (text == persisted.text) continue
 
+            val isCompanyScope = companyId != ContactNoteTopicState.LOCAL_COMPANY_ID
             val result = ContactNoteFormWorkflow.save(
                 context = service,
                 draft = draft.copy(serverClientEventId = persisted.serverClientEventId),
                 noteText = text,
                 topicCompanyId = companyId,
                 localOnlyFallback = false,
+                scheduleServerSync = !isCompanyScope,
             )
-            if (!result.saved) return false
+            if (!result.saved) {
+                if (queuedCompanySync) scheduleQueuedCompanySync()
+                return false
+            }
+            if (isCompanyScope) queuedCompanySync = true
             persistedScopeValues[companyId] = persisted.copy(text = text)
         }
+        if (queuedCompanySync) scheduleQueuedCompanySync()
         return true
     }
 
@@ -98,6 +106,19 @@ internal class OverlayContactNoteFormController(
 
     fun focusInput(): EditText? =
         scopeInputs[focusedScopeId] ?: scopeInputs[ContactNoteTopicState.LOCAL_COMPANY_ID]
+
+    private fun scheduleQueuedCompanySync() {
+        if (draft.isGeneralNote) {
+            CallReportTopicNoteOutbox.requestSyncNow(service.applicationContext)
+        } else {
+            CompanyCallNoteOutbox.requestSyncNow(service.applicationContext)
+            CallReportSyncScheduler.enqueueCatchUp(
+                service.applicationContext,
+                reason = "company_call_note_batch",
+                initialDelayMillis = 500L,
+            )
+        }
+    }
 
     private fun initialTopicState(preferredCompanyId: String): ContactNoteTopicState {
         val base = ContactNoteFormWorkflow.initialTopicState(service, draft)
