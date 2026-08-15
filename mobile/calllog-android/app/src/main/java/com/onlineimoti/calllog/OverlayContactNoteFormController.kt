@@ -32,8 +32,7 @@ internal class OverlayContactNoteFormController(
         persistedScopeValues[localId] = localValue
         scopeTexts[localId] = localValue.text
 
-        val initialScopeId = topicState.selectedCompanyId
-            .ifBlank { localId }
+        val initialScopeId = topicState.selectedCompanyId.ifBlank { localId }
         if (initialScopeId == localId) {
             if (initialText.isNotBlank() && localValue.text.isBlank()) {
                 persistedScopeValues[localId] = localValue.copy(text = initialText)
@@ -96,6 +95,9 @@ internal class OverlayContactNoteFormController(
     }
 
     fun effectiveCompanyId(): String = focusedScopeId
+
+    fun focusInput(): EditText? =
+        scopeInputs[focusedScopeId] ?: scopeInputs[ContactNoteTopicState.LOCAL_COMPANY_ID]
 
     private fun initialTopicState(preferredCompanyId: String): ContactNoteTopicState {
         val base = ContactNoteFormWorkflow.initialTopicState(service, draft)
