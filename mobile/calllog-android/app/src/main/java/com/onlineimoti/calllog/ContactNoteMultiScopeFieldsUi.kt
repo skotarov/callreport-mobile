@@ -109,7 +109,7 @@ internal class ContactNoteMultiScopeFieldsUi(
             })
             if (serverBacked) {
                 addView(TextView(context).apply {
-                    text = if (AppLocaleText.isBulgarian()) "сървър" else "server"
+                    this.text = if (AppLocaleText.isBulgarian()) "сървър" else "server"
                     textSize = 11f
                     setTextColor(Color.rgb(100, 116, 139))
                     setPadding(dp(6), 0, 0, 0)
