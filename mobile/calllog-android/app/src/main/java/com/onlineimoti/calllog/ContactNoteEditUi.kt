@@ -4,10 +4,10 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.RadioGroup
 import android.widget.ScrollView
 
 internal data class ContactNoteEditUiState(
@@ -28,21 +28,20 @@ internal data class ContactNoteEditUiState(
 internal class ContactNoteEditUi(
     private val activity: Activity,
     private val state: () -> ContactNoteEditUiState,
-    private val onTopicSelected: (String, EditText) -> Unit,
-    private val onNoteInputReady: (EditText) -> Unit,
-    private val onTopicControlReady: (RadioGroup) -> Unit,
-    private val onMoveAction: () -> Unit,
+    private val textForScope: (String) -> String,
+    private val onScopeInputReady: (String, EditText) -> Unit,
+    private val onFieldsReady: (LinearLayout) -> Unit,
     private val saveAndSwitch: (UnifiedNoteKind, String) -> Unit,
     private val saveAndClose: (String) -> Unit,
-    private val deleteAndClose: () -> Unit,
     private val saveAndOpenCalendar: (String) -> Unit,
     private val close: (String) -> Unit,
 ) {
-    private val topicFieldUi by lazy { ContactNoteTopicFieldUi(activity, ::dp) }
+    private val multiFieldsUi by lazy { ContactNoteMultiScopeFieldsUi(activity, ::dp) }
 
     fun buildContent(): ScrollView {
         val current = state()
         val (crmText, crmColor) = crmStatus(current)
+        var firstInput: EditText? = null
         val built = UnifiedNoteEditorContentUi(activity, ::dp).build(
             state = UnifiedNoteEditorState(
                 kind = if (current.isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
@@ -51,7 +50,7 @@ internal class ContactNoteEditUi(
                 direction = current.direction,
                 callAt = current.callAt,
                 durationSeconds = current.durationSeconds,
-                noteText = initialText(current),
+                noteText = "",
                 crmStatusText = crmText,
                 crmStatusColor = crmColor,
             ),
@@ -60,21 +59,30 @@ internal class ContactNoteEditUi(
                 save = saveAndClose,
                 close = close,
                 openCalendar = saveAndOpenCalendar,
-                delete = deleteAndClose,
+                delete = null,
             ),
-            beforeInput = { card, input ->
-                topicFieldUi.create(
+            beforeInput = { card, _ ->
+                val fields = multiFieldsUi.create(
                     state = current.topic,
-                    onSelected = { companyId -> onTopicSelected(companyId, input) },
-                    onControlReady = onTopicControlReady,
-                    moveState = current.move,
-                    onMoveAction = onMoveAction,
-                )?.let(card::addView)
+                    kind = if (current.isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
+                    textFor = textForScope,
+                    onInputReady = { companyId, input ->
+                        if (firstInput == null && companyId == ContactNoteTopicState.LOCAL_COMPANY_ID) {
+                            firstInput = input
+                        }
+                        onScopeInputReady(companyId, input)
+                    },
+                )
+                card.addView(fields)
+                onFieldsReady(fields)
             },
         )
+        // UnifiedNoteEditorContentUi still owns the common title/tabs/actions. Its
+        // legacy single input is hidden because Local + every company are rendered
+        // by ContactNoteMultiScopeFieldsUi above it.
+        built.input.visibility = View.GONE
         built.card.background = roundedRect(Color.WHITE, dp(22))
         built.card.elevation = dp(5).toFloat()
-        onNoteInputReady(built.input)
 
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -82,30 +90,14 @@ internal class ContactNoteEditUi(
             setBackgroundColor(Color.rgb(248, 250, 252))
             addView(built.card)
         }
-        built.input.requestFocus()
-        built.input.postDelayed({
-            (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
-                ?.showSoftInput(built.input, InputMethodManager.SHOW_IMPLICIT)
-        }, 250)
-        return ScrollView(activity).apply { addView(root) }
-    }
-
-    private fun initialText(current: ContactNoteEditUiState): String {
-        // initialNoteText is valid only when it is tied to a concrete call. A form
-        // opened for a phone/contact without call identity can carry unscoped/main
-        // text from its launcher; using that text in the blue tab makes the two tabs
-        // appear to share one value. With no call identity, blue must start from its
-        // own call-note store (normally empty) instead of borrowing yellow text.
-        if (
-            !current.isGeneralNote &&
-            current.callAt > 0L &&
-            current.initialNoteText.isNotBlank()
-        ) return current.initialNoteText
-        return if (current.isGeneralNote) {
-            ContactNoteReader.generalNoteForPhone(activity, current.phone)
-        } else {
-            ContactNoteReader.callNoteForPhone(activity, current.phone, current.callAt, current.direction)
+        firstInput?.let { input ->
+            input.requestFocus()
+            input.postDelayed({
+                (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+                    ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+            }, 250)
         }
+        return ScrollView(activity).apply { addView(root) }
     }
 
     private fun crmStatus(current: ContactNoteEditUiState): Pair<String, Int> {
