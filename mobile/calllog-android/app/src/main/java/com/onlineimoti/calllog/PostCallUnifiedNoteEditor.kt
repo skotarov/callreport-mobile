@@ -82,29 +82,13 @@ internal class PostCallUnifiedNoteEditor(
             dp = ui::dp,
             draft = draft,
             preferredCompanyId = initialCompanyId,
-            onMoveCompleted = { moved ->
-                setPending("")
-                setPreferredCompanyId(moved.targetCompanyId)
-                notifyNotesChanged()
-                stopOverlay()
-            },
         )
 
-        fun saveCurrent(noteText: String, transition: Boolean): Boolean {
-            setPending(noteText)
-            if (!form.hasChangedText(noteText)) {
-                setPreferredCompanyId(form.effectiveCompanyId().ifBlank { initialCompanyId })
-                return true
-            }
-            val result = if (transition) form.saveForTransition(noteText) else form.save(noteText) ?: return false
-            if (!result.saved) return false
-            form.markTextPersisted(noteText)
-            val destination = if (result.localOnlyFallback) {
-                ContactNoteTopicState.LOCAL_COMPANY_ID
-            } else {
-                form.effectiveCompanyId().ifBlank { initialCompanyId }
-            }
-            setPreferredCompanyId(destination)
+        fun saveCurrent(): Boolean {
+            setPending(form.focusedText())
+            setPreferredCompanyId(form.effectiveCompanyId().ifBlank { initialCompanyId })
+            if (!form.hasChanges()) return true
+            if (!form.saveAll()) return false
             notifyNotesChanged()
             return true
         }
@@ -115,8 +99,8 @@ internal class PostCallUnifiedNoteEditor(
             "Не успях да запиша бележката"
         }
 
-        fun runAfterSave(noteText: String, transition: Boolean, action: () -> Unit) {
-            if (saveCurrent(noteText, transition)) action()
+        fun runAfterSave(action: () -> Unit) {
+            if (saveCurrent()) action()
             else Toast.makeText(service, failureMessage(), Toast.LENGTH_SHORT).show()
         }
 
@@ -131,47 +115,45 @@ internal class PostCallUnifiedNoteEditor(
                 noteText = originalText,
             ),
             callbacks = UnifiedNoteEditorCallbacks(
-                switchMode = { target, text ->
-                    runAfterSave(text, transition = true) { show(target) }
+                switchMode = { target, _ ->
+                    runAfterSave { show(target) }
                 },
-                save = { text ->
-                    runAfterSave(text, transition = false) {
+                save = {
+                    runAfterSave {
                         Toast.makeText(
                             service,
-                            if (kind.isGeneral) "Основната бележка е записана" else "Бележката към обаждането е записана",
+                            if (kind.isGeneral) "Основните бележки са записани" else "Бележките към обаждането са записани",
                             Toast.LENGTH_SHORT,
                         ).show()
                         stopOverlay()
                     }
                 },
-                close = { text ->
+                close = {
                     NoteEditorCloseConfirmation.requestOverlay(
                         service = service,
-                        hasUnsavedChanges = form.hasChangedText(text),
+                        hasUnsavedChanges = form.hasChanges(),
                         closeWithoutSaving = stopOverlay,
                     )
                 },
-                openCalendar = { text ->
-                    runAfterSave(text, transition = true) { openCalendarEvent(titleText) }
+                openCalendar = {
+                    runAfterSave { openCalendarEvent(titleText) }
                 },
-                delete = {
-                    runAfterSave("", transition = true) {
-                        Toast.makeText(service, "Бележката е изтрита", Toast.LENGTH_SHORT).show()
-                        stopOverlay()
-                    }
-                },
-                openHistory = { text ->
-                    runAfterSave(text, transition = true, action = openContactNotesScreen)
+                delete = null,
+                openHistory = {
+                    runAfterSave(action = openContactNotesScreen)
                 },
             ),
             beforeInput = { card, input -> form.addTopicFieldTo(card, input) },
         )
         ui.stylePopupCard(built.card)
         addDraggableOverlay(ui.shadowScroll(built.card), true, ui.dp(135), 0L)
-        built.input.requestFocus()
+        val focusInput = form.focusInput()
+        focusInput?.requestFocus()
         handler.postDelayed({
-            (service.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
-                ?.showSoftInput(built.input, InputMethodManager.SHOW_IMPLICIT)
+            focusInput?.let { input ->
+                (service.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+                    ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+            }
         }, 250)
     }
 
