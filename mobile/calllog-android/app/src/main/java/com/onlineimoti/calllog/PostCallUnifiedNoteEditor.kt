@@ -145,6 +145,8 @@ internal class PostCallUnifiedNoteEditor(
             ),
             beforeInput = { card, input -> form.addTopicFieldTo(card, input) },
         )
+        // Local + company fields replace the shared legacy single input in this host.
+        built.input.visibility = View.GONE
         ui.stylePopupCard(built.card)
         addDraggableOverlay(ui.shadowScroll(built.card), true, ui.dp(135), 0L)
         val focusInput = form.focusInput()
