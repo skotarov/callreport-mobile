@@ -6,7 +6,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
-import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -66,7 +65,7 @@ internal class ContactNoteMultiScopeFieldsUi(
             }
 
         val status = when {
-            state.loading -> context.getString(R.string.dynamic_note_companies_loading)
+            state.loading -> if (AppLocaleText.isBulgarian()) "Зареждат се фирмите…" else "Loading companies…"
             state.usingCachedCompanies -> context.getString(R.string.dynamic_note_companies_cached_offline)
             state.loadError.isNotBlank() -> context.getString(R.string.dynamic_note_companies_unavailable_deferred)
             else -> ""
