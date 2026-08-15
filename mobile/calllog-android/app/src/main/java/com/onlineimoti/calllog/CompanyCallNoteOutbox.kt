@@ -80,6 +80,7 @@ internal object CompanyCallNoteOutbox {
         existingClientEventId: String = "",
         authorProfileId: String = "",
         authorName: String = "",
+        scheduleWorker: Boolean = true,
     ): Boolean {
         val appContext = context.applicationContext
         val target = companyId.trim()
@@ -112,9 +113,19 @@ internal object CompanyCallNoteOutbox {
             updated += operation
             writeLocked(appContext, updated)
         }
-        schedule(appContext)
+        if (scheduleWorker) requestSyncNow(appContext)
         notifyChanged(appContext)
         return true
+    }
+
+    fun requestSyncNow(context: Context) {
+        if (!hasPending(context)) return
+        val request = OneTimeWorkRequestBuilder<CompanyCallNoteWorker>()
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context.applicationContext)
+            .enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
     }
 
     fun pendingEvents(context: Context, phones: Collection<String>): List<CallReportHistoryEvent> {
@@ -156,14 +167,6 @@ internal object CompanyCallNoteOutbox {
 
     internal fun hasPending(context: Context): Boolean = synchronized(lock) {
         readLocked(context.applicationContext).isNotEmpty()
-    }
-
-    private fun schedule(context: Context) {
-        val request = OneTimeWorkRequestBuilder<CompanyCallNoteWorker>()
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
     }
 
     private fun readLocked(context: Context): List<QueuedCompanyCallNote> {
