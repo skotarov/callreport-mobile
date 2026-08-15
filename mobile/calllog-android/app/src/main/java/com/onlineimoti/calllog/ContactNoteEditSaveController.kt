@@ -23,6 +23,7 @@ internal class ContactNoteEditSaveController(
         noteText: String,
         topicCompanyId: String,
         localOnlyFallback: Boolean = topicState().loadError.isNotBlank(),
+        scheduleServerSync: Boolean = true,
     ): ContactNoteEditSaveOutcome {
         val result = ContactNoteFormWorkflow.save(
             context = activity,
@@ -30,6 +31,7 @@ internal class ContactNoteEditSaveController(
             noteText = noteText,
             topicCompanyId = topicCompanyId,
             localOnlyFallback = localOnlyFallback,
+            scheduleServerSync = scheduleServerSync,
         )
         if (!result.saved) return ContactNoteEditSaveOutcome(saved = false)
         if (!result.writeResult.savedAsGeneralNote) applyTarget(result.writeResult.target)
