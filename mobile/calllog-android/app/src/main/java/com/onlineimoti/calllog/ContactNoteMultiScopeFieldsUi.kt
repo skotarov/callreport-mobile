@@ -119,12 +119,14 @@ internal class ContactNoteMultiScopeFieldsUi(
         val input = EditText(context).apply {
             setText(text)
             setSelection(this.text?.length ?: 0)
-            minLines = 2
-            maxLines = 6
+            minLines = 1
+            maxLines = Int.MAX_VALUE
             textSize = 15f
             setTextColor(colors.text)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             setSingleLine(false)
+            setHorizontallyScrolling(false)
+            isVerticalScrollBarEnabled = false
             gravity = Gravity.TOP or Gravity.START
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = roundedRect(colors.background, dp(10), colors.border, if (colors.border == Color.TRANSPARENT) 0 else dp(1))
