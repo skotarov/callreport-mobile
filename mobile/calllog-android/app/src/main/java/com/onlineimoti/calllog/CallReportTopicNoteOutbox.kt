@@ -19,7 +19,7 @@ internal object CallReportTopicNoteOutbox {
     private const val UNIQUE_WORK = "callreport_topic_note_sync"
     private val lock = Any()
 
-    fun enqueueGeneral(context: Context, phone: String, note: String, companyId: String): Boolean {
+    fun enqueueGeneral(context: Context, phone: String, note: String, companyId: String, scheduleWorker: Boolean = true): Boolean {
         val appContext = context.applicationContext
         val key = phoneKey(phone)
         val target = companyId.trim()
@@ -35,7 +35,7 @@ internal object CallReportTopicNoteOutbox {
             note = note.trim(),
             contactName = contactName(appContext, phone),
             updatedAtMs = now,
-        ))
+        ), scheduleWorker)
     }
 
     fun enqueueCall(
@@ -47,6 +47,7 @@ internal object CallReportTopicNoteOutbox {
         durationSeconds: Long,
         companyId: String,
         clientNoteId: String = "",
+        scheduleWorker: Boolean = true,
     ): Boolean {
         val appContext = context.applicationContext
         val target = companyId.trim()
@@ -65,7 +66,7 @@ internal object CallReportTopicNoteOutbox {
             note = note.trim(),
             contactName = contactName(appContext, phone),
             updatedAtMs = System.currentTimeMillis(),
-        ))
+        ), scheduleWorker)
     }
 
     /** Makes a conversation local-only and removes every server company copy. */
@@ -92,7 +93,7 @@ internal object CallReportTopicNoteOutbox {
             contactName = contactName(appContext, phone),
             updatedAtMs = System.currentTimeMillis(),
             clearCompanyAssignment = true,
-        ))
+        ), true)
     }
 
     fun enqueueSms(
@@ -116,7 +117,7 @@ internal object CallReportTopicNoteOutbox {
             contactName = contactName(appContext, phone),
             updatedAtMs = System.currentTimeMillis(),
             communicationType = "sms",
-        ))
+        ), true)
     }
 
     fun pendingCount(context: Context): Int = synchronized(lock) { readLocked(context).size }
@@ -179,8 +180,6 @@ internal object CallReportTopicNoteOutbox {
     internal fun takeBatch(context: Context, limit: Int): List<CallReportQueuedTopicNote> = synchronized(lock) {
         val appContext = context.applicationContext
         val operations = readLocked(appContext)
-        // Company notes are valid for CRM contacts and for genuinely unknown
-        // numbers. Discard only operations whose phone no longer has either scope.
         val eligibleOperations = operations.filter { hasServerCompanyScope(appContext, it.phone) }
         if (eligibleOperations.size != operations.size) writeLocked(appContext, eligibleOperations)
         eligibleOperations.sortedBy { it.updatedAtMs }.take(limit.coerceIn(1, 50))
@@ -194,14 +193,14 @@ internal object CallReportTopicNoteOutbox {
 
     fun hasPending(context: Context): Boolean = synchronized(lock) { readLocked(context).isNotEmpty() }
 
-    private fun enqueue(context: Context, operation: CallReportQueuedTopicNote): Boolean {
+    private fun enqueue(context: Context, operation: CallReportQueuedTopicNote, scheduleWorker: Boolean): Boolean {
         ServerRecordIndex.markPending(context, operation.clientEventId)
         synchronized(lock) {
             val operations = readLocked(context).filterNot { it.clientEventId == operation.clientEventId }.toMutableList()
             operations += operation
             writeLocked(context, operations)
         }
-        enqueueWorker(context)
+        if (scheduleWorker) enqueueWorker(context)
         return true
     }
 
