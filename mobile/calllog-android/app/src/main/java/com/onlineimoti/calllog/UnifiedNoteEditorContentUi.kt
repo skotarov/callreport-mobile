@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
 import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
@@ -109,33 +108,22 @@ internal class UnifiedNoteEditorContentUi(
                     1f,
                 )
             })
-        })
-
-        addView(LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(1) }
-            addView(TextView(context).apply {
-                text = state.titleText
-                textSize = 13f
-                setTextColor(Color.rgb(107, 114, 128))
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                layoutParams = LinearLayout.LayoutParams(
-                    0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    1f,
-                )
-            })
-            addView(iconButton(R.drawable.ic_calendar_event, context.getString(R.string.dynamic_action_calendar)) {
-                callbacks.openCalendar(input.text?.toString().orEmpty())
-            })
             addView(iconButton(R.drawable.ic_popup_close, context.getString(R.string.dynamic_sms_close)) {
                 callbacks.close(input.text?.toString().orEmpty())
             })
+        })
+
+        addView(TextView(context).apply {
+            text = state.titleText
+            textSize = 13f
+            setTextColor(Color.rgb(107, 114, 128))
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(0, dp(1), 0, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
         })
     }
 
@@ -147,16 +135,11 @@ internal class UnifiedNoteEditorContentUi(
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
         setPadding(dp(2), dp(2), dp(2), 0)
-        background = tabStripBackground(
-            Color.rgb(248, 250, 252),
-            dp(12),
-            Color.rgb(226, 232, 240),
-            dp(1),
-        )
+        setBackgroundColor(Color.TRANSPARENT)
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply { topMargin = dp(4) }
+        ).apply { topMargin = dp(5) }
         addView(modeButton(UnifiedNoteKind.GENERAL, state.kind, input, callbacks))
         addView(modeButton(UnifiedNoteKind.CALL, state.kind, input, callbacks))
     }
@@ -170,7 +153,6 @@ internal class UnifiedNoteEditorContentUi(
         val selected = kind == selectedKind
         val colors = if (kind.isGeneral) NoteUiStyle.General else NoteUiStyle.Call
         val indicatorColor = if (kind.isGeneral) Color.rgb(245, 158, 11) else colors.border
-        val tabBorderColor = Color.rgb(71, 85, 105)
         val label = when {
             AppLocaleText.isBulgarian() && kind.isGeneral -> "Основна"
             AppLocaleText.isBulgarian() -> "Разговор"
@@ -180,11 +162,7 @@ internal class UnifiedNoteEditorContentUi(
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            background = if (selected) {
-                activeTabBackground(Color.WHITE, dp(9), tabBorderColor)
-            } else {
-                inactiveTabBackground(Color.rgb(248, 250, 252), dp(9), tabBorderColor)
-            }
+            setBackgroundColor(Color.TRANSPARENT)
             isClickable = !selected
             isFocusable = !selected
             setOnClickListener {
@@ -195,7 +173,7 @@ internal class UnifiedNoteEditorContentUi(
                 textSize = 13.5f
                 typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
                 gravity = Gravity.CENTER
-                setTextColor(if (selected) colors.text else Color.rgb(71, 85, 105))
+                setTextColor(if (selected) Color.rgb(17, 24, 39) else Color.rgb(100, 116, 139))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     0,
@@ -212,7 +190,7 @@ internal class UnifiedNoteEditorContentUi(
                     marginEnd = dp(14)
                 }
             })
-            layoutParams = LinearLayout.LayoutParams(0, dp(32), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(34), 1f)
         }
     }
 
@@ -264,6 +242,10 @@ internal class UnifiedNoteEditorContentUi(
                 })
                 addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
             }
+            addView(iconButton(R.drawable.ic_calendar_event, context.getString(R.string.dynamic_action_calendar)) {
+                callbacks.openCalendar(input.text?.toString().orEmpty())
+            })
+            addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
             addView(primaryButton(context.getString(R.string.dynamic_note_save)) {
                 callbacks.save(input.text?.toString().orEmpty())
             })
@@ -311,47 +293,6 @@ internal class UnifiedNoteEditorContentUi(
         setPadding(dp(horizontalPaddingDp), dp(7), dp(horizontalPaddingDp), dp(7))
         setOnClickListener { action() }
     }
-
-    private fun activeTabBackground(color: Int, topRadius: Int, borderColor: Int): LayerDrawable {
-        val border = topRoundedRect(borderColor, topRadius)
-        val fill = topRoundedRect(color, (topRadius - dp(1)).coerceAtLeast(0))
-        return LayerDrawable(arrayOf(border, fill)).apply {
-            setLayerInset(1, dp(1), dp(1), dp(1), 0)
-        }
-    }
-
-    private fun inactiveTabBackground(color: Int, topRadius: Int, bottomBorderColor: Int): LayerDrawable {
-        val bottomBorder = topRoundedRect(bottomBorderColor, topRadius)
-        val fill = topRoundedRect(color, topRadius)
-        return LayerDrawable(arrayOf(bottomBorder, fill)).apply {
-            setLayerInset(1, 0, 0, 0, dp(1))
-        }
-    }
-
-    private fun tabStripBackground(
-        color: Int,
-        topRadius: Int,
-        borderColor: Int,
-        borderWidth: Int,
-    ): LayerDrawable {
-        val border = topRoundedRect(borderColor, topRadius)
-        val fill = topRoundedRect(color, (topRadius - borderWidth).coerceAtLeast(0))
-        return LayerDrawable(arrayOf(border, fill)).apply {
-            setLayerInset(1, borderWidth, borderWidth, borderWidth, 0)
-        }
-    }
-
-    private fun topRoundedRect(color: Int, topRadius: Int): GradientDrawable =
-        GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadii = floatArrayOf(
-                topRadius.toFloat(), topRadius.toFloat(),
-                topRadius.toFloat(), topRadius.toFloat(),
-                0f, 0f,
-                0f, 0f,
-            )
-            setColor(color)
-        }
 
     private fun roundedRect(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int): GradientDrawable =
         GradientDrawable().apply {

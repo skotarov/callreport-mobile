@@ -7,6 +7,7 @@ import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -97,25 +98,6 @@ internal class ContactNoteMultiScopeFieldsUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = if (container.childCount == 0) 0 else dp(8) }
         }
-        wrapper.addView(LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            addView(TextView(context).apply {
-                this.text = label
-                textSize = 13f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(55, 65, 81))
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            if (serverBacked) {
-                addView(TextView(context).apply {
-                    this.text = if (AppLocaleText.isBulgarian()) "сървър" else "server"
-                    textSize = 11f
-                    setTextColor(Color.rgb(100, 116, 139))
-                    setPadding(dp(6), 0, 0, 0)
-                })
-            }
-        })
         val input = EditText(context).apply {
             setText(text)
             setSelection(this.text?.length ?: 0)
@@ -137,6 +119,41 @@ internal class ContactNoteMultiScopeFieldsUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(3) }
         }
+        wrapper.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(ImageView(context).apply {
+                setImageResource(if (serverBacked) R.drawable.ic_note_scope_cloud else R.drawable.ic_note_scope_lock)
+                contentDescription = if (serverBacked) {
+                    if (AppLocaleText.isBulgarian()) "Фирмена бележка" else "Company note"
+                } else {
+                    if (AppLocaleText.isBulgarian()) "Лична бележка" else "Personal note"
+                }
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(6) }
+            })
+            addView(TextView(context).apply {
+                this.text = label
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(55, 65, 81))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(TextView(context).apply {
+                this.text = if (AppLocaleText.isBulgarian()) "✕ Изтрий" else "✕ Clear"
+                textSize = 11.5f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(185, 28, 28))
+                gravity = Gravity.CENTER
+                setPadding(dp(8), dp(3), 0, dp(3))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    input.text?.clear()
+                    input.requestFocus()
+                }
+            })
+        })
         wrapper.addView(input)
         container.addView(wrapper)
         onInputReady(companyId, input)
