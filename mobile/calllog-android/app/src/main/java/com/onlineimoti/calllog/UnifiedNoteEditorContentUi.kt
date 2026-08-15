@@ -109,6 +109,9 @@ internal class UnifiedNoteEditorContentUi(
                     1f,
                 )
             })
+            addView(iconButton(R.drawable.ic_popup_close, context.getString(R.string.dynamic_sms_close)) {
+                callbacks.close(input.text?.toString().orEmpty())
+            })
         })
 
         addView(LinearLayout(context).apply {
@@ -129,12 +132,6 @@ internal class UnifiedNoteEditorContentUi(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     1f,
                 )
-            })
-            addView(iconButton(R.drawable.ic_calendar_event, context.getString(R.string.dynamic_action_calendar)) {
-                callbacks.openCalendar(input.text?.toString().orEmpty())
-            })
-            addView(iconButton(R.drawable.ic_popup_close, context.getString(R.string.dynamic_sms_close)) {
-                callbacks.close(input.text?.toString().orEmpty())
             })
         })
     }
@@ -267,6 +264,10 @@ internal class UnifiedNoteEditorContentUi(
             addView(primaryButton(context.getString(R.string.dynamic_note_save)) {
                 callbacks.save(input.text?.toString().orEmpty())
             })
+            addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
+            addView(calendarButton {
+                callbacks.openCalendar(input.text?.toString().orEmpty())
+            })
         }
 
     private fun iconButton(drawableRes: Int, description: String, action: () -> Unit): ImageButton =
@@ -278,6 +279,28 @@ internal class UnifiedNoteEditorContentUi(
             setOnClickListener { action() }
             layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(8) }
         }
+
+    private fun calendarButton(action: () -> Unit): LinearLayout = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        background = roundedRect(Color.rgb(243, 244, 246), dp(12), Color.TRANSPARENT, 0)
+        setPadding(dp(10), dp(7), dp(12), dp(7))
+        isClickable = true
+        isFocusable = true
+        contentDescription = context.getString(R.string.dynamic_action_calendar)
+        setOnClickListener { action() }
+        addView(ImageView(context).apply {
+            setImageResource(R.drawable.ic_calendar_event)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(6) }
+        })
+        addView(TextView(context).apply {
+            text = context.getString(R.string.dynamic_action_calendar)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(55, 65, 81))
+        })
+    }
 
     private fun primaryButton(textValue: String, action: () -> Unit): TextView = textButton(
         textValue,
