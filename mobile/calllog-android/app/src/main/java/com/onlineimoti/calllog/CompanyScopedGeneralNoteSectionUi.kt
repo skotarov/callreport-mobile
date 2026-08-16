@@ -9,7 +9,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Main-note section with one independent phase row directly below each company. */
+/** Main-note section showing only existing notes, with one section-level edit action. */
 internal class CompanyScopedGeneralNoteSectionUi(
     private val activity: Activity,
     private val headerUi: ContactNotesHeaderUi,
@@ -31,7 +31,7 @@ internal class CompanyScopedGeneralNoteSectionUi(
     ) {
         val section = sectionContainer()
         root.addView(section)
-        section.addView(headerUi.sectionTitleWithDrawable(activity.getString(R.string.dynamic_note_general_title), R.drawable.ic_note_lines))
+        section.addView(generalSectionTitle { onEditCompany("") })
         addLocalNote(section, localNote, localNotePending, onEditCompany)
         addUnscopedServerMainNote(section, unscopedServerMainNote, onEditUnscopedServerMainNote)
         if (!showCompanyNotes) return
@@ -51,17 +51,45 @@ internal class CompanyScopedGeneralNoteSectionUi(
                     section = section,
                     notes = notes,
                     onEditCompany = onEditCompany,
-                    allowAdd = companyScopeAvailable,
                     phaseBarForCompany = phaseBarForCompany.takeIf { companyScopeAvailable },
                 )
             }
+    }
+
+    private fun generalSectionTitle(onEdit: () -> Unit): LinearLayout {
+        val row = headerUi.sectionTitleWithDrawable(
+            activity.getString(R.string.dynamic_note_general_title),
+            R.drawable.ic_note_lines,
+        )
+        (row.getChildAt(1) as? TextView)?.layoutParams = LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f,
+        )
+        row.addView(TextView(activity).apply {
+            text = if (AppLocaleText.isBulgarian()) "Редакция" else "Edit"
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            setTextColor(activity.getColor(R.color.callreport_icon_background))
+            setPadding(dp(12), dp(3), 0, dp(3))
+            activity.getDrawable(R.drawable.ic_edit_pencil)?.mutate()?.apply {
+                setTint(activity.getColor(R.color.callreport_icon_background))
+                setBounds(0, 0, dp(16), dp(16))
+                setCompoundDrawables(this, null, null, null)
+                compoundDrawablePadding = dp(5)
+            }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onEdit() }
+        })
+        return row
     }
 
     private fun addCompanyNotes(
         section: LinearLayout,
         notes: List<CallReportCompanyMainNote>,
         onEditCompany: (String) -> Unit,
-        allowAdd: Boolean,
         phaseBarForCompany: ((String) -> View)?,
     ) {
         val first = notes.firstOrNull() ?: return
@@ -71,18 +99,10 @@ internal class CompanyScopedGeneralNoteSectionUi(
         val visibleNotes = notes
             .filter { it.note.trim().isNotBlank() || it.pending }
             .sortedByDescending { it.updatedAtMs }
+        if (visibleNotes.isEmpty()) return
         val lastVisibleNote = visibleNotes.lastOrNull()
-        val hasEditableNote = visibleNotes.any { it.editable }
-        val showAdd = allowAdd && if (multiAuthor) !hasEditableNote else allowAdd && visibleNotes.isEmpty()
 
-        section.addView(
-            companyHeader(
-                name = companyName,
-                showCloud = true,
-                showAdd = showAdd,
-                onAdd = { onEditCompany(companyId) },
-            ),
-        )
+        section.addView(companyHeader(name = companyName, showCloud = true))
         visibleNotes.forEach { companyNote ->
             val note = companyNote.note.trim()
             val card = cards.generalNoteCard(
@@ -110,26 +130,23 @@ internal class CompanyScopedGeneralNoteSectionUi(
         onEditCompany: (String) -> Unit,
     ) {
         val note = noteValue.trim()
+        if (note.isBlank() && !pending) return
         section.addView(
             companyHeader(
                 name = activity.getString(R.string.note_local_company),
                 showCloud = false,
-                showAdd = note.isBlank(),
-                onAdd = { onEditCompany(ContactNoteTopicState.LOCAL_COMPANY_ID) },
             ),
         )
-        if (note.isNotBlank() || pending) {
-            section.addView(
-                cards.generalNoteCard(
-                    textValue = note,
-                    muted = note.isBlank(),
-                    serverConfirmed = false,
-                    syncStatusText = if (pending) activity.getString(R.string.dynamic_note_pending_company_choice) else "",
-                    onClick = { onEditCompany(ContactNoteTopicState.LOCAL_COMPANY_ID) },
-                    pending = pending,
-                ),
-            )
-        }
+        section.addView(
+            cards.generalNoteCard(
+                textValue = note,
+                muted = note.isBlank(),
+                serverConfirmed = false,
+                syncStatusText = if (pending) activity.getString(R.string.dynamic_note_pending_company_choice) else "",
+                onClick = { onEditCompany(ContactNoteTopicState.LOCAL_COMPANY_ID) },
+                pending = pending,
+            ),
+        )
     }
 
     private fun addUnscopedServerMainNote(
@@ -153,8 +170,6 @@ internal class CompanyScopedGeneralNoteSectionUi(
     private fun companyHeader(
         name: String,
         showCloud: Boolean = false,
-        showAdd: Boolean = false,
-        onAdd: (() -> Unit)? = null,
     ): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -170,19 +185,6 @@ internal class CompanyScopedGeneralNoteSectionUi(
                 1f,
             )
         })
-        if (showAdd && onAdd != null) {
-            addView(TextView(activity).apply {
-                text = activity.getString(R.string.dynamic_notes_add_general)
-                textSize = 13.5f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                setTextColor(activity.getColor(R.color.callreport_icon_background))
-                setPadding(dp(12), dp(3), 0, dp(3))
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { onAdd() }
-            })
-        }
     }
 
     private fun companyLabel(name: String, showCloud: Boolean): TextView = TextView(activity).apply {
