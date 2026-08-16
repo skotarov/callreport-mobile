@@ -35,12 +35,19 @@ internal object ContactNoteFormWorkflow {
         // A CRM contact and an unknown number can choose Local or a real firm.
         // A normal known contact without CRM remains strictly local.
         val localOnly = visible && !ContactServerCompanyScope.isAvailable(context, draft.phone)
+        val cached = if (visible && !localOnly) {
+            val appContext = context.applicationContext
+            CallReportTopicCompaniesCache.read(appContext, ConfigStore.load(appContext))
+        } else null
         return ContactNoteTopicState(
             visible = visible,
             loading = visible && !localOnly,
+            companies = cached?.companies.orEmpty(),
             selectedCompanyId = if (localOnly) ContactNoteTopicState.LOCAL_COMPANY_ID else "",
             includeLocalOption = visible,
             localOnly = localOnly,
+            usingCachedCompanies = cached != null,
+            cachedCompaniesUpdatedAtMs = cached?.updatedAtMs ?: 0L,
         )
     }
 
@@ -57,29 +64,38 @@ internal object ContactNoteFormWorkflow {
             )
         }
 
-        val result = runCatching {
-            CallReportTopicCompaniesRepository.load(
-                context = context.applicationContext,
-                config = ConfigStore.load(context.applicationContext),
-            )
+        val appContext = context.applicationContext
+        val config = ConfigStore.load(appContext)
+        val refreshResult = runCatching {
+            CallReportTopicCompaniesRepository.refresh(appContext, config)
         }
-        val loaded = result.getOrNull()
-        val companies = loaded?.companies.orEmpty()
-        val loadFailed = result.isFailure
+        val online = refreshResult.getOrNull()
+        val cached = if (online == null) {
+            CallReportTopicCompaniesCache.read(appContext, config)
+        } else null
+        val hasFallback = cached != null || previous.usingCachedCompanies || previous.companies.isNotEmpty()
+        val companies = online?.companies
+            ?: cached?.companies
+            ?: previous.companies.takeIf { hasFallback }
+            ?: emptyList()
         val selectedCompanyId = when {
             previous.selectedCompanyId == ContactNoteTopicState.LOCAL_COMPANY_ID -> {
                 ContactNoteTopicState.LOCAL_COMPANY_ID
             }
-            loadFailed -> ""
             else -> previous.selectedCompanyId.takeIf { selected -> companies.any { it.id == selected } }.orEmpty()
         }
+        val usingCached = online == null && hasFallback
         return previous.copy(
             loading = false,
             companies = companies,
             selectedCompanyId = selectedCompanyId,
-            loadError = if (loadFailed) TOPIC_REQUEST_FAILED else "",
-            usingCachedCompanies = loaded?.source == TopicCompaniesSource.CACHED,
-            cachedCompaniesUpdatedAtMs = if (loaded?.source == TopicCompaniesSource.CACHED) loaded.updatedAtMs else 0L,
+            loadError = if (refreshResult.isFailure && !hasFallback) TOPIC_REQUEST_FAILED else "",
+            usingCachedCompanies = usingCached,
+            cachedCompaniesUpdatedAtMs = when {
+                !usingCached -> 0L
+                cached != null -> cached.updatedAtMs
+                else -> previous.cachedCompaniesUpdatedAtMs
+            },
         )
     }
 
