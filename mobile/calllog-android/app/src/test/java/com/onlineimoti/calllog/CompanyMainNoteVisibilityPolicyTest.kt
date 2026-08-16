@@ -33,7 +33,14 @@ class CompanyMainNoteVisibilityPolicyTest {
     )
 
     @Test
-    fun `without CRM keeps existing server notes but hides empty company lanes`() {
+    fun `existing notes remain visible while empty company lanes stay hidden`() {
+        assertEquals(
+            listOf(existing),
+            CompanyMainNoteVisibilityPolicy.visibleNotes(
+                companyScopeAvailable = true,
+                notes = listOf(existing, empty),
+            ),
+        )
         assertEquals(
             listOf(existing),
             CompanyMainNoteVisibilityPolicy.visibleNotes(
@@ -44,30 +51,20 @@ class CompanyMainNoteVisibilityPolicyTest {
     }
 
     @Test
-    fun `pending server note remains visible while CRM is off`() {
+    fun `pending server note remains visible`() {
         assertEquals(
             listOf(pending),
             CompanyMainNoteVisibilityPolicy.visibleNotes(
-                companyScopeAvailable = false,
+                companyScopeAvailable = true,
                 notes = listOf(empty, pending),
             ),
         )
     }
 
     @Test
-    fun `with company scope keeps empty lanes for adding notes`() {
-        assertEquals(
-            listOf(existing, empty),
-            CompanyMainNoteVisibilityPolicy.visibleNotes(
-                companyScopeAvailable = true,
-                notes = listOf(existing, empty),
-            ),
-        )
-    }
-
-    @Test
-    fun `existing note is enough to show company section without CRM`() {
-        assertTrue(CompanyMainNoteVisibilityPolicy.shouldShow(false, listOf(existing, empty)))
+    fun `empty company alone is never enough to show a company lane`() {
+        assertFalse(CompanyMainNoteVisibilityPolicy.shouldShow(true, listOf(empty)))
         assertFalse(CompanyMainNoteVisibilityPolicy.shouldShow(false, listOf(empty)))
+        assertTrue(CompanyMainNoteVisibilityPolicy.shouldShow(true, listOf(existing, empty)))
     }
 }
