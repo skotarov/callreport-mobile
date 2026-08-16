@@ -138,8 +138,10 @@ internal class OverlayContactNoteFormController(
             } else null
             handler.post {
                 captureScopeTexts()
+                val previousState = topicState
                 topicState = loadedState
                 serverScopeValues = loadedValues
+                var scopeValuesChanged = false
                 topicState.companies.forEach { company ->
                     val value = ContactNoteScopeTextResolver.valueFor(
                         companyId = company.id,
@@ -147,12 +149,18 @@ internal class OverlayContactNoteFormController(
                         serverValues = loadedValues,
                         context = service,
                     )
-                    if (!persistedScopeValues.containsKey(company.id) || scopeTexts[company.id] == persistedScopeValues[company.id]?.text) {
+                    val previousValue = persistedScopeValues[company.id]
+                    val currentText = scopeTexts[company.id]
+                    val canApply = previousValue == null || currentText == previousValue.text
+                    if (canApply) {
+                        if (currentText != null && currentText != value.text) scopeValuesChanged = true
                         persistedScopeValues[company.id] = value
-                        if (!scopeTexts.containsKey(company.id)) scopeTexts[company.id] = value.text
+                        scopeTexts[company.id] = value.text
                     }
                 }
-                bindAllFields()
+                if (ContactNoteTopicRenderPolicy.shouldRebind(previousState, topicState, scopeValuesChanged)) {
+                    bindAllFields()
+                }
             }
         }.start()
     }
