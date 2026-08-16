@@ -195,6 +195,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
             runOnUiThread {
                 if (generation != editorGeneration || isFinishing || isDestroyed) return@runOnUiThread
                 captureScopeTexts()
+                val previousState = topicState
                 topicState = when {
                     preferredCompanyId == ContactNoteTopicState.LOCAL_COMPANY_ID ->
                         loadedState.copy(selectedCompanyId = ContactNoteTopicState.LOCAL_COMPANY_ID)
@@ -203,6 +204,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
                     else -> loadedState
                 }
                 serverScopeValues = loadedServerValues
+                var scopeValuesChanged = false
                 topicState.companies.forEach { company ->
                     val value = ContactNoteScopeTextResolver.valueFor(
                         companyId = company.id,
@@ -210,14 +212,20 @@ class ContactNoteEditActivity : FontScaledActivity() {
                         serverValues = loadedServerValues,
                         context = this,
                     )
-                    // Preserve an explicit launcher value for this scope, but otherwise
-                    // let the authoritative server/cached value establish the baseline.
-                    if (!persistedScopeValues.containsKey(company.id) || scopeTexts[company.id] == persistedScopeValues[company.id]?.text) {
+                    // Preserve text the user is actively editing. Otherwise reconcile
+                    // the field baseline with the refreshed server/cached value.
+                    val previousValue = persistedScopeValues[company.id]
+                    val currentText = scopeTexts[company.id]
+                    val canApply = previousValue == null || currentText == previousValue.text
+                    if (canApply) {
+                        if (currentText != null && currentText != value.text) scopeValuesChanged = true
                         persistedScopeValues[company.id] = value
-                        if (!scopeTexts.containsKey(company.id)) scopeTexts[company.id] = value.text
+                        scopeTexts[company.id] = value.text
                     }
                 }
-                bindAllFields()
+                if (ContactNoteTopicRenderPolicy.shouldRebind(previousState, topicState, scopeValuesChanged)) {
+                    bindAllFields()
+                }
             }
         }
     }
