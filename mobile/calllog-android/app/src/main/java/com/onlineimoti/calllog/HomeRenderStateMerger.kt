@@ -51,9 +51,15 @@ internal object HomeRenderStateMerger {
 
         val contactNotes = when (mode) {
             HomeRenderMergeMode.AUTHORITATIVE -> incoming.contactNotesByNumber
+                .filterTo(linkedMapOf()) { (key, value) -> key in phoneKeys && value.isNotBlank() }
             else -> linkedMapOf<String, String>().apply {
                 currentContactNotes.forEach { (key, value) -> if (key in phoneKeys) put(key, value) }
-                incoming.contactNotesByNumber.forEach { (key, value) -> put(key, value) }
+                incoming.contactNotesByNumber.forEach { (key, value) ->
+                    if (key !in phoneKeys) return@forEach
+                    // Local note snapshots include blank tombstones. They must remove
+                    // a deleted yellow note instead of letting the staged merge retain it.
+                    if (value.isBlank()) remove(key) else put(key, value)
+                }
             }
         }
         val callNotes = when (mode) {

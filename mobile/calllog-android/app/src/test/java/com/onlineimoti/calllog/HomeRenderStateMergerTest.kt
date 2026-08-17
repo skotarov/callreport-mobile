@@ -59,6 +59,28 @@ class HomeRenderStateMergerTest {
     }
 
     @Test
+    fun supplementalBlankTombstoneRemovesDeletedYellowNote() {
+        val result = HomeRenderStateMerger.merge(
+            calls = listOf(call),
+            incoming = HomeRenderData(
+                calls = listOf(call),
+                contactNotesByNumber = mapOf(phoneKey to ""),
+                contactNamesByNumber = emptyMap(),
+                callNotesByCall = emptyMap(),
+            ),
+            currentContactNotes = mapOf(phoneKey to "Изтрита локална бележка"),
+            currentContactNames = mapOf(phoneKey to "Иван Иванов"),
+            currentCallNotes = mapOf(callKey to note),
+            rememberedNames = linkedMapOf(phoneKey to "Иван Иванов"),
+            mode = HomeRenderMergeMode.SUPPLEMENTAL,
+        )
+
+        assertFalse(result.contactNotesByNumber.containsKey(phoneKey))
+        assertEquals("Иван Иванов", result.contactNamesByNumber[phoneKey])
+        assertEquals(note, result.callNotesByCall[callKey])
+    }
+
+    @Test
     fun authoritativeStageCanRemoveDeletedNotesButKeepsKnownName() {
         val result = HomeRenderStateMerger.merge(
             calls = listOf(call),
