@@ -19,7 +19,7 @@ internal class CallReportHistorySharedUi(
     ): TextView? {
         val id = companyId.trim()
         if (id.isBlank()) return null
-        val name = companyNames[id].orEmpty().ifBlank { id }
+        val name = historyCategoryName(companyNames[id].orEmpty().ifBlank { id })
         return TextView(activity).apply {
             text = name
             textSize = 11.5f
@@ -41,6 +41,16 @@ internal class CallReportHistorySharedUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(6) }
         }
+    }
+
+    /**
+     * History presents the destination as a note category. Keep the CRM filter wording
+     * "Без фирма" unchanged elsewhere, but use the clearer History-only label here.
+     */
+    private fun historyCategoryName(value: String): String {
+        val name = value.trim()
+        if (!name.equals("Без фирма", ignoreCase = true)) return name
+        return if (AppLocaleText.isBulgarian()) "Без категория" else "Uncategorized"
     }
 
     fun noteText(value: String, color: Int): TextView = TextView(activity).apply {
