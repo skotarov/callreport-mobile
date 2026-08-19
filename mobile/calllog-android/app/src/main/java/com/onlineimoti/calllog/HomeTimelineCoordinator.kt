@@ -62,12 +62,14 @@ internal class HomeTimelineCoordinator(
 
     fun previousPage() {
         if (pageIndex() <= 0) return
+        HomeRefreshRenderPolicy.requestKeepExistingRows()
         setPageIndex(pageIndex() - 1)
         renderCalls()
     }
 
     fun nextPage() {
         if (contentRenderer.currentCalls.size < pageSize()) return
+        HomeRefreshRenderPolicy.requestKeepExistingRows()
         setPageIndex(pageIndex() + 1)
         renderCalls()
     }
@@ -76,6 +78,7 @@ internal class HomeTimelineCoordinator(
 
     fun goToFirstPage() {
         if (pageIndex() <= 0) return
+        HomeRefreshRenderPolicy.requestKeepExistingRows()
         setPageIndex(0)
         renderCalls()
     }
