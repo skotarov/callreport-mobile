@@ -55,7 +55,11 @@ internal class HomeCallLogObserverController(
     }
 
     private companion object {
-        const val PROVIDER_SETTLE_DELAY_MS = 650L
+        // ContentObserver fires after the provider mutation; keep only a short debounce
+        // to collapse duplicate notifications without making a newly ended call feel late.
+        const val PROVIDER_SETTLE_DELAY_MS = 180L
+        // Keep the explicit post-call retry as a conservative fallback for devices that
+        // publish the final Call Log row unusually late.
         const val MANUAL_SETTLE_DELAY_MS = 1_500L
     }
 }
