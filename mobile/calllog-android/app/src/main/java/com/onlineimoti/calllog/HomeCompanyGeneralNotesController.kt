@@ -20,8 +20,13 @@ internal class HomeCompanyGeneralNotesController(
     private var labelsByPhoneKey: Map<String, List<HomeCompanyScopeLabel>> = initialSnapshot.labelsByPhoneKey
     private var serverBackedPhoneKeys: Set<String> = initialSnapshot.serverBackedPhoneKeys
 
-    fun labelsFor(calls: List<PhoneCallRecord>): Map<String, List<HomeCompanyScopeLabel>> =
-        labelsForPhones(calls.map { it.number })
+    fun labelsFor(calls: List<PhoneCallRecord>): Map<String, List<HomeCompanyScopeLabel>> {
+        // A note save can invalidate the request while the already rendered rows stay
+        // visually unchanged. Start the fresh company-note lookup before the renderer
+        // decides that no row rebuild is needed, otherwise a yellow note may remain stale.
+        refresh(calls)
+        return labelsForPhones(calls.map { it.number })
+    }
 
     fun labelsForPhones(phones: List<String>): Map<String, List<HomeCompanyScopeLabel>> {
         val keys = phones.map { HomeCallPageLoader.noteKey(it) }.filter { it.isNotBlank() }.toSet()
