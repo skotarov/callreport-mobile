@@ -17,6 +17,7 @@ internal class HomeServerCallNotesController(
     private val generation = AtomicInteger(0)
     private val busyTokens = linkedSetOf<Long>()
     @Volatile private var cachedHistory: CachedHistory? = null
+    @Volatile private var observedNoteRevision = HomeNoteChangeSignal.current(appContext)
 
     /** Cancels obsolete callbacks while retaining a reusable response for the same page. */
     fun cancelPending() {
@@ -28,6 +29,7 @@ internal class HomeServerCallNotesController(
     fun invalidate() {
         cancelPending()
         cachedHistory = null
+        observedNoteRevision = HomeNoteChangeSignal.current(appContext)
     }
 
     fun enrichAsync(
@@ -38,6 +40,16 @@ internal class HomeServerCallNotesController(
         if (renderData.calls.isEmpty()) {
             handler.post(onFinished)
             return
+        }
+
+        // Home may have stayed alive while an editor on top saved a note. The normal
+        // renderer can therefore re-enter with the same page signature while the
+        // 30-second history response is still cached. A durable note revision makes
+        // that cache invalid immediately, so edited blue call notes are fetched again.
+        val currentNoteRevision = HomeNoteChangeSignal.current(appContext)
+        if (currentNoteRevision != observedNoteRevision) {
+            cachedHistory = null
+            observedNoteRevision = currentNoteRevision
         }
 
         // Capture this before reading the snapshot. If a deletion happens after this
