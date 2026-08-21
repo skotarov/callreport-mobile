@@ -3,6 +3,7 @@ package com.onlineimoti.calllog
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import com.onlineimoti.calllog.databinding.ActivityHomeBinding
 import java.util.concurrent.ExecutorService
@@ -21,7 +22,7 @@ internal class HomeSyncStatusUi(
         val button = ensureButton() ?: return
         val appContext = activity.applicationContext
 
-        // Queue state is local and cheap, so reflect a freshly saved note immediately.
+        // Queue state is local and cheap, so reflect a freshly saved mutation immediately.
         button.visibility = if (hasPendingUploads(appContext)) View.VISIBLE else View.GONE
 
         val expectedGeneration = generation.incrementAndGet()
@@ -42,7 +43,8 @@ internal class HomeSyncStatusUi(
     private fun hasPendingUploads(context: android.content.Context): Boolean =
         CallReportNoteOutbox.hasPending(context) ||
             CallReportTopicNoteOutbox.hasPending(context) ||
-            CompanyCallNoteOutbox.hasPending(context)
+            CompanyCallNoteOutbox.hasPending(context) ||
+            AccountMutationOutbox.pendingCountForCurrentAccount(context) > 0
 
     private fun ensureButton(): ImageButton? {
         val views = binding()
@@ -58,7 +60,7 @@ internal class HomeSyncStatusUi(
             setImageResource(R.drawable.ic_cloud_sync_pending)
             background = null
             contentDescription = activity.getString(R.string.home_sync_pending_content_description)
-            scaleType = ImageButton.ScaleType.CENTER_INSIDE
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(6), dp(6), dp(6), dp(6))
             visibility = View.GONE
             isClickable = false
