@@ -7,6 +7,7 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
@@ -29,4 +30,16 @@ internal object CallReportSyncScheduler {
         WorkManager.getInstance(context.applicationContext)
             .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.KEEP, request)
     }
+
+    /** Must be called off the main thread. True while catch-up synchronization is unfinished. */
+    fun hasIncompleteCatchUp(context: Context): Boolean = runCatching {
+        WorkManager.getInstance(context.applicationContext)
+            .getWorkInfosForUniqueWork(UNIQUE_WORK_NAME)
+            .get()
+            .any { info ->
+                info.state == WorkInfo.State.ENQUEUED ||
+                    info.state == WorkInfo.State.RUNNING ||
+                    info.state == WorkInfo.State.BLOCKED
+            }
+    }.getOrDefault(false)
 }
