@@ -29,9 +29,12 @@ internal object ContactNoteTopicRenderPolicy {
             }
 
     private fun visibleStatus(state: ContactNoteTopicState): String = when {
-        state.loading && state.companies.isEmpty() -> "loading"
+        // Loading is visible even when the company list came from cache. The server
+        // note text can still be in flight and the fields must be rebound once that
+        // request finishes; otherwise the first editor open can remain blank.
+        state.loading -> "loading"
         state.loadError.isNotBlank() -> "error"
-        state.usingCachedCompanies && !state.loading -> "cached"
+        state.usingCachedCompanies -> "cached"
         else -> ""
     }
 }
