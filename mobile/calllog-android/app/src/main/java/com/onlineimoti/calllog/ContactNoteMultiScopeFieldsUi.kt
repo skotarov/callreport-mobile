@@ -46,6 +46,7 @@ internal class ContactNoteMultiScopeFieldsUi(
             kind = kind,
             text = textFor(ContactNoteTopicState.LOCAL_COMPANY_ID),
             serverBacked = false,
+            loadingServerValue = false,
             onInputReady = onInputReady,
         )
 
@@ -60,14 +61,19 @@ internal class ContactNoteMultiScopeFieldsUi(
                     kind = kind,
                     text = textFor(company.id),
                     serverBacked = true,
+                    loadingServerValue = state.loading,
                     onInputReady = onInputReady,
                 )
             }
 
         val status = when {
-            state.loading && state.companies.isEmpty() -> if (AppLocaleText.isBulgarian()) "Зареждат се фирмите…" else "Loading companies…"
+            state.loading -> if (AppLocaleText.isBulgarian()) {
+                "Зарежда се информация от сървъра…"
+            } else {
+                "Loading information from the server…"
+            }
             state.loadError.isNotBlank() -> context.getString(R.string.dynamic_note_companies_unavailable_deferred)
-            state.usingCachedCompanies && !state.loading -> context.getString(R.string.dynamic_note_companies_cached_offline)
+            state.usingCachedCompanies -> context.getString(R.string.dynamic_note_companies_cached_offline)
             else -> ""
         }
         if (status.isNotBlank()) {
@@ -87,6 +93,7 @@ internal class ContactNoteMultiScopeFieldsUi(
         kind: UnifiedNoteKind,
         text: String,
         serverBacked: Boolean,
+        loadingServerValue: Boolean,
         onInputReady: (String, EditText) -> Unit,
     ) {
         val colors = if (kind.isGeneral) NoteUiStyle.General else NoteUiStyle.Call
@@ -130,9 +137,11 @@ internal class ContactNoteMultiScopeFieldsUi(
             gravity = Gravity.TOP or Gravity.START
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = roundedRect(colors.background, dp(10), colors.border, if (colors.border == Color.TRANSPARENT) 0 else dp(1))
-            isFocusable = true
-            isFocusableInTouchMode = true
-            isLongClickable = true
+            isFocusable = !loadingServerValue
+            isFocusableInTouchMode = !loadingServerValue
+            isLongClickable = !loadingServerValue
+            isEnabled = !loadingServerValue
+            alpha = if (loadingServerValue) 0.65f else 1f
             tag = companyId
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
