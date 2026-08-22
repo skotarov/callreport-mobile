@@ -18,6 +18,10 @@ internal class HomeActivityRuntimeController(
     private val scheduleSettledCallLogRefresh: () -> Unit,
     private val renderCalls: () -> Unit,
 ) {
+    private val syncStatusUi by lazy {
+        HomeSyncStatusUi(activity, binding, refreshExecutor)
+    }
+
     /** The compact header is reserved for CRM Contacts; Full Log now lives only in History. */
     fun updateHeader() {
         val views = binding()
@@ -29,6 +33,7 @@ internal class HomeActivityRuntimeController(
         } else {
             ""
         }
+        syncStatusUi.refresh()
     }
 
     fun refreshFromPull() {
