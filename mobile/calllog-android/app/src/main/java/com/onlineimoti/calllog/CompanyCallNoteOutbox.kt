@@ -66,6 +66,7 @@ internal data class QueuedCompanyCallNote(
 internal object CompanyCallNoteOutbox {
     private const val PREFS = "company_call_note_outbox"
     private const val KEY_OPERATIONS = "operations_v1"
+    private const val KEY_LAST_FAILURE = "last_failure"
     private const val UNIQUE_WORK = "company_call_note_sync"
     private val lock = Any()
 
@@ -140,6 +141,22 @@ internal object CompanyCallNoteOutbox {
 
     fun pendingClientEventIds(context: Context): Set<String> = synchronized(lock) {
         readLocked(context.applicationContext).mapTo(linkedSetOf()) { it.clientEventId }
+    }
+
+    fun lastFailure(context: Context): String = context.applicationContext
+        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getString(KEY_LAST_FAILURE, "")
+        .orEmpty()
+        .trim()
+
+    internal fun recordFailure(context: Context, message: String) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY_LAST_FAILURE, message.trim()).commit()
+    }
+
+    internal fun clearFailure(context: Context) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().remove(KEY_LAST_FAILURE).commit()
     }
 
     fun isCallPending(context: Context, phone: String, direction: String, callAtMs: Long): Boolean {
@@ -228,7 +245,10 @@ class CompanyCallNoteWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val config = ConfigStore.load(applicationContext)
-        if (!CallReportRemoteAccess.isReady(config)) return@withContext Result.retry()
+        if (!CallReportRemoteAccess.isReady(config)) {
+            CompanyCallNoteOutbox.recordFailure(applicationContext, "Липсва активна сървърна връзка.")
+            return@withContext Result.retry()
+        }
         try {
             while (CompanyCallNoteOutbox.hasPending(applicationContext)) {
                 val batch = CompanyCallNoteOutbox.takeBatch(applicationContext, 50)
@@ -238,15 +258,23 @@ class CompanyCallNoteWorker(
                     batch.map { it.toSyncEvent(applicationContext) },
                 )
                 val expected = batch.mapTo(hashSetOf()) { it.clientEventId }
-                if (!confirmed.containsAll(expected)) return@withContext Result.retry()
+                if (!confirmed.containsAll(expected)) {
+                    CompanyCallNoteOutbox.recordFailure(applicationContext, "Сървърът не потвърди всички промени.")
+                    return@withContext Result.retry()
+                }
                 ServerRecordIndex.markConfirmed(applicationContext, confirmed)
                 CompanyCallNoteOutbox.acknowledge(applicationContext, confirmed)
+                CompanyCallNoteOutbox.clearFailure(applicationContext)
                 applicationContext.sendBroadcast(
                     Intent(PostCallOverlayService.ACTION_NOTES_CHANGED).setPackage(applicationContext.packageName),
                 )
             }
             Result.success()
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            CompanyCallNoteOutbox.recordFailure(
+                applicationContext,
+                error.message?.takeIf(String::isNotBlank) ?: "Синхронизацията ще бъде повторена.",
+            )
             Result.retry()
         }
     }

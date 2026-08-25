@@ -18,6 +18,13 @@ class HomeSyncStatusStateTest {
         assertEquals("1", homeSyncStatusState(1).badgeText)
         assertEquals("99", homeSyncStatusState(99).badgeText)
         assertTrue(homeSyncStatusState(99).visible)
+        assertFalse(homeSyncStatusState(99).hasIssue)
+    }
+
+    @Test
+    fun issueIsShownOnlyWhenThereArePendingItems() {
+        assertTrue(homeSyncStatusState(2, hasIssue = true).hasIssue)
+        assertFalse(homeSyncStatusState(0, hasIssue = true).hasIssue)
     }
 
     @Test

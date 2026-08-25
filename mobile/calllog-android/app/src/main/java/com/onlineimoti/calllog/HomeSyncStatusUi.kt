@@ -10,8 +10,9 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.onlineimoti.calllog.databinding.ActivityHomeBinding
-import org.json.JSONArray
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -30,20 +31,20 @@ internal class HomeSyncStatusUi(
 
         // Worker state is intentionally ignored here. The cloud represents only real
         // durable local mutations that still exist in an outbox.
-        val pendingNow = pendingUploadCount(appContext)
+        val pendingNow = pendingUploadSummary(appContext)
         render(indicator, pendingNow)
 
         val expectedGeneration = generation.incrementAndGet()
         runCatching {
             executor.execute {
-                val pending = pendingUploadCount(appContext)
+                val pending = pendingUploadSummary(appContext)
                 activity.runOnUiThread {
                     if (expectedGeneration != generation.get() || activity.isFinishing || activity.isDestroyed) {
                         return@runOnUiThread
                     }
                     val current = ensureIndicator() ?: return@runOnUiThread
                     render(current, pending)
-                    if (pending > 0) {
+                    if (pending.count > 0) {
                         // Outboxes drain asynchronously. Re-check only while data is pending so
                         // the cloud disappears immediately after the last acknowledgement.
                         current.container.postDelayed({ refresh() }, RECHECK_DELAY_MS)
@@ -53,46 +54,48 @@ internal class HomeSyncStatusUi(
         }
     }
 
-    private fun pendingUploadCount(context: Context): Int {
-        val mainNotes = legacyMainNotePendingCount(context)
-        return mainNotes +
+    private fun pendingUploadSummary(context: Context): PendingUploadSummary {
+        val count = CallReportNoteOutbox.pendingCount(context) +
             CallReportTopicNoteOutbox.pendingCount(context) +
             CompanyCallNoteOutbox.pendingClientEventIds(context).size +
             AccountMutationOutbox.pendingCountForCurrentAccount(context)
+        if (count == 0) return PendingUploadSummary()
+
+        val failure = listOf(
+            CallReportNoteOutbox.lastFailure(context),
+            CallReportTopicNoteOutbox.lastFailure(context),
+            CompanyCallNoteOutbox.lastFailure(context),
+            AccountMutationOutbox.lastFailure(context),
+        ).firstOrNull(String::isNotBlank).orEmpty()
+        return PendingUploadSummary(count, failure)
     }
 
-    /**
-     * Compatibility read for the existing durable main-note queue. The preference name and
-     * payload are persisted app data and must not be renamed without a migration.
-     */
-    private fun legacyMainNotePendingCount(context: Context): Int {
-        val raw = context.applicationContext
-            .getSharedPreferences(LEGACY_MAIN_NOTE_OUTBOX_PREFS, Context.MODE_PRIVATE)
-            .getString(LEGACY_MAIN_NOTE_OUTBOX_OPERATIONS, "[]")
-            .orEmpty()
-        return runCatching { JSONArray(raw).length() }.getOrDefault(0)
-    }
-
-    private fun render(indicator: IndicatorViews, pendingCount: Int) {
-        val state = homeSyncStatusState(pendingCount)
+    private fun render(indicator: IndicatorViews, summary: PendingUploadSummary) {
+        val state = homeSyncStatusState(summary.count, summary.failure.isNotBlank())
         indicator.container.visibility = if (state.visible) View.VISIBLE else View.GONE
         if (!state.visible) {
             indicator.badge.text = ""
             return
         }
         indicator.badge.text = state.badgeText
+        indicator.icon.setImageResource(
+            if (state.hasIssue) R.drawable.ic_cloud_sync_issue else R.drawable.ic_cloud_sync_pending,
+        )
+        indicator.badge.background = badgeBackground(state.hasIssue)
         indicator.container.contentDescription = activity.getString(
-            R.string.home_sync_pending_content_description,
+            if (state.hasIssue) R.string.home_sync_issue_content_description else R.string.home_sync_pending_content_description,
             state.badgeText,
         )
+        indicator.container.setOnClickListener { showDetails(summary) }
     }
 
     private fun ensureIndicator(): IndicatorViews? {
         val views = binding()
         val parent = views.searchButton.parent as? ViewGroup ?: return null
         parent.findViewWithTag<FrameLayout>(TAG)?.let { existing ->
+            val icon = existing.getChildAt(0) as? ImageView ?: return null
             val badge = existing.findViewWithTag<TextView>(BADGE_TAG) ?: return null
-            return IndicatorViews(existing, badge)
+            return IndicatorViews(existing, icon, badge)
         }
 
         val size = dp(36)
@@ -102,8 +105,8 @@ internal class HomeSyncStatusUi(
                 marginEnd = dp(4)
             }
             visibility = View.GONE
-            isClickable = false
-            isFocusable = false
+            isClickable = true
+            isFocusable = true
         }
         val icon = ImageView(activity).apply {
             layoutParams = FrameLayout.LayoutParams(size, size)
@@ -124,33 +127,71 @@ internal class HomeSyncStatusUi(
             setPadding(dp(4), 0, dp(4), 0)
             setTextColor(Color.WHITE)
             textSize = 9f
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(9).toFloat()
-                setColor(Color.rgb(229, 57, 53))
-            }
+            background = badgeBackground(hasIssue = false)
         }
         container.addView(icon)
         container.addView(badge)
         val searchIndex = parent.indexOfChild(views.searchButton).coerceAtLeast(0)
         parent.addView(container, searchIndex)
-        return IndicatorViews(container, badge)
+        return IndicatorViews(container, icon, badge)
+    }
+
+    private fun badgeBackground(hasIssue: Boolean) = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = dp(9).toFloat()
+        setColor(if (hasIssue) Color.rgb(229, 57, 53) else Color.rgb(25, 118, 210))
+    }
+
+    private fun showDetails(summary: PendingUploadSummary) {
+        if (summary.count <= 0 || activity.isFinishing || activity.isDestroyed) return
+        val message = if (summary.failure.isBlank()) {
+            activity.getString(R.string.home_sync_pending_message, summary.count)
+        } else {
+            activity.getString(R.string.home_sync_issue_message, summary.count, summary.failure)
+        }
+        AlertDialog.Builder(activity)
+            .setTitle(if (summary.failure.isBlank()) R.string.home_sync_pending_title else R.string.home_sync_issue_title)
+            .setMessage(message)
+            .setNegativeButton(R.string.home_sync_close, null)
+            .setPositiveButton(R.string.home_sync_retry) { _, _ -> retryPendingSync() }
+            .show()
+    }
+
+    private fun retryPendingSync() {
+        val appContext = activity.applicationContext
+        runCatching {
+            executor.execute {
+                CallReportNoteOutboxScheduler.enqueue(appContext, reason = "home_sync_indicator_retry")
+                CallReportTopicNoteOutbox.requestSyncNow(appContext)
+                CompanyCallNoteOutbox.requestSyncNow(appContext)
+                AccountMutationOutbox.schedulePending(appContext, replace = true)
+                CallReportSyncScheduler.enqueueCatchUp(appContext, reason = "home_sync_indicator_retry")
+                activity.runOnUiThread {
+                    if (!activity.isFinishing && !activity.isDestroyed) {
+                        Toast.makeText(activity, R.string.home_sync_retry_scheduled, Toast.LENGTH_SHORT).show()
+                        refresh()
+                    }
+                }
+            }
+        }
     }
 
     private fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).toInt()
 
     private data class IndicatorViews(
         val container: FrameLayout,
+        val icon: ImageView,
         val badge: TextView,
+    )
+
+    private data class PendingUploadSummary(
+        val count: Int = 0,
+        val failure: String = "",
     )
 
     private companion object {
         const val TAG = "relationship_manager_home_sync_status"
         const val BADGE_TAG = "relationship_manager_home_sync_status_badge"
         const val RECHECK_DELAY_MS = 1_500L
-
-        // Storage identifiers are intentionally kept for backward compatibility.
-        const val LEGACY_MAIN_NOTE_OUTBOX_PREFS = "callreport_note_outbox"
-        const val LEGACY_MAIN_NOTE_OUTBOX_OPERATIONS = "operations_v1"
     }
 }

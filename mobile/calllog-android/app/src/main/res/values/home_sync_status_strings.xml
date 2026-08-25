@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_sync_pending_content_description">Pending synchronization: %1$s</string>
+    <string name="home_sync_issue_content_description">Synchronization issue: %1$s</string>
+    <string name="home_sync_pending_title">Waiting to sync</string>
+    <string name="home_sync_issue_title">Synchronization issue</string>
+    <string name="home_sync_pending_message">%1$d changes are waiting to be sent. They will sync automatically when a network connection is available.</string>
+    <string name="home_sync_issue_message">%1$d changes are not synchronized yet.\n\nLatest issue: %2$s</string>
+    <string name="home_sync_close">Close</string>
+    <string name="home_sync_retry">Retry</string>
+    <string name="home_sync_retry_scheduled">Synchronization was scheduled again.</string>
 </resources>

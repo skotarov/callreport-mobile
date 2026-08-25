@@ -222,6 +222,8 @@ internal object CallReportNoteOutbox {
 
     fun hasPending(context: Context): Boolean = synchronized(lock) { readLocked(context).isNotEmpty() }
 
+    fun pendingCount(context: Context): Int = synchronized(lock) { readLocked(context).size }
+
     private fun isPending(context: Context, clientEventId: String): Boolean = synchronized(lock) {
         readLocked(context).any { it.clientEventId == clientEventId }
     }

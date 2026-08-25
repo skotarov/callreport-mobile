@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_sync_pending_content_description">Чакащи за синхронизация: %1$s</string>
+    <string name="home_sync_issue_content_description">Проблем със синхронизацията: %1$s</string>
+    <string name="home_sync_pending_title">Чака синхронизация</string>
+    <string name="home_sync_issue_title">Проблем със синхронизацията</string>
+    <string name="home_sync_pending_message">%1$d промени чакат да се изпратят. Ще бъдат синхронизирани автоматично при интернет връзка.</string>
+    <string name="home_sync_issue_message">%1$d промени все още не са синхронизирани.\n\nПоследен проблем: %2$s</string>
+    <string name="home_sync_close">Затвори</string>
+    <string name="home_sync_retry">Повтори</string>
+    <string name="home_sync_retry_scheduled">Синхронизацията е насрочена отново.</string>
 </resources>
