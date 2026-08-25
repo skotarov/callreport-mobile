@@ -40,14 +40,14 @@ class ClientsServerContractTest {
         offset: Int = 0,
     ) = ServerCrmContactsQuery.parameters(config, state, q, limit, offset)
 
-    @Test fun noFiltersLeavesOptionalDimensionsOut() {
+    @Test fun noFiltersUseTheExplicitAllClientsScope() {
         val p = params()
-        assertFalse(p.containsKey("crm_only")); assertFalse(p.containsKey("company_id")); assertFalse(p.containsKey("phase"))
+        assertFalse(p.containsKey("crm_only")); assertEquals("all", p["company_id"]); assertFalse(p.containsKey("phase"))
     }
 
     @Test fun crmOffMeansNoCrmRestriction() = assertFalse(params(HomeCrmFilterState(crmOnly = false)).containsKey("crm_only"))
     @Test fun crmOnMeansCurrentUserCrmRestriction() = assertEquals("1", params(HomeCrmFilterState(crmOnly = true))["crm_only"])
-    @Test fun companyEmptyMeansNoCompanyRestriction() = assertFalse(params(HomeCrmFilterState()).containsKey("company_id"))
+    @Test fun companyEmptyMeansAllVisibleClients() = assertEquals("all", params(HomeCrmFilterState())["company_id"])
     @Test fun companySelectionIsSentServerSide() = assertEquals("a,b", params(HomeCrmFilterState(companyIds = setOf("b", "a")))["company_id"])
     @Test fun phaseEmptyMeansNoPhaseRestriction() = assertFalse(params(HomeCrmFilterState()).containsKey("phase"))
     @Test fun phaseSelectionIsSentServerSide() = assertEquals("2,4", params(HomeCrmFilterState(phases = setOf(4, 2)))["phase"])

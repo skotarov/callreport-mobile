@@ -288,11 +288,10 @@ internal object ServerCrmContactsQuery {
             "limit" to limit.coerceIn(1, 100).toString(),
             "offset" to offset.coerceAtLeast(0).toString(),
         ).apply {
-            // Dedicated no-company rule: an absent company filter is the neutral
-            // "all visible clients" scope. Older/mixed deployments may interpret
-            // the mere presence of crm_only as enabled even when its value is 0,
-            // so omit it only for this neutral scope. Company-filtered requests keep
-            // their existing explicit 0/1 semantics unchanged.
+            // Make the unfiltered Clients view explicit. Depending on an absent
+            // company_id to mean "all" made older endpoint variants fall back to
+            // their legacy empty scope. The server contract recognizes `all` as
+            // every client visible to the signed-in profile.
             when {
                 filterState.crmOnly -> put("crm_only", "1")
                 companyIds.isNotEmpty() -> put("crm_only", "0")
@@ -302,7 +301,7 @@ internal object ServerCrmContactsQuery {
                 put("phase", phase)
                 put("phases", phase)
             }
-            if (companyIds.isNotEmpty()) put("company_id", companyIds.joinToString(","))
+            put("company_id", companyIds.takeIf { it.isNotEmpty() }?.joinToString(",") ?: "all")
             if (query.isNotBlank()) {
                 put("q", query)
                 put("search", query)

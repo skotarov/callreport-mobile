@@ -34,15 +34,15 @@ class ClientsNoCompanyFilterCompatibilityTest {
     private fun params(state: HomeCrmFilterState): Map<String, String> =
         ServerCrmContactsQuery.parameters(config, state, "", 20, 0)
 
-    @Test fun noCompanyAndCrmOffOmitsCrmOnlyEntirely() {
+    @Test fun noCompanyAndCrmOffRequestsAllVisibleClients() {
         val p = params(HomeCrmFilterState(companyIds = emptySet(), crmOnly = false))
-        assertFalse(p.containsKey("company_id"))
+        assertEquals("all", p["company_id"])
         assertFalse(p.containsKey("crm_only"))
     }
 
     @Test fun noCompanyAndCrmOnStillSendsCrmOnlyOne() {
         val p = params(HomeCrmFilterState(companyIds = emptySet(), crmOnly = true))
-        assertFalse(p.containsKey("company_id"))
+        assertEquals("all", p["company_id"])
         assertEquals("1", p["crm_only"])
     }
 
