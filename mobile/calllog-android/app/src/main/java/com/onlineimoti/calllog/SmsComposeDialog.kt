@@ -17,6 +17,8 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -55,10 +57,10 @@ internal class SmsComposeDialog(
 
     private fun configureWindow(dialog: Dialog, input: EditText) {
         dialog.window?.apply {
-            setBackgroundDrawable(roundedRect(Color.WHITE, dp(20), Color.TRANSPARENT, 0))
+            setBackgroundDrawable(roundedRect(Color.WHITE, dp(24), Color.TRANSPARENT, 0))
             setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-            attributes = attributes.apply { y = dp(12) }
-            setLayout(activity.resources.displayMetrics.widthPixels - dp(28), ViewGroup.LayoutParams.WRAP_CONTENT)
+            attributes = attributes.apply { y = dp(16) }
+            setLayout(activity.resources.displayMetrics.widthPixels - dp(32), ViewGroup.LayoutParams.WRAP_CONTENT)
             setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
                     WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
@@ -72,7 +74,7 @@ internal class SmsComposeDialog(
     private fun content(dialog: Dialog, phone: String, title: String, initialBody: String): DialogViews {
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(18))
+            setPadding(dp(20), dp(18), dp(20), dp(20))
             setBackgroundColor(Color.WHITE)
         }
         root.addView(dialogTitle(dialog))
@@ -118,31 +120,63 @@ internal class SmsComposeDialog(
     private fun dialogTitle(dialog: Dialog): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
+        addView(headerIcon(R.drawable.ic_sms_send), LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+            marginEnd = dp(12)
+        })
         addView(TextView(activity).apply {
             text = activity.getString(R.string.dynamic_sms_new)
-            textSize = 21f
+            textSize = 20f
             setTextColor(Color.rgb(15, 23, 42))
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         addView(TextView(activity).apply {
             text = "×"
-            textSize = 30f
+            textSize = 27f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(71, 85, 105))
+            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
             contentDescription = activity.getString(R.string.dynamic_sms_close)
             isClickable = true
             isFocusable = true
             setOnClickListener { dialog.dismiss() }
-            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42))
         })
     }
 
-    private fun contactSummary(title: String, phone: String): TextView = TextView(activity).apply {
-        text = "$title • $phone"
-        textSize = 14f
-        setTextColor(Color.rgb(71, 85, 105))
-        setPadding(0, dp(2), 0, dp(14))
+    private fun contactSummary(title: String, phone: String): LinearLayout = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(12), dp(9), dp(12), dp(10))
+        background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
+        addView(TextView(activity).apply {
+            text = title
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(15, 23, 42))
+        })
+        addView(TextView(activity).apply {
+            text = phone
+            textSize = 13.5f
+            setTextColor(Color.rgb(71, 85, 105))
+            setPadding(0, dp(2), 0, 0)
+        })
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { bottomMargin = dp(14) }
+    }
+
+    private fun headerIcon(drawableRes: Int): FrameLayout = FrameLayout(activity).apply {
+        background = roundedRect(Color.rgb(224, 242, 254), dp(14), Color.TRANSPARENT, 0)
+        addView(ImageView(activity).apply {
+            setImageResource(drawableRes)
+            setColorFilter(Color.rgb(25, 118, 210))
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        ))
     }
 
     private fun messageInput(initialBody: String): EditText = EditText(activity).apply {
@@ -224,7 +258,7 @@ internal class SmsComposeDialog(
         setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_sms_send, 0)
         compoundDrawableTintList = ColorStateList.valueOf(Color.WHITE)
         compoundDrawablePadding = dp(12)
-        background = roundedRect(Color.rgb(15, 23, 42), dp(13), Color.TRANSPARENT, 0)
+        background = roundedRect(Color.rgb(25, 118, 210), dp(13), Color.TRANSPARENT, 0)
     }
 
     private fun secondaryButton(label: String): Button = Button(activity).apply {

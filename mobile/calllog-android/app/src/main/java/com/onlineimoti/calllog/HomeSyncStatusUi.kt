@@ -1,6 +1,5 @@
 package com.onlineimoti.calllog
 
-import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -31,13 +30,13 @@ internal class HomeSyncStatusUi(
 
         // Worker state is intentionally ignored here. The cloud represents only real
         // durable local mutations that still exist in an outbox.
-        val pendingNow = pendingUploadSummary(appContext)
+        val pendingNow = PendingSyncStatus.summary(appContext)
         render(indicator, pendingNow)
 
         val expectedGeneration = generation.incrementAndGet()
         runCatching {
             executor.execute {
-                val pending = pendingUploadSummary(appContext)
+                val pending = PendingSyncStatus.summary(appContext)
                 activity.runOnUiThread {
                     if (expectedGeneration != generation.get() || activity.isFinishing || activity.isDestroyed) {
                         return@runOnUiThread
@@ -54,23 +53,7 @@ internal class HomeSyncStatusUi(
         }
     }
 
-    private fun pendingUploadSummary(context: Context): PendingUploadSummary {
-        val count = CallReportNoteOutbox.pendingCount(context) +
-            CallReportTopicNoteOutbox.pendingCount(context) +
-            CompanyCallNoteOutbox.pendingClientEventIds(context).size +
-            AccountMutationOutbox.pendingCountForCurrentAccount(context)
-        if (count == 0) return PendingUploadSummary()
-
-        val failure = listOf(
-            CallReportNoteOutbox.lastFailure(context),
-            CallReportTopicNoteOutbox.lastFailure(context),
-            CompanyCallNoteOutbox.lastFailure(context),
-            AccountMutationOutbox.lastFailure(context),
-        ).firstOrNull(String::isNotBlank).orEmpty()
-        return PendingUploadSummary(count, failure)
-    }
-
-    private fun render(indicator: IndicatorViews, summary: PendingUploadSummary) {
+    private fun render(indicator: IndicatorViews, summary: PendingSyncSummary) {
         val state = homeSyncStatusState(summary.count, summary.failure.isNotBlank())
         indicator.container.visibility = if (state.visible) View.VISIBLE else View.GONE
         if (!state.visible) {
@@ -142,7 +125,7 @@ internal class HomeSyncStatusUi(
         setColor(if (hasIssue) Color.rgb(229, 57, 53) else Color.rgb(25, 118, 210))
     }
 
-    private fun showDetails(summary: PendingUploadSummary) {
+    private fun showDetails(summary: PendingSyncSummary) {
         if (summary.count <= 0 || activity.isFinishing || activity.isDestroyed) return
         val message = if (summary.failure.isBlank()) {
             activity.getString(R.string.home_sync_pending_message, summary.count)
@@ -182,11 +165,6 @@ internal class HomeSyncStatusUi(
         val container: FrameLayout,
         val icon: ImageView,
         val badge: TextView,
-    )
-
-    private data class PendingUploadSummary(
-        val count: Int = 0,
-        val failure: String = "",
     )
 
     private companion object {

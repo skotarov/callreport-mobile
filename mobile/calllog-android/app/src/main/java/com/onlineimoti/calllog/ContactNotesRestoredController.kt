@@ -26,6 +26,7 @@ internal class ContactNotesRestoredController(
     }
     private val externalActions by lazy { ContactNotesExternalActions(activity) }
     private val headerUi by lazy { ContactNotesHeaderUi(activity, ::dp) }
+    private val syncStatusUi by lazy { HistorySyncStatusUi(activity, ::dp) }
     private val phaseUi by lazy { ContactNegotiationPhaseUi(activity, ::dp) }
     private val historyController by lazy {
         CallReportMergedHistoryController(
@@ -117,6 +118,7 @@ internal class ContactNotesRestoredController(
     fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         stickyHistoryUi.release()
+        syncStatusUi.release()
         edgePaging.release()
         crmSyncExecutor.shutdownNow()
         historyController.release()
@@ -184,6 +186,7 @@ internal class ContactNotesRestoredController(
             toggleCrmSync = { setCrmSyncEnabled(!CrmContactSyncStore.isEnabled(activity, phone)) },
             openRmCallLog = { openRmCallLog() },
             openRmCallLogFiltered = { selectListMode(ContactHistoryListMode.FULL_LOG) },
+            syncStatusIndicator = syncStatusUi.create(),
         ))
         root.addView(ContactNotesServerStatusUi.create(
             activity = activity,

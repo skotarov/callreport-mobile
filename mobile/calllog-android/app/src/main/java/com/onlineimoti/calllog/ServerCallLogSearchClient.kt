@@ -9,7 +9,10 @@ import java.net.URL
 
 /** Searches the authenticated Relationship Manager server account for the main Call Log search box. */
 internal object ServerCallLogSearchClient {
-    private const val PATH = "/relationship-manager/search_lookup.php"
+    // The shared Clients endpoint searches all records visible to the signed-in
+    // profile, including notes written in company accounts. The older dedicated
+    // search endpoint scanned only the current account and missed those notes.
+    private const val PATH = "/relationship-manager/contacts_shared_lookup.php"
 
     fun search(
         config: AppConfig,
@@ -25,6 +28,7 @@ internal object ServerCallLogSearchClient {
                 "access_token" to config.accessToken,
                 "q" to trimmedQuery,
                 "search" to trimmedQuery,
+                "company_id" to "all",
                 "limit" to "500",
             ),
         )
@@ -56,6 +60,7 @@ internal object ServerCallLogSearchClient {
                             .ifBlank { item.optString("search_snippet").trim() }
                             .ifBlank { item.optString("matched_note").trim() }
                             .ifBlank { item.optString("matched_text").trim() }
+                            .ifBlank { matchingNoteSnippet(item, trimmedQuery) }
                         add(
                             PhoneCallRecord(
                                 number = phone,
@@ -80,5 +85,16 @@ internal object ServerCallLogSearchClient {
         } finally {
             connection.disconnect()
         }
+    }
+
+    /** The shared Clients response returns full notes rather than a separate search snippet. */
+    private fun matchingNoteSnippet(item: JSONObject, query: String): String {
+        val notes = item.optJSONArray("notes") ?: return ""
+        for (index in 0 until notes.length()) {
+            val note = notes.optJSONObject(index) ?: continue
+            val text = note.optString("text").trim().ifBlank { note.optString("note").trim() }
+            if (text.contains(query, ignoreCase = true)) return text
+        }
+        return ""
     }
 }

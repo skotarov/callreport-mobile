@@ -261,6 +261,9 @@ internal class ContactNotesStickyHistoryUi(
     private fun callButton(): FrameLayout = FrameLayout(activity).apply {
         clipChildren = false
         clipToPadding = false
+        // Move the whole touch container with the raised visual button. Moving only
+        // the ImageView left its upper half outside the parent's hit area.
+        translationY = -dp(CALL_BUTTON_SIZE_DP / 2).toFloat()
         layoutParams = LinearLayout.LayoutParams(
             0,
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -276,7 +279,6 @@ internal class ContactNotesStickyHistoryUi(
             }
             elevation = 0f
             stateListAnimator = null
-            translationY = -dp(CALL_BUTTON_SIZE_DP / 2).toFloat()
             setPadding(dp(15), dp(15), dp(15), dp(15))
             isClickable = true
             isFocusable = true

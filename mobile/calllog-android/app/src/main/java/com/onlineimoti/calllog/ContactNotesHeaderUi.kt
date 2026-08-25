@@ -42,6 +42,7 @@ class ContactNotesHeaderUi(
         toggleCrmSync: () -> Unit,
         openRmCallLog: () -> Unit,
         openRmCallLogFiltered: () -> Unit,
+        syncStatusIndicator: View? = null,
     ): LinearLayout {
         val displayName = displayNameFromTitle(title, phone)
         val compactIdentity = displayName.ifBlank { phone }
@@ -77,6 +78,7 @@ class ContactNotesHeaderUi(
                 openCleanCallList = if (showRmCallLogButton) openRmCallLog else null,
             ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
             addView(compactTitle)
+            syncStatusIndicator?.let(::addView)
             addView(actions.historyOverflowButton(
                 openRmContact = openRmContact,
                 openChatSettings = ::openChatSettings,

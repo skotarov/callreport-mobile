@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -77,10 +78,10 @@ internal class SmsMessageViewDialog(
 
     private fun configureWindow(dialog: Dialog) {
         dialog.window?.apply {
-            setBackgroundDrawable(roundedRect(Color.WHITE, dp(20), Color.TRANSPARENT, 0))
+            setBackgroundDrawable(roundedRect(Color.WHITE, dp(24), Color.TRANSPARENT, 0))
             setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-            attributes = attributes.apply { y = dp(12) }
-            setLayout(activity.resources.displayMetrics.widthPixels - dp(28), ViewGroup.LayoutParams.WRAP_CONTENT)
+            attributes = attributes.apply { y = dp(16) }
+            setLayout(activity.resources.displayMetrics.widthPixels - dp(32), ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 
@@ -97,7 +98,7 @@ internal class SmsMessageViewDialog(
     ): LinearLayout {
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(18))
+            setPadding(dp(20), dp(18), dp(20), dp(20))
             setBackgroundColor(Color.WHITE)
         }
         root.addView(header(dialog))
@@ -110,7 +111,12 @@ internal class SmsMessageViewDialog(
             ).filter { !it.isNullOrBlank() }.joinToString(" • ")
             textSize = 13.5f
             setTextColor(Color.rgb(71, 85, 105))
-            setPadding(0, dp(2), 0, dp(12))
+            setPadding(dp(12), dp(9), dp(12), dp(10))
+            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(14) }
         })
 
         val bodyView = TextView(activity).apply {
@@ -193,7 +199,7 @@ internal class SmsMessageViewDialog(
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(if (primary) Color.WHITE else Color.rgb(15, 23, 42))
             background = roundedRect(
-                color = if (primary) Color.rgb(15, 23, 42) else Color.rgb(248, 250, 252),
+                color = if (primary) Color.rgb(25, 118, 210) else Color.rgb(248, 250, 252),
                 radius = dp(13),
                 strokeColor = if (primary) Color.TRANSPARENT else Color.rgb(203, 213, 225),
                 strokeWidth = if (primary) 0 else dp(1),
@@ -205,24 +211,41 @@ internal class SmsMessageViewDialog(
     private fun header(dialog: Dialog): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
+        addView(headerIcon(), LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+            marginEnd = dp(12)
+        })
         addView(TextView(activity).apply {
             text = "SMS"
-            textSize = 21f
+            textSize = 20f
             setTextColor(Color.rgb(15, 23, 42))
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         addView(TextView(activity).apply {
             text = "×"
-            textSize = 30f
+            textSize = 27f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(71, 85, 105))
+            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
             contentDescription = if (AppLocaleText.isBulgarian()) "Затвори" else "Close"
             isClickable = true
             isFocusable = true
             setOnClickListener { dialog.dismiss() }
-            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42))
         })
+    }
+
+    private fun headerIcon(): FrameLayout = FrameLayout(activity).apply {
+        background = roundedRect(Color.rgb(224, 242, 254), dp(14), Color.TRANSPARENT, 0)
+        addView(ImageView(activity).apply {
+            setImageResource(R.drawable.ic_menu_sms)
+            setColorFilter(Color.rgb(25, 118, 210))
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        ))
     }
 
     private fun roundedRect(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int): GradientDrawable {
