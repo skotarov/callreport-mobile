@@ -33,8 +33,20 @@ class ContactNotesStickyActionPolicyTest {
 
     @Test
     fun compactIdentityUsesTheSameStateAsThePinnedActionRow() {
-        assertFalse(ContactNotesStickyActionPolicy.shouldShowCompactIdentity(actionsPinned = false))
-        assertTrue(ContactNotesStickyActionPolicy.shouldShowCompactIdentity(actionsPinned = true))
+        assertFalse(
+            ContactNotesStickyActionPolicy.shouldShowCompactIdentity(
+                originalNameTopOnScreen = 201,
+                topBarBottomOnScreen = 200,
+                actionsPinned = false,
+            ),
+        )
+        assertTrue(
+            ContactNotesStickyActionPolicy.shouldShowCompactIdentity(
+                originalNameTopOnScreen = null,
+                topBarBottomOnScreen = 200,
+                actionsPinned = true,
+            ),
+        )
     }
 
     @Test
@@ -46,13 +58,25 @@ class ContactNotesStickyActionPolicyTest {
             viewportTopOnScreen = viewportTop,
         )
         assertFalse(beforeThreshold)
-        assertFalse(ContactNotesStickyActionPolicy.shouldShowCompactIdentity(beforeThreshold))
+        assertFalse(
+            ContactNotesStickyActionPolicy.shouldShowCompactIdentity(
+                originalNameTopOnScreen = viewportTop + 1,
+                topBarBottomOnScreen = viewportTop,
+                actionsPinned = beforeThreshold,
+            ),
+        )
 
         val atThreshold = ContactNotesStickyActionPolicy.shouldStick(
             actionTopOnScreen = viewportTop,
             viewportTopOnScreen = viewportTop,
         )
         assertTrue(atThreshold)
-        assertTrue(ContactNotesStickyActionPolicy.shouldShowCompactIdentity(atThreshold))
+        assertTrue(
+            ContactNotesStickyActionPolicy.shouldShowCompactIdentity(
+                originalNameTopOnScreen = viewportTop + 1,
+                topBarBottomOnScreen = viewportTop,
+                actionsPinned = atThreshold,
+            ),
+        )
     }
 }
