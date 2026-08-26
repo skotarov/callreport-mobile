@@ -45,7 +45,7 @@ internal class RmContactFormDialog(
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(14))
-            setBackgroundColor(Color.WHITE)
+            background = AppModalStyle.surface(activity)
         }
         root.addView(TextView(activity).apply {
             text = "RM контакт"
@@ -110,15 +110,20 @@ internal class RmContactFormDialog(
             text = "Изтрий"
             isAllCaps = false
             setTextColor(Color.rgb(185, 28, 28))
+            background = AppModalStyle.secondary(activity)
         }
         val cancelButton = Button(activity).apply {
             text = "Откажи"
             isAllCaps = false
+            setTextColor(AppModalStyle.accent(activity))
+            background = AppModalStyle.secondary(activity)
             setOnClickListener { dialog.dismiss() }
         }
         val saveButton = Button(activity).apply {
             text = "Запази"
             isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = AppModalStyle.primary(activity)
         }
         if (hasExistingRmContact) actions.addView(deleteButton)
         actions.addView(cancelButton)
@@ -198,8 +203,12 @@ internal class RmContactFormDialog(
 
         dialog.setContentView(root)
         dialog.setOnShowListener {
+            AppModalStyle.configureWindow(
+                dialog = dialog,
+                activity = activity,
+                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+            )
             dialog.window?.apply {
-                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
                 val width = (activity.resources.displayMetrics.widthPixels * 0.95f).toInt()
                 val height = (activity.resources.displayMetrics.heightPixels * 0.88f).toInt()
                 setLayout(width, height)
@@ -251,6 +260,7 @@ internal class RmContactFormDialog(
             } else {
                 isSingleLine = true
             }
+            AppModalStyle.styleInput(this)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,

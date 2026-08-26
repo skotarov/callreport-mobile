@@ -28,6 +28,7 @@ internal class HomeServerCallNotesController(
     /** Real note/settings changes must also force the next request to read the server again. */
     fun invalidate() {
         cancelPending()
+        CallReportHistoryLookupClient.invalidateRecentPages()
         cachedHistory = null
         observedNoteRevision = HomeNoteChangeSignal.current(appContext)
     }

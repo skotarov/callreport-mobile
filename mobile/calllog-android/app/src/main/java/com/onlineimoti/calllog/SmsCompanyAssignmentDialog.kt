@@ -33,6 +33,7 @@ internal class SmsCompanyAssignmentDialog(
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(8))
+            background = AppModalStyle.surface(activity)
         }
         root.addView(TextView(activity).apply {
             text = "SMS — фирма / случай"
@@ -89,6 +90,7 @@ internal class SmsCompanyAssignmentDialog(
             .setPositiveButton("Запази", null)
             .create()
         dialog.setOnShowListener {
+            AppModalStyle.styleAlert(dialog)
             val saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             saveButton.isEnabled = false
             var companies: List<CallReportTopicCompany> = emptyList()

@@ -124,24 +124,21 @@ internal object SmsMessageReader {
         return runCatching {
             val projection = timelineProjection()
             val rows = mutableListOf<SmsTimelineMessage>()
-            context.contentResolver.query(
-                Telephony.Sms.CONTENT_URI,
-                projection,
-                null,
-                null,
-                "${Telephony.Sms.DATE} DESC",
+            DeviceProviderPaging.query(
+                resolver = context.contentResolver,
+                uri = Telephony.Sms.CONTENT_URI,
+                projection = projection,
+                dateColumn = Telephony.Sms.DATE,
+                idColumn = Telephony.Sms._ID,
+                limit = safeLimit,
+                offset = safeOffset,
             )?.use { cursor ->
                 val idIndex = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
                 val addressIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
                 val bodyIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
                 val dateIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
                 val typeIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.TYPE)
-                var skipped = 0
                 while (cursor.moveToNext()) {
-                    if (skipped < safeOffset) {
-                        skipped++
-                        continue
-                    }
                     rows += cursor.timelineMessage(idIndex, addressIndex, bodyIndex, dateIndex, typeIndex)
                     if (rows.size >= safeLimit) break
                 }
@@ -157,12 +154,15 @@ internal object SmsMessageReader {
         limit: Int,
     ): List<SmsTimelineMessage> {
         val rows = mutableListOf<SmsTimelineMessage>()
-        context.contentResolver.query(
-            Telephony.Sms.CONTENT_URI,
-            timelineProjection(),
-            selection,
-            selectionArgs,
-            "${Telephony.Sms.DATE} DESC",
+        DeviceProviderPaging.query(
+            resolver = context.contentResolver,
+            uri = Telephony.Sms.CONTENT_URI,
+            projection = timelineProjection(),
+            selection = selection,
+            selectionArgs = selectionArgs,
+            dateColumn = Telephony.Sms.DATE,
+            idColumn = Telephony.Sms._ID,
+            limit = limit,
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
             val addressIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
@@ -207,12 +207,15 @@ internal object SmsMessageReader {
     ): List<SmsMessageRecord> {
         val projection = timelineProjection()
         val rows = mutableListOf<SmsMessageRecord>()
-        context.contentResolver.query(
-            Telephony.Sms.CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            "${Telephony.Sms.DATE} DESC",
+        DeviceProviderPaging.query(
+            resolver = context.contentResolver,
+            uri = Telephony.Sms.CONTENT_URI,
+            projection = projection,
+            selection = selection,
+            selectionArgs = selectionArgs,
+            dateColumn = Telephony.Sms.DATE,
+            idColumn = Telephony.Sms._ID,
+            limit = limit.coerceIn(1, MAX_MESSAGES_PER_CONTACT),
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
             val addressIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)

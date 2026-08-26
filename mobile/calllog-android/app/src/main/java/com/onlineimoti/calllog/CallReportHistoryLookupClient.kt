@@ -8,6 +8,7 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.FutureTask
 
 internal data class CallReportHistoryCompany(
     val id: String,
@@ -59,13 +60,23 @@ internal data class CallReportHistoryLookupResult(
     val companyMainNotes: List<CallReportHistoryCompanyMainNote> = emptyList(),
 )
 
+private data class CachedPage(
+    val loadedAtMs: Long,
+    val result: CallReportHistoryLookupResult,
+)
+
 internal object CallReportHistoryLookupClient {
     private const val PATH = "/relationship-manager/history_lookup.php"
     private const val DEFAULT_LIMIT = 200
     private const val MAX_LIMIT = 200
     private const val MAX_PHONE_VARIANTS = 50
     private const val MAX_SINGLE_FALLBACK_PHONES = 20
+    private const val PAGE_CACHE_MS = 5_000L
+    private const val MAX_PAGE_CACHE_ENTRIES = 4
     private val generalNoteServerPhones = ConcurrentHashMap.newKeySet<String>()
+    private val pageLookupLock = Any()
+    private val cachedPages = linkedMapOf<String, CachedPage>()
+    private val inFlightPages = linkedMapOf<String, FutureTask<CallReportHistoryLookupResult?>>()
 
     fun lookup(
         config: AppConfig,
@@ -111,6 +122,53 @@ internal object CallReportHistoryLookupClient {
             .take(MAX_SINGLE_FALLBACK_PHONES)
         if (originalPhones.isEmpty()) return CallReportHistoryLookupResult()
 
+        val cacheKey = pageCacheKey(config, originalPhones, context)
+        val (task, shouldRun) = synchronized(pageLookupLock) {
+            val now = System.currentTimeMillis()
+            val cached = cachedPages[cacheKey]
+                ?.takeIf { now - it.loadedAtMs < PAGE_CACHE_MS }
+            if (cached != null) return cached.result
+            cachedPages.remove(cacheKey)
+
+            val existing = inFlightPages[cacheKey]
+            if (existing != null) {
+                existing to false
+            } else {
+                val created = FutureTask<CallReportHistoryLookupResult?> {
+                    try {
+                        val result = lookupManyUncached(config, originalPhones, context)
+                        if (result != null) {
+                            synchronized(pageLookupLock) {
+                                cachedPages[cacheKey] = CachedPage(System.currentTimeMillis(), result)
+                                while (cachedPages.size > MAX_PAGE_CACHE_ENTRIES) {
+                                    cachedPages.remove(cachedPages.entries.first().key)
+                                }
+                            }
+                        }
+                        result
+                    } finally {
+                        synchronized(pageLookupLock) { inFlightPages.remove(cacheKey) }
+                    }
+                }
+                inFlightPages[cacheKey] = created
+                created to true
+            }
+        }
+        if (shouldRun) task.run()
+        return runCatching { task.get() }.getOrNull()
+    }
+
+    /** Clears only the short in-memory page sharing cache; durable offline cache remains intact. */
+    fun invalidateRecentPages() {
+        synchronized(pageLookupLock) { cachedPages.clear() }
+    }
+
+    private fun lookupManyUncached(
+        config: AppConfig,
+        originalPhones: List<String>,
+        context: Context?,
+    ): CallReportHistoryLookupResult? {
+
         val requestedPhones = buildList {
             originalPhones.forEach { phone -> addAll(phoneCandidatesForLookup(phone)) }
         }
@@ -138,6 +196,23 @@ internal object CallReportHistoryLookupClient {
         context?.let { CallReportHistoryDiskCache.save(it, config, originalPhones, result) }
         originalPhones.forEach { phone -> updateGeneralNoteServerPresence(phone, result) }
         return result
+    }
+
+    private fun pageCacheKey(
+        config: AppConfig,
+        phones: List<String>,
+        context: Context?,
+    ): String = buildString {
+        append(config.baseUrl.trim().trimEnd('/'))
+        append('#')
+        append(config.accessToken.trim())
+        append('#')
+        append(context?.let { HomeNoteChangeSignal.current(it.applicationContext) } ?: 0L)
+        append('#')
+        phones.map(::phoneKey).filter(String::isNotBlank).sorted().forEach { key ->
+            append(key)
+            append('|')
+        }
     }
 
     /**

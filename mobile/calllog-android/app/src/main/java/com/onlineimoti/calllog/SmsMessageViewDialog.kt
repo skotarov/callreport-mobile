@@ -77,12 +77,7 @@ internal class SmsMessageViewDialog(
     }
 
     private fun configureWindow(dialog: Dialog) {
-        dialog.window?.apply {
-            setBackgroundDrawable(roundedRect(Color.WHITE, dp(24), Color.TRANSPARENT, 0))
-            setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-            attributes = attributes.apply { y = dp(16) }
-            setLayout(activity.resources.displayMetrics.widthPixels - dp(32), ViewGroup.LayoutParams.WRAP_CONTENT)
-        }
+        AppModalStyle.configureWindow(dialog, activity, topAligned = true)
     }
 
     private fun content(
@@ -99,7 +94,7 @@ internal class SmsMessageViewDialog(
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(20))
-            setBackgroundColor(Color.WHITE)
+            background = AppModalStyle.surface(activity)
         }
         root.addView(header(dialog))
         root.addView(TextView(activity).apply {
@@ -112,7 +107,7 @@ internal class SmsMessageViewDialog(
             textSize = 13.5f
             setTextColor(Color.rgb(71, 85, 105))
             setPadding(dp(12), dp(9), dp(12), dp(10))
-            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
+            background = AppModalStyle.secondary(activity)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -127,12 +122,7 @@ internal class SmsMessageViewDialog(
             setTextColor(Color.rgb(15, 23, 42))
             setTextIsSelectable(true)
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = roundedRect(
-                Color.rgb(248, 250, 252),
-                dp(14),
-                Color.rgb(203, 213, 225),
-                dp(1),
-            )
+            background = AppModalStyle.input(activity)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -199,7 +189,7 @@ internal class SmsMessageViewDialog(
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(if (primary) Color.WHITE else Color.rgb(15, 23, 42))
             background = roundedRect(
-                color = if (primary) Color.rgb(25, 118, 210) else Color.rgb(248, 250, 252),
+                color = if (primary) AppModalStyle.accent(activity) else Color.rgb(248, 250, 252),
                 radius = dp(13),
                 strokeColor = if (primary) Color.TRANSPARENT else Color.rgb(203, 213, 225),
                 strokeWidth = if (primary) 0 else dp(1),
@@ -226,7 +216,7 @@ internal class SmsMessageViewDialog(
             textSize = 27f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(71, 85, 105))
-            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
+            background = AppModalStyle.secondary(activity)
             contentDescription = if (AppLocaleText.isBulgarian()) "Затвори" else "Close"
             isClickable = true
             isFocusable = true
@@ -236,10 +226,10 @@ internal class SmsMessageViewDialog(
     }
 
     private fun headerIcon(): FrameLayout = FrameLayout(activity).apply {
-        background = roundedRect(Color.rgb(224, 242, 254), dp(14), Color.TRANSPARENT, 0)
+        background = roundedRect(AppModalStyle.accent(activity), dp(14), Color.TRANSPARENT, 0)
         addView(ImageView(activity).apply {
             setImageResource(R.drawable.ic_menu_sms)
-            setColorFilter(Color.rgb(25, 118, 210))
+            setColorFilter(Color.WHITE)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }, FrameLayout.LayoutParams(

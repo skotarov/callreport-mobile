@@ -29,12 +29,14 @@ internal object CompanyEditDialog {
             setSelection(text?.length ?: 0)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
             setSingleLine(true)
+            AppModalStyle.styleInput(this)
         }
         val eikInput = EditText(activity).apply {
             hint = "ЕИК / Булстат"
             setText(company.eik)
             inputType = InputType.TYPE_CLASS_TEXT
             setSingleLine(true)
+            AppModalStyle.styleInput(this)
         }
         val validation = TextView(activity).apply {
             textSize = 13f
@@ -61,6 +63,7 @@ internal object CompanyEditDialog {
             .create()
 
         dialog.setOnShowListener {
+            AppModalStyle.styleAlert(dialog)
             val save = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             save.setOnClickListener {
                 val name = nameInput.text?.toString().orEmpty().trim()

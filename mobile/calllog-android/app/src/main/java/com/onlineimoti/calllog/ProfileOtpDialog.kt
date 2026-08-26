@@ -52,6 +52,7 @@ internal object ProfileOtpDialog {
             filters = arrayOf(InputFilter.LengthFilter(6))
             setSingleLine(true)
             isEnabled = false
+            AppModalStyle.styleInput(this)
         }
         val errorText = TextView(activity).apply {
             textSize = 14f
@@ -82,6 +83,7 @@ internal object ProfileOtpDialog {
             .create()
 
         dialog.setOnShowListener {
+            AppModalStyle.styleAlert(dialog)
             val confirmButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             val cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
             confirmButton.isEnabled = false

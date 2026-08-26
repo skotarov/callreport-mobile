@@ -183,6 +183,9 @@ jobs:
             exit "$gradle_status"
           fi
 
+      - name: Run Android unit tests
+        run: gradle --no-daemon --console=plain :app:testDebugUnitTest
+
       - name: Build Relationship Manager APK
         shell: bash
         run: |

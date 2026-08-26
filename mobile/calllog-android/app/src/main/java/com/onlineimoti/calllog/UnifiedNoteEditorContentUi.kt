@@ -291,7 +291,7 @@ internal class UnifiedNoteEditorContentUi(
     private fun primaryButton(textValue: String, action: () -> Unit): TextView = textButton(
         textValue,
         Color.WHITE,
-        Color.rgb(55, 65, 81),
+        AppModalStyle.accent(context),
         action,
         horizontalPaddingDp = 20,
     )

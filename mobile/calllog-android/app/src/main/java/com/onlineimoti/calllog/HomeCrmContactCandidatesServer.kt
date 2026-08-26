@@ -30,7 +30,11 @@ internal object HomeCrmContactCandidatesServer {
     ): ServerCrmContactsPage {
         val appContext = context.applicationContext
         CrmContactProfileScopeMigration.migrateKnownAliases(appContext)
-        CrmContactSyncStore.refreshFromServer(appContext)
+        // The unfiltered Clients view is the server's complete contact list. It
+        // does not depend on this profile's private CRM markers, and waiting for
+        // their separate request here could leave Clients on its loading screen
+        // for the full network timeout. Markers are needed only for "My clients".
+        if (filterState.crmOnly) CrmContactSyncStore.refreshFromServer(appContext)
         val config = ConfigStore.load(appContext)
         val companyIds = resolveAccessibleCompanyIds(appContext, config, accessibleCompanyIds)
 
@@ -62,7 +66,10 @@ internal object HomeCrmContactCandidatesServer {
                 searchQuery = searchQuery,
                 limit = limit,
                 offset = offset,
-                companyIds = companyIds,
+                // On a cold start the separate companies cache can still be empty.
+                // The Clients response already tells us which company scopes this
+                // profile can access, so keep the no-filter fallback self-contained.
+                companyIds = (companyIds + primary.accessibleCompanyIds).distinct(),
             )
             logPageSource("fallback-all-companies", fallback, filterState)
             return fallback

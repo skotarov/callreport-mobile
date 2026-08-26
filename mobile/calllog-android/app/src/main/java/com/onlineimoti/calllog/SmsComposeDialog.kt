@@ -56,16 +56,13 @@ internal class SmsComposeDialog(
     }
 
     private fun configureWindow(dialog: Dialog, input: EditText) {
-        dialog.window?.apply {
-            setBackgroundDrawable(roundedRect(Color.WHITE, dp(24), Color.TRANSPARENT, 0))
-            setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-            attributes = attributes.apply { y = dp(16) }
-            setLayout(activity.resources.displayMetrics.widthPixels - dp(32), ViewGroup.LayoutParams.WRAP_CONTENT)
-            setSoftInputMode(
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
-            )
-        }
+        AppModalStyle.configureWindow(
+            dialog = dialog,
+            activity = activity,
+            topAligned = true,
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+        )
         input.requestFocus()
         (activity.getSystemService(Activity.INPUT_METHOD_SERVICE) as? InputMethodManager)
             ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
@@ -75,7 +72,7 @@ internal class SmsComposeDialog(
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(20))
-            setBackgroundColor(Color.WHITE)
+            background = AppModalStyle.surface(activity)
         }
         root.addView(dialogTitle(dialog))
         root.addView(contactSummary(title.trim().ifBlank { phone }, phone))
@@ -135,7 +132,7 @@ internal class SmsComposeDialog(
             textSize = 27f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(71, 85, 105))
-            background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
+            background = AppModalStyle.secondary(activity)
             contentDescription = activity.getString(R.string.dynamic_sms_close)
             isClickable = true
             isFocusable = true
@@ -167,10 +164,10 @@ internal class SmsComposeDialog(
     }
 
     private fun headerIcon(drawableRes: Int): FrameLayout = FrameLayout(activity).apply {
-        background = roundedRect(Color.rgb(224, 242, 254), dp(14), Color.TRANSPARENT, 0)
+        background = roundedRect(AppModalStyle.accent(activity), dp(14), Color.TRANSPARENT, 0)
         addView(ImageView(activity).apply {
             setImageResource(drawableRes)
-            setColorFilter(Color.rgb(25, 118, 210))
+            setColorFilter(Color.WHITE)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }, FrameLayout.LayoutParams(
@@ -191,7 +188,7 @@ internal class SmsComposeDialog(
             InputType.TYPE_TEXT_FLAG_MULTI_LINE or
             InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         setPadding(dp(12), dp(12), dp(12), dp(12))
-        background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(203, 213, 225), dp(1))
+        background = AppModalStyle.input(activity)
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -258,7 +255,7 @@ internal class SmsComposeDialog(
         setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_sms_send, 0)
         compoundDrawableTintList = ColorStateList.valueOf(Color.WHITE)
         compoundDrawablePadding = dp(12)
-        background = roundedRect(Color.rgb(25, 118, 210), dp(13), Color.TRANSPARENT, 0)
+        background = AppModalStyle.primary(activity, radiusDp = 13)
     }
 
     private fun secondaryButton(label: String): Button = Button(activity).apply {
@@ -267,7 +264,7 @@ internal class SmsComposeDialog(
         textSize = 16f
         typeface = android.graphics.Typeface.DEFAULT_BOLD
         setTextColor(Color.rgb(15, 23, 42))
-        background = roundedRect(Color.WHITE, dp(13), Color.rgb(148, 163, 184), dp(1))
+        background = AppModalStyle.secondary(activity, radiusDp = 13)
     }
 
     private fun roundedRect(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int): GradientDrawable {

@@ -30,8 +30,7 @@ class CrmContactDialogUi(private val activity: Activity) {
             inputType = InputType.TYPE_CLASS_TEXT or if (lines > 1) InputType.TYPE_TEXT_FLAG_MULTI_LINE else 0
             setSingleLine(lines == 1)
             setSelectAllOnFocus(false)
-            setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = roundedRect(Color.WHITE, 10, Color.rgb(203, 213, 225), 1)
+            AppModalStyle.styleInput(this)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             parent.addView(this)
         }
@@ -49,12 +48,4 @@ class CrmContactDialogUi(private val activity: Activity) {
 
     fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).toInt()
 
-    private fun roundedRect(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(radius).toFloat()
-            setColor(color)
-            if (strokeWidth > 0) setStroke(dp(strokeWidth), strokeColor)
-        }
-    }
 }

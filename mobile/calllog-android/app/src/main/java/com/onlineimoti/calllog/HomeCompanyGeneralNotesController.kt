@@ -105,6 +105,7 @@ internal class HomeCompanyGeneralNotesController(
 
     fun invalidate() {
         requestSignature = ""
+        CallReportHistoryLookupClient.invalidateRecentPages()
         generation.incrementAndGet()
         finishAllBusy()
         val cached = HomeCompanyScopeSnapshotCache.read(context.applicationContext)

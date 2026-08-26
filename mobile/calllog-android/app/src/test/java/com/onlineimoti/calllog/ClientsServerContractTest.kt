@@ -117,6 +117,19 @@ class ClientsServerContractTest {
         assertEquals("good", page.clients.single().identity)
     }
 
+    @Test fun emptyAllClientsPageKeepsServerProvidedCompanyScopesForFallback() {
+        val page = ServerCrmContactsClient.parsePage(
+            JSONObject(
+                """{"ok":true,"total":0,"limit":20,"offset":0,"companies":[{"id":"alpha"},{"id":"beta"}]}""",
+            ),
+            HomeCrmFilterState(),
+            20,
+            0,
+        )
+        assertTrue(page.clients.isEmpty())
+        assertEquals(listOf("alpha", "beta"), page.accessibleCompanyIds)
+    }
+
     @Test fun newerCrmTimestampWins() {
         val old = ClientsObjectMerge.CrmState(true, 10)
         val fresh = ClientsObjectMerge.CrmState(false, 20)

@@ -133,14 +133,17 @@ object PhoneCallReader {
         selection: String?,
         selectionArgs: Array<String>,
     ): List<PhoneCallRecord> {
-        val sortOrder = "${CallLog.Calls.DATE} DESC"
         return buildList {
-            context.contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs.takeIf { it.isNotEmpty() },
-                sortOrder,
+            DeviceProviderPaging.query(
+                resolver = context.contentResolver,
+                uri = CallLog.Calls.CONTENT_URI,
+                projection = projection,
+                selection = selection,
+                selectionArgs = selectionArgs.takeIf { it.isNotEmpty() },
+                dateColumn = CallLog.Calls.DATE,
+                idColumn = CallLog.Calls._ID,
+                limit = safeLimit,
+                offset = safeOffset,
             )?.use { cursor ->
                 val idIndex = cursor.getColumnIndex(CallLog.Calls._ID)
                 val numberIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
@@ -149,15 +152,10 @@ object PhoneCallReader {
                 val dateIndex = cursor.getColumnIndex(CallLog.Calls.DATE)
                 val durationIndex = cursor.getColumnIndex(CallLog.Calls.DURATION)
 
-                var skipped = 0
                 while (cursor.moveToNext() && size < safeLimit) {
                     val number = if (numberIndex >= 0) cursor.getString(numberIndex).orEmpty() else ""
                     if (number.isBlank()) continue
                     if (normalizedPhoneFilter.isNotBlank() && !samePhone(normalizedPhoneFilter, number)) continue
-                    if (skipped < safeOffset) {
-                        skipped += 1
-                        continue
-                    }
 
                     val cachedName = if (nameIndex >= 0) cursor.getString(nameIndex).orEmpty() else ""
                     val type = if (typeIndex >= 0) cursor.getInt(typeIndex) else 0

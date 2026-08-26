@@ -12,7 +12,7 @@ internal object SmsNewMessageLauncher {
             hint = "Телефонен номер"
             inputType = InputType.TYPE_CLASS_PHONE
             setSingleLine(true)
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            AppModalStyle.styleInput(this)
         }
         val wrapper = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -29,6 +29,7 @@ internal object SmsNewMessageLauncher {
             .setPositiveButton("Напред", null)
             .create()
         dialog.setOnShowListener {
+            AppModalStyle.styleAlert(dialog)
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val phone = input.text?.toString().orEmpty().trim()
                 if (phone.isBlank()) {

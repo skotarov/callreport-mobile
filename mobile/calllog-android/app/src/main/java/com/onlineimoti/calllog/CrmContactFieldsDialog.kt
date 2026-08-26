@@ -56,13 +56,15 @@ object CrmContactFieldsDialog {
         )
         val advancedInputs = CrmAdvancedContactInputs.build(ui, advancedSection, savedFields)
 
-        AlertDialog.Builder(activity)
+        val dialog = AlertDialog.Builder(activity)
             .setTitle(if (savedFields == null) "RM контакт" else "Редакция на RM контакт")
             .setView(ScrollView(activity).apply { addView(root) })
             .setNegativeButton("Изход", null)
             .setPositiveButton("Запис") { _, _ ->
                 onSave(advancedInputs.applyTo(basicInputs.toFields(phone)))
             }
-            .show()
+            .create()
+        dialog.setOnShowListener { AppModalStyle.styleAlert(dialog) }
+        dialog.show()
     }
 }

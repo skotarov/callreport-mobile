@@ -1,6 +1,7 @@
 package com.onlineimoti.calllog
 
 import android.graphics.Typeface
+import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
@@ -104,11 +105,13 @@ internal object InvitationCenterDialogs {
                 }, params(activity, 10))
             }
         }
-        AlertDialog.Builder(activity)
+        val dialog = AlertDialog.Builder(activity)
             .setTitle("Покани към мен")
             .setView(ScrollView(activity).apply { addView(content) })
             .setNegativeButton("Затвори", null)
-            .show()
+            .create()
+        dialog.setOnShowListener { AppModalStyle.styleAlert(dialog) }
+        dialog.show()
     }
 
     private fun showOutgoingList(
@@ -126,11 +129,13 @@ internal object InvitationCenterDialogs {
             hint = "Телефон на колегата"
             inputType = InputType.TYPE_CLASS_PHONE
             setSingleLine(true)
+            AppModalStyle.styleInput(this)
         }
         val email = EditText(activity).apply {
             hint = "Имейл на колегата"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
             setSingleLine(true)
+            AppModalStyle.styleInput(this)
         }
         val validation = TextView(activity).apply {
             textSize = 13f
@@ -144,6 +149,8 @@ internal object InvitationCenterDialogs {
         val createButton = MaterialButton(activity).apply {
             text = "Изпрати покана"
             isAllCaps = false
+            setTextColor(android.graphics.Color.WHITE)
+            backgroundTintList = ColorStateList.valueOf(AppModalStyle.accent(activity))
         }
         content.addView(createButton, params(activity, 8))
 
@@ -190,6 +197,7 @@ internal object InvitationCenterDialogs {
             .setView(ScrollView(activity).apply { addView(content) })
             .setNegativeButton("Затвори", null)
             .create()
+        dialog.setOnShowListener { AppModalStyle.styleAlert(dialog) }
         createButton.setOnClickListener {
             val rawPhone = phone.text?.toString().orEmpty().trim()
             val rawEmail = email.text?.toString().orEmpty().trim()
@@ -286,7 +294,10 @@ internal object InvitationCenterDialogs {
             .setView(content)
             .setCancelable(false)
             .create()
-            .also(AlertDialog::show)
+            .also { dialog ->
+                dialog.show()
+                AppModalStyle.styleAlert(dialog)
+            }
     }
 
     private fun showError(activity: AppCompatActivity, fallback: String, error: Throwable) {

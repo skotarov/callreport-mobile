@@ -59,6 +59,8 @@ internal data class ServerCrmContactsPage(
     val total: Int,
     val limit: Int,
     val offset: Int,
+    /** Company scopes reported by the authoritative Clients response. */
+    val accessibleCompanyIds: List<String> = emptyList(),
 ) {
     /** Legacy adapter kept for older call-log based consumers only. */
     val calls: List<PhoneCallRecord> get() = clients.map(ServerCrmClient::toPhoneCallRecord)
@@ -144,6 +146,7 @@ internal object ServerCrmContactsClient {
         }
         val returnedLimit = json.optInt("limit", requestedLimit).takeIf { it > 0 } ?: requestedLimit
         val returnedOffset = json.optInt("offset", requestedOffset).coerceAtLeast(0)
+        val accessibleCompanyIds = parseAccessibleCompanyIds(json)
         val hasTotal = json.has("total") && !json.isNull("total")
         val total = if (hasTotal) {
             json.optInt("total", returnedOffset + clients.size).coerceAtLeast(0)
@@ -152,7 +155,18 @@ internal object ServerCrmContactsClient {
             // a full page was returned; new deployments remain fully authoritative.
             returnedOffset + clients.size + if (clients.size >= returnedLimit) 1 else 0
         }
-        return ServerCrmContactsPage(clients, total, returnedLimit, returnedOffset)
+        return ServerCrmContactsPage(clients, total, returnedLimit, returnedOffset, accessibleCompanyIds)
+    }
+
+    private fun parseAccessibleCompanyIds(json: JSONObject): List<String> = buildList {
+        val companies = json.optJSONArray("companies") ?: return@buildList
+        for (index in 0 until companies.length()) {
+            val company = companies.optJSONObject(index)
+            val id = company?.optString("id").orEmpty()
+                .trim()
+                .ifBlank { companies.optString(index).trim() }
+            if (id.isNotBlank() && id !in this) add(id)
+        }
     }
 
     private fun parseClient(item: JSONObject): ServerCrmClient? {
