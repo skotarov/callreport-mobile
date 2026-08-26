@@ -29,45 +29,4 @@
         android:textColor="@color/calllog_muted_text"
         android:textSize="13sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/page_loading_mode_title"
-        android:textColor="@color/calllog_text"
-        android:textSize="15sp"
-        android:textStyle="bold" />
-
-    <RadioGroup
-        android:id="@+id/pageLoadingModeGroup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:orientation="vertical">
-
-        <RadioButton
-            android:id="@+id/pageLoadingModePrefetchRadio"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/page_loading_mode_prefetch"
-            android:textColor="@color/calllog_text"
-            android:textSize="15sp" />
-
-        <RadioButton
-            android:id="@+id/pageLoadingModeButtonsRadio"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/page_loading_mode_buttons"
-            android:textColor="@color/calllog_text"
-            android:textSize="15sp" />
-    </RadioGroup>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginTop="2dp"
-        android:text="@string/page_loading_mode_description"
-        android:textColor="@color/calllog_muted_text"
-        android:textSize="12sp" />
 </LinearLayout>

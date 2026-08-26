@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="page_loading_mode_title">Page loading</string>
-    <string name="page_loading_mode_prefetch">Preload while scrolling</string>
-    <string name="page_loading_mode_buttons">Pages with Previous and Next buttons</string>
-    <string name="page_loading_mode_description">Preload keeps earlier pages on screen and prepares the next page automatically. Button mode loads and shows only the selected page.</string>
-</resources>

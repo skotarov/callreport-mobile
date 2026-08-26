@@ -18,10 +18,6 @@ object MainSettingsConfigUi {
         popupFilter.notifyUnknownContactsCheckBox.isChecked = config.notifyUnknownContacts
         popupFilter.notifyKnownContactsCheckBox.isChecked = config.notifyKnownContacts
         callLog.homeCallPageSizeInput.setText(config.homeCallPageSize.toString())
-        when (PageLoadingModeStore.load(binding.root.context)) {
-            PageLoadingModeStore.MODE_BUTTONS -> callLog.pageLoadingModeButtonsRadio.isChecked = true
-            else -> callLog.pageLoadingModePrefetchRadio.isChecked = true
-        }
         defaultSms.useInternalSmsComposerCheckBox.isChecked = config.useInternalSmsComposer
         defaultSms.openSmsIconToHistoryCheckBox.isChecked = config.openSmsIconToHistory
         popup.postCallTimeoutInput.setText(config.postCallPromptTimeoutSeconds.toString())

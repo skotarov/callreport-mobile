@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="page_loading_mode_title">Зареждане на страниците</string>
-    <string name="page_loading_mode_prefetch">Предварително зареждане при превъртане</string>
-    <string name="page_loading_mode_buttons">Страници с бутони „Предишна“ и „Следваща“</string>
-    <string name="page_loading_mode_description">Предварителното зареждане запазва по-старите страници на екрана и подготвя следващата автоматично. Режимът с бутони зарежда и показва само избраната страница.</string>
-</resources>
