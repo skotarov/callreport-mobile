@@ -93,6 +93,7 @@ internal object ServerCrmContactsClient {
         limit: Int = DEFAULT_PAGE_SIZE,
         offset: Int = 0,
         context: Context? = null,
+        explicitAllCompanyScope: Boolean = true,
     ): ServerCrmContactsPage {
         if (!CallReportRemoteAccess.isReady(config)) throw IllegalStateException("Remote access is not configured")
         val safeLimit = limit.coerceIn(1, 100)
@@ -100,7 +101,14 @@ internal object ServerCrmContactsClient {
         val endpoint = buildEndpoint(
             config.baseUrl,
             PATH,
-            ServerCrmContactsQuery.parameters(config, filterState, searchQuery, safeLimit, safeOffset),
+            ServerCrmContactsQuery.parameters(
+                config = config,
+                filterState = filterState,
+                searchQuery = searchQuery,
+                limit = safeLimit,
+                offset = safeOffset,
+                explicitAllCompanyScope = explicitAllCompanyScope,
+            ),
         )
         val connection = runCatching { URL(endpoint).openConnection() as HttpURLConnection }.getOrElse { error ->
             ServerConnectionNotifier.notifyFailure(context, config, error)
@@ -291,6 +299,7 @@ internal object ServerCrmContactsQuery {
         searchQuery: String,
         limit: Int = ServerCrmContactsClient.DEFAULT_PAGE_SIZE,
         offset: Int = 0,
+        explicitAllCompanyScope: Boolean = true,
     ): Map<String, String> {
         val query = searchQuery.trim()
         val phases = filterState.phases.filter {
@@ -315,7 +324,11 @@ internal object ServerCrmContactsQuery {
                 put("phase", phase)
                 put("phases", phase)
             }
-            put("company_id", companyIds.takeIf { it.isNotEmpty() }?.joinToString(",") ?: "all")
+            if (companyIds.isNotEmpty()) {
+                put("company_id", companyIds.joinToString(","))
+            } else if (explicitAllCompanyScope) {
+                put("company_id", "all")
+            }
             if (query.isNotBlank()) {
                 put("q", query)
                 put("search", query)

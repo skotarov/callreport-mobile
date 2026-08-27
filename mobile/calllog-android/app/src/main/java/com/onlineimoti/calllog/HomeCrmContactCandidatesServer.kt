@@ -55,6 +55,35 @@ internal object HomeCrmContactCandidatesServer {
                 return primary
             }
 
+            // Older endpoint deployments treat an absent company_id as the neutral
+            // scope, while the current endpoint recognizes the explicit `all` value.
+            // Probe the older contract only after the canonical request returned no
+            // rows; filtered requests keep their existing server contract unchanged.
+            val legacyNeutral = if (ClientsNeutralScopeCompatibilityPolicy.shouldRetryWithoutCompany(primary.clients.size)) {
+                runCatching {
+                    ServerCrmContactsClient.lookupPage(
+                        config = config,
+                        filterState = filterState,
+                        searchQuery = searchQuery,
+                        limit = limit,
+                        offset = offset,
+                        // This is an intentional compatibility probe after a successful
+                        // canonical response. Do not show a connection error if an older
+                        // deployment rejects the omitted company_id form.
+                        context = null,
+                        explicitAllCompanyScope = false,
+                    )
+                }.getOrNull()
+            } else {
+                null
+            }
+            if (legacyNeutral != null) {
+                logPageSource("fallback-neutral-without-company", legacyNeutral, filterState)
+                if (ClientsNeutralScopeCompatibilityPolicy.shouldAcceptLegacyPage(legacyNeutral.clients.size)) {
+                    return legacyNeutral
+                }
+            }
+
             // Some mixed/legacy deployments report a broad non-zero total while returning
             // no rows for the neutral company scope. An empty page must therefore fall
             // through to explicit accessible-company scopes instead of being accepted
@@ -69,7 +98,7 @@ internal object HomeCrmContactCandidatesServer {
                 // On a cold start the separate companies cache can still be empty.
                 // The Clients response already tells us which company scopes this
                 // profile can access, so keep the no-filter fallback self-contained.
-                companyIds = (companyIds + primary.accessibleCompanyIds).distinct(),
+                companyIds = (companyIds + primary.accessibleCompanyIds + legacyNeutral?.accessibleCompanyIds.orEmpty()).distinct(),
             )
             logPageSource("fallback-all-companies", fallback, filterState)
             return fallback

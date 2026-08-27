@@ -68,6 +68,26 @@ class ClientsNoCompanyFilterCompatibilityTest {
         assertTrue(ClientsPrimaryPagePolicy.shouldAccept(rowCount = 1, hasCompanyFilter = false))
     }
 
+    @Test fun emptyExplicitAllScopeRetriesTheLegacyNeutralRequest() {
+        assertTrue(ClientsNeutralScopeCompatibilityPolicy.shouldRetryWithoutCompany(canonicalRowCount = 0))
+        assertFalse(ClientsNeutralScopeCompatibilityPolicy.shouldRetryWithoutCompany(canonicalRowCount = 1))
+        assertFalse(ClientsNeutralScopeCompatibilityPolicy.shouldAcceptLegacyPage(rowCount = 0))
+        assertTrue(ClientsNeutralScopeCompatibilityPolicy.shouldAcceptLegacyPage(rowCount = 1))
+    }
+
+    @Test fun legacyNeutralRequestOmitsOnlyTheNoCompanyScopeParameter() {
+        val p = ServerCrmContactsQuery.parameters(
+            config = config,
+            filterState = HomeCrmFilterState(),
+            searchQuery = "",
+            limit = 20,
+            offset = 0,
+            explicitAllCompanyScope = false,
+        )
+        assertFalse(p.containsKey("company_id"))
+        assertFalse(p.containsKey("crm_only"))
+    }
+
     @Test fun selectedCompanyEmptyPayloadRemainsAuthoritative() {
         assertTrue(ClientsPrimaryPagePolicy.shouldAccept(rowCount = 0, hasCompanyFilter = true))
     }
