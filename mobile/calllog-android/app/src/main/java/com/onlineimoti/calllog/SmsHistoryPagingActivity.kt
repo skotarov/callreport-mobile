@@ -300,24 +300,8 @@ class SmsHistoryActivity : FontScaledAppCompatActivity() {
             dp = ::dp,
             message = sms,
             displayName = sms.displayName,
-            actions = listOf(
-                SmsTimelineCard.Action(
-                    drawableRes = R.drawable.ic_filter_calls,
-                    contentDescription = getString(R.string.dynamic_action_filter),
-                    onClick = { openFullHistory(sms) },
-                ),
-            ),
+            actions = emptyList(),
             onClick = { openContactNotes(sms) },
-        )
-    }
-
-    private fun openFullHistory(sms: PhoneCallRecord) {
-        startActivity(
-            Intent(this, ContactNotesActivity::class.java)
-                .putExtra(ContactNotesActivity.EXTRA_PHONE, sms.number)
-                .putExtra(ContactNotesActivity.EXTRA_TITLE, sms.displayName)
-                .putExtra(ContactNotesActivity.EXTRA_INITIAL_LIST_MODE, ContactNotesActivity.LIST_MODE_FULL_LOG)
-                .putExtra(ContactNotesActivity.EXTRA_BACK_TARGETS_UNFILTERED_HOME, true),
         )
     }
 
