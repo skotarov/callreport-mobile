@@ -28,6 +28,15 @@ internal object ContactNotesStickyActionPolicy {
         (originalNameTopOnScreen != null && originalNameTopOnScreen <= topBarBottomOnScreen)
 }
 
+/** Keeps the entire raised call button inside a real, touchable parent rectangle. */
+internal object ContactNotesCallButtonHitAreaPolicy {
+    fun modeBarHeight(baseHeightDp: Int, buttonSizeDp: Int): Int =
+        baseHeightDp + buttonSizeDp / 2
+
+    fun contentTopPadding(basePaddingDp: Int, buttonSizeDp: Int): Int =
+        basePaddingDp + buttonSizeDp / 2
+}
+
 /** Builds History with fixed top identity/actions and a fixed bottom list-mode switch. */
 internal class ContactNotesStickyHistoryUi(
     private val activity: ContactNotesActivity,
@@ -127,7 +136,10 @@ internal class ContactNotesStickyHistoryUi(
             ))
             addView(historyModeBar(mode, onModeSelected), LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(MODE_BAR_HEIGHT_DP),
+                dp(ContactNotesCallButtonHitAreaPolicy.modeBarHeight(
+                    MODE_BAR_HEIGHT_DP,
+                    CALL_BUTTON_SIZE_DP,
+                )),
             ))
         }
 
@@ -237,7 +249,10 @@ internal class ContactNotesStickyHistoryUi(
         stateListAnimator = null
         setPadding(
             dp(PAGE_HORIZONTAL_PADDING_DP),
-            dp(MODE_BAR_VERTICAL_PADDING_DP),
+            dp(ContactNotesCallButtonHitAreaPolicy.contentTopPadding(
+                MODE_BAR_VERTICAL_PADDING_DP,
+                CALL_BUTTON_SIZE_DP,
+            )),
             dp(PAGE_HORIZONTAL_PADDING_DP),
             dp(MODE_BAR_VERTICAL_PADDING_DP),
         )
@@ -269,6 +284,13 @@ internal class ContactNotesStickyHistoryUi(
             LinearLayout.LayoutParams.MATCH_PARENT,
             1f,
         )
+        isClickable = true
+        isFocusable = true
+        contentDescription = activity.getString(R.string.dynamic_action_call)
+        setOnClickListener {
+            val phone = activity.intent?.getStringExtra(ContactNotesActivity.EXTRA_PHONE).orEmpty()
+            externalActions.openDialer(phone)
+        }
         addView(ImageView(activity).apply {
             setImageResource(R.drawable.ic_phone_call)
             setColorFilter(Color.WHITE)
@@ -280,13 +302,7 @@ internal class ContactNotesStickyHistoryUi(
             elevation = 0f
             stateListAnimator = null
             setPadding(dp(15), dp(15), dp(15), dp(15))
-            isClickable = true
-            isFocusable = true
-            contentDescription = activity.getString(R.string.dynamic_action_call)
-            setOnClickListener {
-                val phone = activity.intent?.getStringExtra(ContactNotesActivity.EXTRA_PHONE).orEmpty()
-                externalActions.openDialer(phone)
-            }
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, FrameLayout.LayoutParams(
             dp(CALL_BUTTON_SIZE_DP),
             dp(CALL_BUTTON_SIZE_DP),
