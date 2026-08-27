@@ -28,13 +28,9 @@ internal object ContactNotesStickyActionPolicy {
         (originalNameTopOnScreen != null && originalNameTopOnScreen <= topBarBottomOnScreen)
 }
 
-/** Keeps the entire raised call button inside a real, touchable parent rectangle. */
-internal object ContactNotesCallButtonHitAreaPolicy {
-    fun modeBarHeight(baseHeightDp: Int, buttonSizeDp: Int): Int =
-        baseHeightDp + buttonSizeDp / 2
-
-    fun contentTopPadding(basePaddingDp: Int, buttonSizeDp: Int): Int =
-        basePaddingDp + buttonSizeDp / 2
+/** Places the raised call overlay over the list without reserving extra vertical space. */
+internal object ContactNotesCallButtonOverlayPolicy {
+    fun bottomMargin(modeBarHeightDp: Int): Int = modeBarHeightDp / 2
 }
 
 /** Builds History with fixed top identity/actions and a fixed bottom list-mode switch. */
@@ -114,7 +110,7 @@ internal class ContactNotesStickyHistoryUi(
             addView(groupOverlay, groupOverlayParams)
             addView(stickyActionHost, stickyActionHostParams)
         }
-        val screen = LinearLayout(activity).apply {
+        val screenContent = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
             clipToPadding = false
@@ -136,11 +132,23 @@ internal class ContactNotesStickyHistoryUi(
             ))
             addView(historyModeBar(mode, onModeSelected), LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(ContactNotesCallButtonHitAreaPolicy.modeBarHeight(
-                    MODE_BAR_HEIGHT_DP,
-                    CALL_BUTTON_SIZE_DP,
-                )),
+                dp(MODE_BAR_HEIGHT_DP),
             ))
+        }
+        val screen = FrameLayout(activity).apply {
+            clipChildren = false
+            clipToPadding = false
+            addView(screenContent, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ))
+            addView(callButtonOverlay(), FrameLayout.LayoutParams(
+                dp(CALL_BUTTON_SIZE_DP),
+                dp(CALL_BUTTON_SIZE_DP),
+                Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM,
+            ).apply {
+                bottomMargin = dp(ContactNotesCallButtonOverlayPolicy.bottomMargin(MODE_BAR_HEIGHT_DP))
+            })
         }
 
         var actionsPinnedState = false
@@ -249,10 +257,7 @@ internal class ContactNotesStickyHistoryUi(
         stateListAnimator = null
         setPadding(
             dp(PAGE_HORIZONTAL_PADDING_DP),
-            dp(ContactNotesCallButtonHitAreaPolicy.contentTopPadding(
-                MODE_BAR_VERTICAL_PADDING_DP,
-                CALL_BUTTON_SIZE_DP,
-            )),
+            dp(MODE_BAR_VERTICAL_PADDING_DP),
             dp(PAGE_HORIZONTAL_PADDING_DP),
             dp(MODE_BAR_VERTICAL_PADDING_DP),
         )
@@ -263,7 +268,11 @@ internal class ContactNotesStickyHistoryUi(
             selectedMode = selectedMode,
             onModeSelected = onModeSelected,
         ))
-        addView(callButton())
+        addView(View(activity), LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            1f,
+        ))
         addView(modeButton(
             textValue = "Обаждания",
             drawableRes = R.drawable.ic_history_clock,
@@ -273,17 +282,9 @@ internal class ContactNotesStickyHistoryUi(
         ))
     }
 
-    private fun callButton(): FrameLayout = FrameLayout(activity).apply {
+    private fun callButtonOverlay(): FrameLayout = FrameLayout(activity).apply {
         clipChildren = false
         clipToPadding = false
-        // Move the whole touch container with the raised visual button. Moving only
-        // the ImageView left its upper half outside the parent's hit area.
-        translationY = -dp(CALL_BUTTON_SIZE_DP / 2).toFloat()
-        layoutParams = LinearLayout.LayoutParams(
-            0,
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            1f,
-        )
         isClickable = true
         isFocusable = true
         contentDescription = activity.getString(R.string.dynamic_action_call)
@@ -304,9 +305,8 @@ internal class ContactNotesStickyHistoryUi(
             setPadding(dp(15), dp(15), dp(15), dp(15))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, FrameLayout.LayoutParams(
-            dp(CALL_BUTTON_SIZE_DP),
-            dp(CALL_BUTTON_SIZE_DP),
-            Gravity.CENTER,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
         ))
     }
 

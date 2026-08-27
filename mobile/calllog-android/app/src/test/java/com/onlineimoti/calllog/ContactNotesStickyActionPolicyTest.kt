@@ -6,17 +6,10 @@ import org.junit.Test
 
 class ContactNotesStickyActionPolicyTest {
     @Test
-    fun raisedCallButtonRemainsInsideTheTouchableModeBar() {
-        val barHeight = ContactNotesCallButtonHitAreaPolicy.modeBarHeight(
-            baseHeightDp = 64,
-            buttonSizeDp = 54,
+    fun raisedCallButtonOverlaysTheListWithoutGrowingTheModeBar() {
+        assertTrue(
+            ContactNotesCallButtonOverlayPolicy.bottomMargin(modeBarHeightDp = 64) == 32,
         )
-        val topPadding = ContactNotesCallButtonHitAreaPolicy.contentTopPadding(
-            basePaddingDp = 3,
-            buttonSizeDp = 54,
-        )
-
-        assertTrue(barHeight >= topPadding + 58)
     }
 
     @Test
