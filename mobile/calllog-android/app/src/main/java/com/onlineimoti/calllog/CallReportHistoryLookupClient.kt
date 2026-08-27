@@ -58,6 +58,8 @@ internal data class CallReportHistoryLookupResult(
     val events: List<CallReportHistoryEvent> = emptyList(),
     /** Dedicated server general notes returned outside history_items. */
     val companyMainNotes: List<CallReportHistoryCompanyMainNote> = emptyList(),
+    /** Phones for which the batch endpoint explicitly completed its history scan. */
+    val coveredPhoneKeys: Set<String> = emptySet(),
 )
 
 private data class CachedPage(
@@ -177,7 +179,11 @@ internal object CallReportHistoryLookupClient {
             .take(MAX_PHONE_VARIANTS)
 
         val batch = runCatching { request(config, requestedPhones, DEFAULT_LIMIT, context) }.getOrNull()
-        val fallbackPhones = phonesMissingNoteCoverage(originalPhones, batch?.events.orEmpty())
+        val fallbackPhones = phonesMissingNoteCoverage(
+            phones = originalPhones,
+            batchEvents = batch?.events.orEmpty(),
+            coveredPhoneKeys = batch?.coveredPhoneKeys.orEmpty(),
+        )
         val singleResults = fallbackPhones.mapNotNull { phone ->
             lookupSinglePhoneVariantsOrNull(config, phone, DEFAULT_LIMIT, context)
         }
@@ -216,14 +222,18 @@ internal object CallReportHistoryLookupClient {
     }
 
     /**
-     * A yellow/general note or a phone record does not prove that the batch included
-     * the blue notes attached to a concrete call. Only concrete call-note rows cover
-     * the phone; otherwise Home completes it with the same GET used by History.
+     * A modern batch response explicitly confirms every phone it scanned. That lets
+     * Home avoid one GET per row merely because a phone has no blue call note. Older
+     * endpoints omit the coverage signal, so they retain the conservative fallback.
      */
     internal fun phonesMissingNoteCoverage(
         phones: List<String>,
         batchEvents: List<CallReportHistoryEvent>,
+        coveredPhoneKeys: Set<String> = emptySet(),
     ): List<String> {
+        if (coveredPhoneKeys.isNotEmpty()) {
+            return phones.filter { phoneKey(it) !in coveredPhoneKeys }
+        }
         val coveredKeys = batchEvents.asSequence()
             .filter(CallReportServerNoteClassifier::isConcreteCallNote)
             .map { phoneKey(it.phone) }
@@ -296,7 +306,8 @@ internal object CallReportHistoryLookupClient {
                 seenMainNotes.add(stableKey)
             }
             .sortedByDescending { it.updatedAtMs }
-        return CallReportHistoryLookupResult(principal, events, companyMainNotes)
+        val coveredPhoneKeys = results.flatMapTo(linkedSetOf()) { it.coveredPhoneKeys }
+        return CallReportHistoryLookupResult(principal, events, companyMainNotes, coveredPhoneKeys)
     }
 
     private fun request(
@@ -400,6 +411,13 @@ internal object CallReportHistoryLookupClient {
             profileId = principalJson?.text("profile_id", "user_id", "id").orEmpty(),
         )
         val companyNames = companies.associate { it.id to it.name }
+        val coveredPhoneKeys = buildSet {
+            val items = json.optJSONObject("coverage")?.optJSONArray("phone_keys")
+                ?: json.optJSONArray("covered_phone_keys")
+            for (index in 0 until (items?.length() ?: 0)) {
+                phoneKey(items?.optString(index).orEmpty()).takeIf { it.isNotBlank() }?.let(::add)
+            }
+        }
         val companyMainNotes = buildList {
             val items = json.optJSONArray("company_main_note_items")
                 ?: json.optJSONArray("company_main_notes_all")
@@ -471,7 +489,7 @@ internal object CallReportHistoryLookupClient {
                 }
             }
         }
-        return CallReportHistoryLookupResult(principal, events, companyMainNotes)
+        return CallReportHistoryLookupResult(principal, events, companyMainNotes, coveredPhoneKeys)
     }
 
     private fun CallReportHistoryLookupResult.withLocalPrincipalFallback(context: Context?): CallReportHistoryLookupResult {

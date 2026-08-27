@@ -1,5 +1,6 @@
 package com.onlineimoti.calllog
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -65,5 +66,28 @@ class CallReportHistoryLookupCoverageTest {
             phones,
             CallReportHistoryLookupClient.phonesMissingNoteCoverage(phones, batchEvents),
         )
+    }
+
+    @Test
+    fun explicitBatchCoverageAvoidsSinglesForPhonesWithoutBlueNotes() {
+        val phones = listOf("0879 975 240", "0888 161 383")
+
+        assertEquals(
+            emptyList<String>(),
+            CallReportHistoryLookupClient.phonesMissingNoteCoverage(
+                phones = phones,
+                batchEvents = emptyList(),
+                coveredPhoneKeys = setOf("879975240", "888161383"),
+            ),
+        )
+    }
+
+    @Test
+    fun parserReadsServerBatchCoverageUsingTheMobilePhoneKey() {
+        val result = CallReportHistoryLookupClient.parsePayload(
+            JSONObject("""{"ok":true,"coverage":{"phone_keys":["+359879975240"]}}"""),
+        )
+
+        assertEquals(setOf("879975240"), result.coveredPhoneKeys)
     }
 }
