@@ -3,22 +3,21 @@ package com.onlineimoti.calllog
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Protects the default-10 migration without overriding later manual choices. */
+/** Keeps the default at 20 without overriding a value explicitly saved in Settings. */
 class ConfigStorePageSizeTest {
     @Test
-    fun defaultPageSizeIsTen() {
-        assertEquals(10, ConfigStore.DEFAULT_HOME_CALL_PAGE_SIZE)
-        assertEquals(10, ConfigStore.migratedHomeCallPageSize(storedValue = null, migrationDone = false))
+    fun defaultPageSizeIsTwenty() {
+        assertEquals(20, ConfigStore.DEFAULT_HOME_CALL_PAGE_SIZE)
+        assertEquals(20, ConfigStore.normalizedHomeCallPageSize(storedValue = null))
     }
 
     @Test
-    fun oldDefaultTwentyMigratesOnceToTen() {
-        assertEquals(10, ConfigStore.migratedHomeCallPageSize(storedValue = 20, migrationDone = false))
-        assertEquals(20, ConfigStore.migratedHomeCallPageSize(storedValue = 20, migrationDone = true))
+    fun savedPageSizeIsPreserved() {
+        assertEquals(20, ConfigStore.normalizedHomeCallPageSize(storedValue = 20))
     }
 
     @Test
     fun explicitCustomPageSizeIsPreserved() {
-        assertEquals(15, ConfigStore.migratedHomeCallPageSize(storedValue = 15, migrationDone = false))
+        assertEquals(15, ConfigStore.normalizedHomeCallPageSize(storedValue = 15))
     }
 }

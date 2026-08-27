@@ -2,8 +2,10 @@ package com.onlineimoti.calllog
 
 import android.content.ContentResolver
 import android.database.Cursor
+import android.database.CursorWrapper
 import android.net.Uri
 import android.os.Bundle
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Requests one bounded, stable page directly from a device ContentProvider.
@@ -15,6 +17,14 @@ import android.os.Bundle
  * this app has a minSdk above that version.
  */
 internal object DeviceProviderPaging {
+    /** A cursor knows whether its provider applied the requested offset itself. */
+    internal class PagedCursor(
+        cursor: Cursor,
+        val providerPagingApplied: Boolean,
+    ) : CursorWrapper(cursor)
+
+    private val legacyPagingUris = ConcurrentHashMap.newKeySet<String>()
+
     fun query(
         resolver: ContentResolver,
         uri: Uri,
@@ -25,9 +35,13 @@ internal object DeviceProviderPaging {
         idColumn: String,
         limit: Int,
         offset: Int = 0,
-    ): Cursor? {
+    ): PagedCursor? {
         val safeLimit = limit.coerceAtLeast(1)
         val safeOffset = offset.coerceAtLeast(0)
+        val providerKey = uri.toString()
+        if (providerKey in legacyPagingUris) {
+            return legacyQuery(resolver, uri, projection, selection, selectionArgs, dateColumn, idColumn)
+        }
         val queryArgs = Bundle().apply {
             if (!selection.isNullOrBlank()) {
                 putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
@@ -45,6 +59,46 @@ internal object DeviceProviderPaging {
             putInt(ContentResolver.QUERY_ARG_LIMIT, safeLimit)
             putInt(ContentResolver.QUERY_ARG_OFFSET, safeOffset)
         }
-        return resolver.query(uri, projection, queryArgs, null)
+        val cursor = resolver.query(uri, projection, queryArgs, null)
+        if (cursor != null && pagingArgumentsHonored(
+                runCatching {
+                    cursor.extras.getStringArray(ContentResolver.EXTRA_HONORED_ARGS)
+                }.getOrNull(),
+            )
+        ) {
+            return PagedCursor(cursor, providerPagingApplied = true)
+        }
+        cursor?.close()
+        legacyPagingUris += providerKey
+        return legacyQuery(resolver, uri, projection, selection, selectionArgs, dateColumn, idColumn)
     }
+
+    /** Providers that omit any of these can return rows in their own, often old-first order. */
+    internal fun pagingArgumentsHonored(honoredArgs: Array<String>?): Boolean {
+        val honored = honoredArgs?.toSet() ?: return false
+        return honored.containsAll(PAGING_ARGUMENTS)
+    }
+
+    private fun legacyQuery(
+        resolver: ContentResolver,
+        uri: Uri,
+        projection: Array<String>,
+        selection: String?,
+        selectionArgs: Array<String>?,
+        dateColumn: String,
+        idColumn: String,
+    ): PagedCursor? = resolver.query(
+        uri,
+        projection,
+        selection,
+        selectionArgs,
+        "$dateColumn DESC, $idColumn DESC",
+    )?.let { PagedCursor(it, providerPagingApplied = false) }
+
+    private val PAGING_ARGUMENTS = setOf(
+        ContentResolver.QUERY_ARG_SORT_COLUMNS,
+        ContentResolver.QUERY_ARG_SORT_DIRECTION,
+        ContentResolver.QUERY_ARG_LIMIT,
+        ContentResolver.QUERY_ARG_OFFSET,
+    )
 }

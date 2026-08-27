@@ -152,10 +152,15 @@ object PhoneCallReader {
                 val dateIndex = cursor.getColumnIndex(CallLog.Calls.DATE)
                 val durationIndex = cursor.getColumnIndex(CallLog.Calls.DURATION)
 
+                var skipped = 0
                 while (cursor.moveToNext() && size < safeLimit) {
                     val number = if (numberIndex >= 0) cursor.getString(numberIndex).orEmpty() else ""
                     if (number.isBlank()) continue
                     if (normalizedPhoneFilter.isNotBlank() && !samePhone(normalizedPhoneFilter, number)) continue
+                    if (!cursor.providerPagingApplied && skipped < safeOffset) {
+                        skipped++
+                        continue
+                    }
 
                     val cachedName = if (nameIndex >= 0) cursor.getString(nameIndex).orEmpty() else ""
                     val type = if (typeIndex >= 0) cursor.getInt(typeIndex) else 0

@@ -138,7 +138,12 @@ internal object SmsMessageReader {
                 val bodyIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
                 val dateIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
                 val typeIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+                var skipped = 0
                 while (cursor.moveToNext()) {
+                    if (!cursor.providerPagingApplied && skipped < safeOffset) {
+                        skipped++
+                        continue
+                    }
                     rows += cursor.timelineMessage(idIndex, addressIndex, bodyIndex, dateIndex, typeIndex)
                     if (rows.size >= safeLimit) break
                 }

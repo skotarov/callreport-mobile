@@ -52,7 +52,6 @@ object ConfigStore {
     private const val KEY_NOTIFY_UNKNOWN_CONTACTS = "notify_unknown_contacts"
     private const val KEY_NOTIFY_KNOWN_CONTACTS = "notify_known_contacts"
     private const val KEY_HOME_CALL_PAGE_SIZE = "home_call_page_size"
-    private const val KEY_HOME_CALL_PAGE_SIZE_DEFAULT_10_MIGRATED = "home_call_page_size_default_10_migrated"
     private const val KEY_LOOKUP_PATH = "lookup_path"
     private const val KEY_FORM_PATH = "form_path"
     private const val KEY_HISTORY_PATH = "history_path"
@@ -82,8 +81,7 @@ object ConfigStore {
     const val DEFAULT_FORM_PATH = "/relationship-manager/api/form.php"
     const val DEFAULT_HISTORY_PATH = "/relationship-manager/api/history.php"
     const val DEFAULT_POST_CALL_TIMEOUT_SECONDS = 10
-    private const val LEGACY_DEFAULT_HOME_CALL_PAGE_SIZE = 20
-    const val DEFAULT_HOME_CALL_PAGE_SIZE = 10
+    const val DEFAULT_HOME_CALL_PAGE_SIZE = 20
     const val MIN_HOME_CALL_PAGE_SIZE = 5
     const val MAX_HOME_CALL_PAGE_SIZE = 100
     const val POST_CALL_END_ACTION_EDIT = "edit"
@@ -160,7 +158,6 @@ object ConfigStore {
             .putBoolean(KEY_NOTIFY_UNKNOWN_CONTACTS, normalized.notifyUnknownContacts)
             .putBoolean(KEY_NOTIFY_KNOWN_CONTACTS, normalized.notifyKnownContacts)
             .putInt(KEY_HOME_CALL_PAGE_SIZE, normalized.homeCallPageSize)
-            .putBoolean(KEY_HOME_CALL_PAGE_SIZE_DEFAULT_10_MIGRATED, true)
             .putString(KEY_LOOKUP_PATH, normalized.lookupPath)
             .putString(KEY_FORM_PATH, normalized.formPath)
             .putString(KEY_HISTORY_PATH, normalized.historyPath)
@@ -217,31 +214,13 @@ object ConfigStore {
         useInternalSmsComposer = false,
     )
 
-    private fun loadHomeCallPageSize(prefs: SharedPreferences): Int {
-        val migrationDone = prefs.getBoolean(KEY_HOME_CALL_PAGE_SIZE_DEFAULT_10_MIGRATED, false)
-        val storedValue = if (prefs.contains(KEY_HOME_CALL_PAGE_SIZE)) {
-            prefs.getInt(KEY_HOME_CALL_PAGE_SIZE, DEFAULT_HOME_CALL_PAGE_SIZE)
-        } else {
-            null
-        }
-        val pageSize = migratedHomeCallPageSize(storedValue, migrationDone)
-        if (!migrationDone) {
-            prefs.edit()
-                .putInt(KEY_HOME_CALL_PAGE_SIZE, pageSize)
-                .putBoolean(KEY_HOME_CALL_PAGE_SIZE_DEFAULT_10_MIGRATED, true)
-                .commit()
-        }
-        return pageSize
-    }
+    private fun loadHomeCallPageSize(prefs: SharedPreferences): Int = normalizedHomeCallPageSize(
+        storedValue = prefs.takeIf { it.contains(KEY_HOME_CALL_PAGE_SIZE) }
+            ?.getInt(KEY_HOME_CALL_PAGE_SIZE, DEFAULT_HOME_CALL_PAGE_SIZE),
+    )
 
-    internal fun migratedHomeCallPageSize(storedValue: Int?, migrationDone: Boolean): Int {
-        val normalized = (storedValue ?: DEFAULT_HOME_CALL_PAGE_SIZE).coerceHomeCallPageSize()
-        return if (!migrationDone && (storedValue == null || normalized == LEGACY_DEFAULT_HOME_CALL_PAGE_SIZE)) {
-            DEFAULT_HOME_CALL_PAGE_SIZE
-        } else {
-            normalized
-        }
-    }
+    internal fun normalizedHomeCallPageSize(storedValue: Int?): Int =
+        (storedValue ?: DEFAULT_HOME_CALL_PAGE_SIZE).coerceHomeCallPageSize()
 
     private fun Int.coerceHomeCallPageSize(): Int = coerceIn(MIN_HOME_CALL_PAGE_SIZE, MAX_HOME_CALL_PAGE_SIZE)
 
