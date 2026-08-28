@@ -45,11 +45,12 @@ class ContactNotesHeaderUi(
         syncStatusIndicator: View? = null,
     ): LinearLayout {
         val displayName = displayNameFromTitle(title, phone)
-        val compactIdentity = displayName.ifBlank { phone }
+        val namePresentation = ContactNamePresentation.from(displayName)
+        val compactIdentity = namePresentation.primary.ifBlank { phone }
         val contactDescription = activity.getString(
             if (contactExists) R.string.dynamic_contact_open else R.string.dynamic_contact_create,
         )
-        val identityAnchor = identityBlock(displayName, phone, contactExists, crmSyncServerBacked)
+        val identityAnchor = identityBlock(namePresentation, phone, contactExists, crmSyncServerBacked)
         val compactTitle = TextView(activity).apply {
             text = compactIdentity
             textSize = 18f
@@ -141,7 +142,7 @@ class ContactNotesHeaderUi(
     }
 
     private fun identityBlock(
-        displayName: String,
+        namePresentation: ContactNamePresentation,
         phone: String,
         contactExists: Boolean,
         serverBacked: Boolean,
@@ -159,8 +160,11 @@ class ContactNotesHeaderUi(
                     bottomMargin = dp(6)
                 }
             })
-            if (contactExists && displayName.isNotBlank()) {
-                addView(identityPrimaryRow(contactNameText(displayName), false))
+            if (contactExists && namePresentation.primary.isNotBlank()) {
+                addView(identityPrimaryRow(contactNameText(namePresentation.primary, namePresentation.fullName), false))
+                namePresentation.secondary.forEach { detail ->
+                    addView(contactNameDetailText(detail))
+                }
                 if (phone.isNotBlank()) addView(phoneNumberText(phone, prominent = false))
             } else if (phone.isNotBlank()) {
                 addView(identityPrimaryRow(phoneNumberText(phone, prominent = true), false))
@@ -326,7 +330,6 @@ class ContactNotesHeaderUi(
         if (value.isBlank() || value == activity.getString(R.string.dynamic_notes_default_title)) return ""
         if (phone.isNotBlank()) {
             if (value == phone) return ""
-            if (value.contains("|")) return value.substringAfterLast("|").trim()
             if (value.startsWith(phone)) {
                 return value.removePrefix(phone).trim().trimStart('|', '•', '-', '–').trim()
             }
@@ -371,8 +374,8 @@ class ContactNotesHeaderUi(
         }
     }
 
-    private fun contactNameText(displayName: String): TextView = TextView(activity).apply {
-        text = displayName
+    private fun contactNameText(label: String, fullName: String): TextView = TextView(activity).apply {
+        text = label
         textSize = 22f
         typeface = Typeface.DEFAULT_BOLD
         setTextColor(Color.rgb(15, 23, 42))
@@ -390,10 +393,25 @@ class ContactNotesHeaderUi(
         setOnClickListener {
             copyToClipboard(
                 activity.getString(R.string.dynamic_clipboard_name_label),
-                displayName,
+                fullName,
                 activity.getString(R.string.dynamic_name_copied),
             )
         }
+    }
+
+    private fun contactNameDetailText(detail: String): TextView = TextView(activity).apply {
+        text = detail
+        textSize = 16f
+        setTextColor(Color.rgb(71, 85, 105))
+        gravity = Gravity.CENTER
+        textAlignment = View.TEXT_ALIGNMENT_CENTER
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        setPadding(dp(8), 0, dp(8), dp(2))
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        )
     }
 
     private fun copyToClipboard(label: String, value: String, message: String) {
