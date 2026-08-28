@@ -37,22 +37,6 @@ internal object HomeCrmFilterStore {
 
     fun load(context: Context, scope: Scope): HomeCrmFilterState {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (
-            scope == Scope.CLIENTS &&
-            !prefs.contains(KEY_CLIENTS_PHASES) &&
-            !prefs.contains(KEY_CLIENTS_COMPANIES) &&
-            !prefs.contains(KEY_CLIENTS_CRM_ONLY)
-        ) {
-            // First run after this change: keep the user's currently selected filters
-            // instead of making the Clients page look reset.
-            return loadFromKeys(
-                prefs,
-                KEY_PHASES,
-                KEY_COMPANIES,
-                crmOnlyKey = null,
-                readLegacyPhase = true,
-            )
-        }
         return when (scope) {
             Scope.CRM_CALLS -> loadFromKeys(
                 prefs,
