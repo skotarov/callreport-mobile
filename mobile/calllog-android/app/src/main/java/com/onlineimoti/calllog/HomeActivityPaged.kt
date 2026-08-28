@@ -364,7 +364,9 @@ class HomeActivity : FontScaledAppCompatActivity() {
         HomeCallPageLoader.clearSearchCache()
         HomeTimelineLoader.invalidateCache()
         companyGeneralNotesController.invalidate()
-        if (activeSearchQuery.isBlank() && !isCrmContactsMode()) resetTimelineForRefresh()
+        if (activeSearchQuery.isBlank() && !isCrmContactsMode()) {
+            HomeRefreshRenderPolicy.requestKeepExistingRows()
+        }
         if (homeIsResumed) renderCalls() else refreshWhenResumed = true
     }
 
