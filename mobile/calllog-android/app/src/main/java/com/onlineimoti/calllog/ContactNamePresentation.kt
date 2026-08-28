@@ -8,12 +8,25 @@ internal data class ContactNamePresentation(
 ) {
     companion object {
         fun from(value: String): ContactNamePresentation {
-            val parts = value.split('|').map { it.trim() }.filter(String::isNotBlank)
+            val parts = buildList {
+                value.split('|').forEach { segment ->
+                    val parenthesized = PARENTHESIZED_CONTENT.findAll(segment).toList()
+                    val outside = PARENTHESIZED_CONTENT.replace(segment, " ")
+                        .trim()
+                        .replace(Regex("\\s+"), " ")
+                    if (outside.isNotBlank()) add(outside)
+                    parenthesized.map { it.groupValues[1].trim() }
+                        .filter(String::isNotBlank)
+                        .forEach(::add)
+                }
+            }
             return ContactNamePresentation(
-                fullName = parts.joinToString(" | "),
+                fullName = value.trim(),
                 primary = parts.firstOrNull().orEmpty(),
                 secondary = parts.drop(1),
             )
         }
+
+        private val PARENTHESIZED_CONTENT = Regex("\\(([^()]*)\\)")
     }
 }

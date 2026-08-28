@@ -19,4 +19,12 @@ class ContactNamePresentationTest {
         assertEquals("Светльо", presentation.primary)
         assertEquals(listOf("автобояджия"), presentation.secondary)
     }
+
+    @Test
+    fun parenthesizedDetailAppearsOnItsOwnSecondaryLine() {
+        val presentation = ContactNamePresentation.from("Светльо (автобояджия) | София")
+
+        assertEquals("Светльо", presentation.primary)
+        assertEquals(listOf("автобояджия", "София"), presentation.secondary)
+    }
 }
