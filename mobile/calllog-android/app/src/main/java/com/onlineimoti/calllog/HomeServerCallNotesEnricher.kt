@@ -218,6 +218,12 @@ internal class HomeServerCallNotesController(
             .filterTo(linkedSetOf()) { it.isNotBlank() }
         if (requestedKeys.isEmpty()) return existing
 
+        // A server search result carries the exact server note that matched the
+        // query. The history endpoint is intentionally narrower (for example it
+        // can omit a note from another company scope), so an empty history result
+        // must not erase that already-rendered search match a moment later.
+        val matchedSearchNotes = HomeServerSearchNoteRetention.snippetsByPhoneKey(calls)
+
         val latest = linkedMapOf<String, Pair<Long, String>>()
         serverEvents.forEach { event ->
             val explicitGeneral = CallReportServerNoteClassifier.isExplicitGeneralNote(event)
@@ -237,7 +243,10 @@ internal class HomeServerCallNotesController(
             requestedKeys.forEach { key ->
                 val combined = HomeGeneralNoteBundle.replaceServer(
                     existing = get(key),
-                    serverValue = latest[key]?.second,
+                    serverValue = HomeServerSearchNoteRetention.preferredServerValue(
+                        canonicalValue = latest[key]?.second,
+                        matchedSearchSnippet = matchedSearchNotes[key],
+                    ),
                 )
                 if (combined.isBlank()) remove(key) else put(key, combined)
             }
@@ -253,4 +262,20 @@ internal class HomeServerCallNotesController(
     private companion object {
         const val PAGE_HISTORY_CACHE_MS = 30_000L
     }
+}
+
+/** Keeps an exact server-side search match visible while the narrower history loads. */
+internal object HomeServerSearchNoteRetention {
+    fun snippetsByPhoneKey(calls: List<PhoneCallRecord>): Map<String, String> = buildMap {
+        calls.forEach { call ->
+            val key = HomeCallPageLoader.noteKey(call.number)
+            val snippet = call.searchSnippet.trim()
+            if (key.isNotBlank() && snippet.isNotBlank()) put(key, ServerNoteVisuals.prefixed(snippet))
+        }
+    }
+
+    /** A canonical history response wins; otherwise retain the exact search match. */
+    fun preferredServerValue(canonicalValue: String?, matchedSearchSnippet: String?): String =
+        canonicalValue?.trim().takeUnless { it.isNullOrBlank() }
+            ?: matchedSearchSnippet?.trim().orEmpty()
 }
