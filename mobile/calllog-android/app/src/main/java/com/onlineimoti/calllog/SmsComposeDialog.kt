@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
@@ -59,7 +60,7 @@ internal class SmsComposeDialog(
         AppModalStyle.configureWindow(
             dialog = dialog,
             activity = activity,
-            topAligned = true,
+            topAligned = false,
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
                 WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
         )
@@ -132,7 +133,7 @@ internal class SmsComposeDialog(
             textSize = 27f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(71, 85, 105))
-            background = AppModalStyle.secondary(activity)
+            background = ColorDrawable(Color.TRANSPARENT)
             contentDescription = activity.getString(R.string.dynamic_sms_close)
             isClickable = true
             isFocusable = true

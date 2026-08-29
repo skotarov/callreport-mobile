@@ -81,7 +81,7 @@ internal class ContactNoteEditUi(
         // legacy single input is hidden because Local + every company are rendered
         // by ContactNoteMultiScopeFieldsUi above it.
         built.input.visibility = View.GONE
-        built.card.background = roundedRect(Color.WHITE, dp(22))
+        built.card.background = roundedRect(Color.WHITE, dp(20))
         built.card.elevation = dp(5).toFloat()
 
         val root = LinearLayout(activity).apply {

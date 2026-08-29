@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -77,7 +78,7 @@ internal class SmsMessageViewDialog(
     }
 
     private fun configureWindow(dialog: Dialog) {
-        AppModalStyle.configureWindow(dialog, activity, topAligned = true)
+        AppModalStyle.configureWindow(dialog, activity)
     }
 
     private fun content(
@@ -107,7 +108,7 @@ internal class SmsMessageViewDialog(
             textSize = 13.5f
             setTextColor(Color.rgb(71, 85, 105))
             setPadding(dp(12), dp(9), dp(12), dp(10))
-            background = AppModalStyle.secondary(activity)
+            background = ColorDrawable(Color.TRANSPARENT)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,

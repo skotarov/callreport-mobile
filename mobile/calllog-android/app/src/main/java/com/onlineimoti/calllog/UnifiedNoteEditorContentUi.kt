@@ -84,6 +84,7 @@ internal class UnifiedNoteEditorContentUi(
             gravity = Gravity.CENTER_VERTICAL
             addView(ImageView(context).apply {
                 setImageResource(if (state.kind.isGeneral) R.drawable.ic_note_lines else R.drawable.ic_chat_note)
+                setColorFilter(AppModalStyle.accent(context))
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 layoutParams = LinearLayout.LayoutParams(dp(35), dp(35)).apply { marginEnd = dp(8) }
             })
@@ -260,7 +261,7 @@ internal class UnifiedNoteEditorContentUi(
         ImageButton(context).apply {
             setImageResource(drawableRes)
             contentDescription = description
-            background = roundedRect(Color.rgb(243, 244, 246), dp(18), Color.TRANSPARENT, 0)
+            background = roundedRect(Color.TRANSPARENT, 0, Color.TRANSPARENT, 0)
             setPadding(dp(7), dp(7), dp(7), dp(7))
             setOnClickListener { action() }
             layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(8) }
@@ -269,7 +270,7 @@ internal class UnifiedNoteEditorContentUi(
     private fun calendarButton(action: () -> Unit): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
-        background = roundedRect(Color.rgb(243, 244, 246), dp(12), Color.TRANSPARENT, 0)
+        background = AppModalStyle.secondary(context)
         setPadding(dp(10), dp(7), dp(12), dp(7))
         isClickable = true
         isFocusable = true
@@ -297,7 +298,7 @@ internal class UnifiedNoteEditorContentUi(
     )
 
     private fun secondaryButton(textValue: String, action: () -> Unit): TextView = textButton(
-        textValue, Color.rgb(55, 65, 81), Color.rgb(243, 244, 246), action,
+        textValue, Color.rgb(55, 65, 81), Color.WHITE, action,
     )
 
     private fun deleteButton(action: () -> Unit): TextView = textButton(

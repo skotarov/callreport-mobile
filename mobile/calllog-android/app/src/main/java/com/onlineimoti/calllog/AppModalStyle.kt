@@ -20,11 +20,12 @@ internal object AppModalStyle {
     private const val TEXT = 0xFF0F172A.toInt()
     private const val MUTED = 0xFF475569.toInt()
 
-    fun accent(context: Context): Int = context.getColor(R.color.calllog_accent)
+    /** All modal primary actions use the application's blue, not the muted list accent. */
+    fun accent(context: Context): Int = context.getColor(R.color.callreport_icon_background)
 
     fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 
-    fun surface(context: Context, radiusDp: Int = 26): GradientDrawable = rounded(
+    fun surface(context: Context, radiusDp: Int = 20): GradientDrawable = rounded(
         color = SURFACE,
         radiusPx = dp(context, radiusDp),
         strokeColor = Color.TRANSPARENT,
@@ -69,7 +70,7 @@ internal object AppModalStyle {
             setBackgroundDrawable(surface(activity))
             setGravity(if (topAligned) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER)
             if (topAligned) attributes = attributes.apply { y = dp(activity, 16) }
-            setLayout(activity.resources.displayMetrics.widthPixels - dp(activity, 32), ViewGroup.LayoutParams.WRAP_CONTENT)
+            setLayout(activity.resources.displayMetrics.widthPixels - dp(activity, 48), ViewGroup.LayoutParams.WRAP_CONTENT)
             softInputMode?.let(::setSoftInputMode)
         }
     }

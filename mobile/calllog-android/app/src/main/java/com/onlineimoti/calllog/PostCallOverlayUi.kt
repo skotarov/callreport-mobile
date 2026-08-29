@@ -36,7 +36,7 @@ internal class PostCallOverlayUi(private val context: Context) {
     }
 
     fun stylePopupCard(view: View) {
-        view.background = roundedRect(Color.WHITE, dp(24), Color.TRANSPARENT, 0)
+        view.background = roundedRect(Color.WHITE, dp(20), Color.TRANSPARENT, 0)
         view.clipToOutline = true
         view.elevation = dp(11).toFloat()
         view.translationZ = dp(3).toFloat()
