@@ -29,8 +29,6 @@ internal class ContactNotesChatActionsUi(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 dp(CARD_HEIGHT_DP),
             ).apply {
-                marginStart = dp(CARD_HORIZONTAL_MARGIN_DP)
-                marginEnd = dp(CARD_HORIZONTAL_MARGIN_DP)
                 bottomMargin = dp(CARD_BOTTOM_MARGIN_DP)
             }
             installedApps.forEachIndexed { index, (app, icon) ->
@@ -60,7 +58,7 @@ internal class ContactNotesChatActionsUi(
             }, LinearLayout.LayoutParams(dp(CHAT_ICON_SIZE_DP), dp(CHAT_ICON_SIZE_DP)))
             addView(android.widget.TextView(activity).apply {
                 text = app.displayName
-                textSize = 12f
+                textSize = 11f
                 includeFontPadding = false
                 gravity = Gravity.CENTER
                 setTextColor(activity.getColor(R.color.calllog_muted_text))
@@ -95,7 +93,6 @@ internal class ContactNotesChatActionsUi(
     }
 
     private companion object {
-        const val CARD_HORIZONTAL_MARGIN_DP = 16
         const val CARD_HORIZONTAL_INSET_DP = 4
         const val CARD_VERTICAL_INSET_DP = 4
         const val CARD_BOTTOM_MARGIN_DP = 6

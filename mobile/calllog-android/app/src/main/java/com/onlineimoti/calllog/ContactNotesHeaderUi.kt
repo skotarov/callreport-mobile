@@ -111,7 +111,7 @@ class ContactNotesHeaderUi(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 dp(ContactNotesActionRowPresentations.normal.hostHeightDp),
             )
-            setPadding(dp(ACTION_CARD_HORIZONTAL_MARGIN_DP), dp(ACTION_CARD_VERTICAL_SPACE_DP / 2), dp(ACTION_CARD_HORIZONTAL_MARGIN_DP), dp(ACTION_CARD_VERTICAL_SPACE_DP / 2))
+            setPadding(0, dp(ACTION_CARD_VERTICAL_SPACE_DP / 2), 0, dp(ACTION_CARD_VERTICAL_SPACE_DP / 2))
             addView(actionRow, actionRowHostLayoutParams(ContactNotesActionRowPresentations.normal))
             tag = ContactNotesStickyActions(actionRow, stickyActionRow, topBar, compactTitle)
         }
@@ -301,7 +301,7 @@ class ContactNotesHeaderUi(
             if (showLabel) {
                 addView(TextView(activity).apply {
                     text = label
-                    textSize = 12f
+                    textSize = 11f
                     typeface = Typeface.DEFAULT
                     setTextColor(Color.rgb(100, 116, 139))
                     gravity = Gravity.CENTER
@@ -431,7 +431,6 @@ class ContactNotesHeaderUi(
     }
 
     private companion object {
-        const val ACTION_CARD_HORIZONTAL_MARGIN_DP = 16
         const val ACTION_CARD_VERTICAL_SPACE_DP = 8
         const val ACTION_CARD_HORIZONTAL_INSET_DP = 4
         const val ACTION_CARD_RADIUS_DP = 18

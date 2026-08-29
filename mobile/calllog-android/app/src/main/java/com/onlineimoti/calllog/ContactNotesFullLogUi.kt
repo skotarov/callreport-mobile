@@ -190,7 +190,7 @@ internal class ContactNotesFullLogUi(
                 root.addView(weekUi.separator(entry.row.timeMs, relativeWeeks))
                 previousWeekSerial = weekSerial
             }
-            root.addView(ListThemeUi.applyComfortableRowSpacing(
+            root.addView(ListThemeUi.applyRowSpacing(
                 rowRenderer.rowView(phone, entry, remoteEnabled),
                 dp,
             ))
