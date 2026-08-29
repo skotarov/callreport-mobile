@@ -23,6 +23,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.widget.doAfterTextChanged
 import java.util.concurrent.Executors
 
 /** Small in-place SMS composer used from the contact-history header. */
@@ -82,15 +83,15 @@ internal class SmsComposeDialog(
         val status = statusText()
         val historyButton = secondaryButton(activity.getString(R.string.dynamic_sms_history))
         val sendButton = primaryButton(activity.getString(R.string.dynamic_sms_send))
-        root.addView(messageInput)
+        root.addView(messagePanel(messageInput))
         root.addView(status)
         root.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(historyButton, LinearLayout.LayoutParams(0, dp(48), 0.88f).apply {
+            addView(historyButton, LinearLayout.LayoutParams(0, dp(50), 1f).apply {
                 marginEnd = dp(10)
             })
-            addView(sendButton, LinearLayout.LayoutParams(0, dp(52), 1.12f))
+            addView(sendButton, LinearLayout.LayoutParams(0, dp(50), 1f))
         }, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -140,12 +141,16 @@ internal class SmsComposeDialog(
             setOnClickListener { dialog.dismiss() }
             layoutParams = LinearLayout.LayoutParams(dp(42), dp(42))
         })
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { bottomMargin = dp(14) }
     }
 
     private fun contactSummary(title: String, phone: String): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(12), dp(9), dp(12), dp(10))
-        background = roundedRect(Color.rgb(248, 250, 252), dp(14), Color.rgb(226, 232, 240), dp(1))
+        setPadding(dp(16), dp(12), dp(16), dp(12))
+        background = roundedRect(Color.WHITE, dp(14), Color.rgb(226, 232, 240), dp(1))
         addView(TextView(activity).apply {
             text = title
             textSize = 15f
@@ -165,7 +170,10 @@ internal class SmsComposeDialog(
     }
 
     private fun headerIcon(drawableRes: Int): FrameLayout = FrameLayout(activity).apply {
-        background = roundedRect(AppModalStyle.accent(activity), dp(14), Color.TRANSPARENT, 0)
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(AppModalStyle.accent(activity))
+        }
         addView(ImageView(activity).apply {
             setImageResource(drawableRes)
             setColorFilter(Color.WHITE)
@@ -188,12 +196,37 @@ internal class SmsComposeDialog(
         inputType = InputType.TYPE_CLASS_TEXT or
             InputType.TYPE_TEXT_FLAG_MULTI_LINE or
             InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-        setPadding(dp(12), dp(12), dp(12), dp(12))
+        setPadding(dp(12), dp(12), dp(12), dp(30))
         background = AppModalStyle.input(activity)
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         )
+    }
+
+    private fun messagePanel(input: EditText): FrameLayout = FrameLayout(activity).apply {
+        addView(input, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+        ))
+        val counter = TextView(activity).apply {
+            textSize = 12.5f
+            setTextColor(Color.rgb(100, 116, 139))
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        }
+        addView(counter, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            dp(24),
+            Gravity.END or Gravity.BOTTOM,
+        ).apply {
+            marginEnd = dp(12)
+            bottomMargin = dp(5)
+        })
+        fun updateCounter() {
+            counter.text = "${input.text?.length ?: 0}/160"
+        }
+        input.doAfterTextChanged { updateCounter() }
+        updateCounter()
     }
 
     private fun statusText(): TextView = TextView(activity).apply {
