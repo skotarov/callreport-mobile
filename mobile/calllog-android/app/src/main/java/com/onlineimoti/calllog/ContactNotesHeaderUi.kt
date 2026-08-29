@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -85,7 +86,7 @@ class ContactNotesHeaderUi(
                 openChatSettings = ::openChatSettings,
             ).apply { layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)) })
         }
-        val createActionRow = { showLabels: Boolean ->
+        val createActionRow = { presentation: ContactNotesActionRowPresentation ->
             actionRow(
                 phone = phone,
                 title = title,
@@ -100,19 +101,18 @@ class ContactNotesHeaderUi(
                 openCalendarEvent = openCalendarEvent,
                 openDefaultContact = openDefaultContact,
                 toggleCrmSync = toggleCrmSync,
-                showLabels = showLabels,
-            ).apply {
-                setBackgroundColor(activity.getColor(R.color.calllog_bg))
-            }
+                presentation = presentation,
+            )
         }
-        val actionRow = createActionRow(true)
-        val stickyActionRow = createActionRow(false)
+        val actionRow = createActionRow(ContactNotesActionRowPresentations.normal)
+        val stickyActionRow = createActionRow(ContactNotesActionRowPresentations.sticky)
         val actionAnchor = FrameLayout(activity).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(ACTION_ANCHOR_HEIGHT_DP),
+                dp(ContactNotesActionRowPresentations.normal.hostHeightDp),
             )
-            addView(actionRow, actionRowHostLayoutParams())
+            setPadding(dp(ACTION_CARD_HORIZONTAL_MARGIN_DP), dp(ACTION_CARD_VERTICAL_SPACE_DP / 2), dp(ACTION_CARD_HORIZONTAL_MARGIN_DP), dp(ACTION_CARD_VERTICAL_SPACE_DP / 2))
+            addView(actionRow, actionRowHostLayoutParams(ContactNotesActionRowPresentations.normal))
             tag = ContactNotesStickyActions(actionRow, stickyActionRow, topBar, compactTitle)
         }
         return LinearLayout(activity).apply {
@@ -210,16 +210,17 @@ class ContactNotesHeaderUi(
         openCalendarEvent: () -> Unit,
         openDefaultContact: () -> Unit,
         toggleCrmSync: () -> Unit,
-        showLabels: Boolean,
+        presentation: ContactNotesActionRowPresentation,
     ): LinearLayout {
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(0, if (showLabels) dp(2) else 0, 0, if (showLabels) dp(2) else 0)
+            setPadding(dp(ACTION_CARD_HORIZONTAL_INSET_DP), dp(4), dp(ACTION_CARD_HORIZONTAL_INSET_DP), dp(4))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(if (showLabels) ACTION_ROW_HEIGHT_DP else STICKY_ACTION_ROW_HEIGHT_DP),
+                dp(presentation.cardHeightDp),
             )
+            background = actionCardBackground()
         }
         ContactNotesHeaderActionPolicy.ordered(contactExists)
             .filterNot { it == ContactNotesHeaderAction.CALL }
@@ -271,15 +272,15 @@ class ContactNotesHeaderUi(
                 ContactNotesHeaderAction.SMS -> "СМС"
                 ContactNotesHeaderAction.CALL -> ""
             }
-            val slotWeight = if (kind == ContactNotesHeaderAction.CRM) CRM_SLOT_WEIGHT else 1f
-            row.addView(actionSlot(button, label, showLabels, insetStart = index == 0, weight = slotWeight))
+            if (index > 0) row.addView(actionDivider())
+            row.addView(actionSlot(button, label, presentation.showLabels))
         }
         return row
     }
 
-    private fun actionRowHostLayoutParams(): FrameLayout.LayoutParams = FrameLayout.LayoutParams(
+    private fun actionRowHostLayoutParams(presentation: ContactNotesActionRowPresentation): FrameLayout.LayoutParams = FrameLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
-        dp(ACTION_ROW_HEIGHT_DP),
+        dp(presentation.cardHeightDp),
         Gravity.BOTTOM,
     )
 
@@ -287,8 +288,6 @@ class ContactNotesHeaderUi(
         button: View,
         label: String,
         showLabel: Boolean,
-        insetStart: Boolean,
-        weight: Float,
     ): LinearLayout {
         button.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -297,14 +296,13 @@ class ContactNotesHeaderUi(
         return LinearLayout(activity).apply {
             gravity = Gravity.CENTER
             orientation = LinearLayout.VERTICAL
-            if (insetStart) setPadding(dp(CRM_SLOT_START_PADDING_DP), 0, 0, 0)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             addView(button)
             if (showLabel) {
                 addView(TextView(activity).apply {
                     text = label
-                    textSize = 9f
-                    typeface = Typeface.DEFAULT_BOLD
+                    textSize = 12f
+                    typeface = Typeface.DEFAULT
                     setTextColor(Color.rgb(100, 116, 139))
                     gravity = Gravity.CENTER
                     maxLines = 1
@@ -316,6 +314,18 @@ class ContactNotesHeaderUi(
                 })
             }
         }
+    }
+
+    private fun actionDivider(): View = View(activity).apply {
+        setBackgroundColor(activity.getColor(R.color.calllog_border))
+        layoutParams = LinearLayout.LayoutParams(dp(1), dp(ACTION_DIVIDER_HEIGHT_DP))
+    }
+
+    private fun actionCardBackground(): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = dp(ACTION_CARD_RADIUS_DP).toFloat()
+        setColor(activity.getColor(R.color.calllog_surface))
+        setStroke(dp(1), activity.getColor(R.color.calllog_border))
     }
 
     private fun openChatSettings() {
@@ -421,12 +431,12 @@ class ContactNotesHeaderUi(
     }
 
     private companion object {
-        const val CRM_SLOT_START_PADDING_DP = 2
-        const val ACTION_ANCHOR_HEIGHT_DP = 58
-        const val ACTION_ROW_HEIGHT_DP = 56
-        const val STICKY_ACTION_ROW_HEIGHT_DP = 48
-        const val ACTION_BUTTON_HEIGHT_DP = 42
-        const val ACTION_LABEL_HEIGHT_DP = 11
-        const val CRM_SLOT_WEIGHT = 1.2f
+        const val ACTION_CARD_HORIZONTAL_MARGIN_DP = 16
+        const val ACTION_CARD_VERTICAL_SPACE_DP = 8
+        const val ACTION_CARD_HORIZONTAL_INSET_DP = 4
+        const val ACTION_CARD_RADIUS_DP = 18
+        const val ACTION_BUTTON_HEIGHT_DP = 38
+        const val ACTION_LABEL_HEIGHT_DP = 16
+        const val ACTION_DIVIDER_HEIGHT_DP = 38
     }
 }

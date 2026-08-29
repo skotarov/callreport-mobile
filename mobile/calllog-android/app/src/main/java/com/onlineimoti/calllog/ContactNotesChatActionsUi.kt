@@ -1,12 +1,13 @@
 package com.onlineimoti.calllog
 
 import android.app.Activity
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import com.google.android.material.button.MaterialButton
+import android.widget.ImageView
+import android.widget.LinearLayout
 
 /** Secondary History action row for the installed chat applications selected in Settings. */
 internal class ContactNotesChatActionsUi(
@@ -15,48 +16,73 @@ internal class ContactNotesChatActionsUi(
 ) {
     private val launcher by lazy { ChatAppLauncher(activity) }
 
-    fun row(phone: String): WrappingActionLayout = WrappingActionLayout(activity).apply {
-        horizontalSpacingPx = dp(8)
-        verticalSpacingPx = dp(8)
-        setPadding(dp(12), dp(4), dp(12), dp(4))
-        layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-        )
-        ChatAppVisibilityStore.enabledApps(activity).forEach { app ->
-            installedIcon(app)?.let { appIcon ->
-                addView(chatButton(app, phone, appIcon))
-            }
+    fun row(phone: String): LinearLayout {
+        val installedApps = ChatAppVisibilityStore.enabledApps(activity).mapNotNull { app ->
+            installedIcon(app)?.let { icon -> app to icon }
         }
-        visibility = if (childCount == 0) View.GONE else View.VISIBLE
+        return LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(CARD_HORIZONTAL_INSET_DP), dp(CARD_VERTICAL_INSET_DP), dp(CARD_HORIZONTAL_INSET_DP), dp(CARD_VERTICAL_INSET_DP))
+            background = cardBackground()
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(CARD_HEIGHT_DP),
+            ).apply {
+                marginStart = dp(CARD_HORIZONTAL_MARGIN_DP)
+                marginEnd = dp(CARD_HORIZONTAL_MARGIN_DP)
+                bottomMargin = dp(CARD_BOTTOM_MARGIN_DP)
+            }
+            installedApps.forEachIndexed { index, (app, icon) ->
+                if (index > 0) addView(divider())
+                addView(chatSlot(app, phone, icon))
+            }
+            visibility = if (installedApps.isEmpty()) View.GONE else View.VISIBLE
+        }
     }
 
-    private fun chatButton(app: ChatApp, phone: String, appIcon: Drawable): MaterialButton =
-        MaterialButton(activity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = ""
+    private fun chatSlot(app: ChatApp, phone: String, appIcon: Drawable): LinearLayout =
+        LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
             contentDescription = if (AppLocaleText.isBulgarian()) {
                 "Отвори ${app.displayName}"
             } else {
                 "Open ${app.displayName}"
             }
             tooltipText = app.displayName
-            minimumWidth = 0
-            minimumHeight = 0
-            insetTop = 0
-            insetBottom = 0
-            cornerRadius = dp(12)
-            setPadding(dp(8), 0, dp(8), 0)
-            icon = appIcon
-            iconTint = null
-            iconSize = dp(24)
-            iconPadding = 0
-            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-            backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
-            strokeColor = ColorStateList.valueOf(Color.TRANSPARENT)
-            strokeWidth = 0
-            layoutParams = ViewGroup.MarginLayoutParams(dp(44), dp(40))
+            isClickable = true
+            isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            addView(ImageView(activity).apply {
+                setImageDrawable(appIcon)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+            }, LinearLayout.LayoutParams(dp(CHAT_ICON_SIZE_DP), dp(CHAT_ICON_SIZE_DP)))
+            addView(android.widget.TextView(activity).apply {
+                text = app.displayName
+                textSize = 12f
+                includeFontPadding = false
+                gravity = Gravity.CENTER
+                setTextColor(activity.getColor(R.color.calllog_muted_text))
+                maxLines = 1
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(CHAT_LABEL_HEIGHT_DP),
+            ).apply { topMargin = dp(2) })
             setOnClickListener { launcher.open(app, phone) }
         }
+
+    private fun divider(): View = View(activity).apply {
+        setBackgroundColor(activity.getColor(R.color.calllog_border))
+        layoutParams = LinearLayout.LayoutParams(dp(1), dp(CHAT_DIVIDER_HEIGHT_DP))
+    }
+
+    private fun cardBackground(): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = dp(CARD_RADIUS_DP).toFloat()
+        setColor(activity.getColor(R.color.calllog_surface))
+        setStroke(dp(1), activity.getColor(R.color.calllog_border))
+    }
 
     private fun installedIcon(app: ChatApp): Drawable? {
         app.packageNames.forEach { packageName ->
@@ -66,5 +92,17 @@ internal class ContactNotesChatActionsUi(
             if (icon != null) return icon
         }
         return null
+    }
+
+    private companion object {
+        const val CARD_HORIZONTAL_MARGIN_DP = 16
+        const val CARD_HORIZONTAL_INSET_DP = 4
+        const val CARD_VERTICAL_INSET_DP = 4
+        const val CARD_BOTTOM_MARGIN_DP = 6
+        const val CARD_HEIGHT_DP = 70
+        const val CARD_RADIUS_DP = 18
+        const val CHAT_ICON_SIZE_DP = 34
+        const val CHAT_LABEL_HEIGHT_DP = 16
+        const val CHAT_DIVIDER_HEIGHT_DP = 38
     }
 }

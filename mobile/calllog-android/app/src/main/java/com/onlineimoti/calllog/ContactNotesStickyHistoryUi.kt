@@ -86,7 +86,7 @@ internal class ContactNotesStickyHistoryUi(
         val stickyActionHost = FrameLayout(activity).apply {
             visibility = View.INVISIBLE
             setBackgroundColor(ContextCompat.getColor(activity, R.color.calllog_bg))
-            setPadding(dp(PAGE_HORIZONTAL_PADDING_DP), 0, dp(PAGE_HORIZONTAL_PADDING_DP), 0)
+            setPadding(dp(PAGE_HORIZONTAL_PADDING_DP), dp(STICKY_ACTION_VERTICAL_SPACE_DP / 2), dp(PAGE_HORIZONTAL_PADDING_DP), dp(STICKY_ACTION_VERTICAL_SPACE_DP / 2))
             elevation = 0f
             stateListAnimator = null
             stickyActionRow?.let { row ->
@@ -96,7 +96,7 @@ internal class ContactNotesStickyHistoryUi(
         }
         val stickyActionHostParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            dp(STICKY_ACTION_HEIGHT_DP),
+            dp(ContactNotesActionRowPresentations.sticky.hostHeightDp),
             Gravity.TOP,
         )
 
@@ -195,7 +195,7 @@ internal class ContactNotesStickyHistoryUi(
                 if (compactTitle.visibility != titleVisibility) compactTitle.visibility = titleVisibility
             }
 
-            val groupTop = if (actionsPinned) dp(STICKY_ACTION_HEIGHT_DP) else 0
+            val groupTop = if (actionsPinned) dp(ContactNotesActionRowPresentations.sticky.hostHeightDp) else 0
             if (groupOverlayParams.topMargin != groupTop) {
                 groupOverlayParams.topMargin = groupTop
                 groupOverlay.layoutParams = groupOverlayParams
@@ -381,7 +381,7 @@ internal class ContactNotesStickyHistoryUi(
 
     private fun actionRowLayoutParams(): FrameLayout.LayoutParams = FrameLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
-        dp(ACTION_ROW_HEIGHT_DP),
+        dp(ContactNotesActionRowPresentations.sticky.cardHeightDp),
         Gravity.BOTTOM,
     )
 
@@ -421,8 +421,7 @@ internal class ContactNotesStickyHistoryUi(
         const val PAGE_HORIZONTAL_PADDING_DP = 16
         const val HISTORY_GROUP_HORIZONTAL_PADDING_DP = 26
         const val FIXED_TOP_BAR_HEIGHT_DP = 50
-        const val STICKY_ACTION_HEIGHT_DP = 50
-        const val ACTION_ROW_HEIGHT_DP = 48
+        const val STICKY_ACTION_VERTICAL_SPACE_DP = 8
         const val MODE_BAR_HEIGHT_DP = 64
         const val MODE_BAR_VERTICAL_PADDING_DP = 3
         const val MODE_ICON_SIZE_DP = 22
