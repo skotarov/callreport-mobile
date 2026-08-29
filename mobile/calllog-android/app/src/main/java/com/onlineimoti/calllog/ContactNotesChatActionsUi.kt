@@ -97,7 +97,7 @@ internal class ContactNotesChatActionsUi(
         const val CARD_VERTICAL_INSET_DP = 4
         const val CARD_BOTTOM_MARGIN_DP = 6
         const val CARD_HEIGHT_DP = 70
-        const val CARD_RADIUS_DP = 18
+        const val CARD_RADIUS_DP = 9
         const val CHAT_ICON_SIZE_DP = 34
         const val CHAT_LABEL_HEIGHT_DP = 16
         const val CHAT_DIVIDER_HEIGHT_DP = 38

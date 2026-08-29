@@ -433,7 +433,7 @@ class ContactNotesHeaderUi(
     private companion object {
         const val ACTION_CARD_VERTICAL_SPACE_DP = 8
         const val ACTION_CARD_HORIZONTAL_INSET_DP = 4
-        const val ACTION_CARD_RADIUS_DP = 18
+        const val ACTION_CARD_RADIUS_DP = 9
         const val ACTION_BUTTON_HEIGHT_DP = 38
         const val ACTION_LABEL_HEIGHT_DP = 16
         const val ACTION_DIVIDER_HEIGHT_DP = 38
