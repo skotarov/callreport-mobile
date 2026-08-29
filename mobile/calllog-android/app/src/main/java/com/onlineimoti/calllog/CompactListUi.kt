@@ -25,6 +25,15 @@ internal object ListThemeUi {
         return view
     }
 
+    /** Keeps cards individually rounded and easier to scan in the detailed Call History list. */
+    fun applyComfortableRowSpacing(view: View, dp: (Int) -> Int): View {
+        val params = view.layoutParams as? ViewGroup.MarginLayoutParams ?: return view
+        params.topMargin = 0
+        params.bottomMargin = dp(COMFORTABLE_ROW_GAP_DP)
+        view.layoutParams = params
+        return view
+    }
+
     private fun scheduleGroupStyle(view: View, dp: (Int) -> Int) {
         val parent = view.parent as? ViewGroup
         if (parent != null) {
@@ -119,4 +128,6 @@ internal object ListThemeUi {
             }
         }
     }
+
+    private const val COMFORTABLE_ROW_GAP_DP = 6
 }
