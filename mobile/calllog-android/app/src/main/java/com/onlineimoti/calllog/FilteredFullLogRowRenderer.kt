@@ -80,7 +80,10 @@ internal class FilteredFullLogRowRenderer(
     private fun baseColumn(row: CallReportHistoryRow, remoteEnabled: Boolean, foreignRecord: Boolean): LinearLayout {
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
+            // Adjacent call rows intentionally share one separator. Keep that grouping
+            // intact and make each row more comfortable by increasing only its inner
+            // breathing room above and below the text.
+            setPadding(dp(12), dp(14), dp(12), dp(14))
             addView(metadataUi.metaView(row, remoteEnabled))
             if (row.text.isNotBlank()) {
                 addView(TextView(activity).apply {
