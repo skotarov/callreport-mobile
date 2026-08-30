@@ -270,7 +270,23 @@ internal class ContactNotesRestoredController(
     }
 
     private fun openGeneralNoteEditor(companyId: String = "") {
-        CompanyMainNoteEditorLauncher.start(activity, phone, titleText, companyId)
+        val existing = companyId.takeIf { it.isNotBlank() && it != ContactNoteTopicState.LOCAL_COMPANY_ID }
+            ?.let { selectedCompanyId ->
+                historyController.companyMainNotes(phone)
+                    .asSequence()
+                    .filter { note ->
+                        note.companyId == selectedCompanyId && note.editable && !note.placeholder
+                    }
+                    .maxByOrNull { note -> note.updatedAtMs }
+            }
+        CompanyMainNoteEditorLauncher.start(
+            context = activity,
+            phone = phone,
+            title = titleText,
+            companyId = companyId,
+            initialNoteText = existing?.note.orEmpty(),
+            initialServerClientEventId = existing?.clientEventId.orEmpty(),
+        )
     }
 
     private fun openUnscopedServerMainNoteEditor(event: CallReportHistoryEvent) {

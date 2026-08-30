@@ -117,7 +117,10 @@ class ContactNoteEditActivity : FontScaledActivity() {
         actionIssuedAt = intent.getLongExtra(CallNoteTargetResolver.EXTRA_ACTION_ISSUED_AT, 0L)
         isGeneralNote = intent.getStringExtra(PostCallOverlayService.EXTRA_MODE) == PostCallOverlayService.MODE_GENERAL_NOTE
         preferredCompanyId = intent.getStringExtra(CompanyMainNoteEditorLauncher.EXTRA_COMPANY_ID).orEmpty().trim()
-        initialNoteText = if (isGeneralNote) "" else intent.getStringExtra(CallNoteEditorLauncher.EXTRA_INITIAL_NOTE_TEXT).orEmpty()
+        // A company main note has already been loaded on History. Retain that
+        // authoritative value so the first editor render is populated instead of
+        // briefly looking like an empty new note while the background refresh runs.
+        initialNoteText = intent.getStringExtra(CallNoteEditorLauncher.EXTRA_INITIAL_NOTE_TEXT).orEmpty()
         initialServerClientEventId = intent.getStringExtra(CallNoteEditorLauncher.EXTRA_SERVER_CLIENT_EVENT_ID).orEmpty().trim()
         if (isGeneralNote) generalServerClientEventId = initialServerClientEventId
         else callServerClientEventId = initialServerClientEventId
@@ -158,7 +161,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         isGeneralNote = isGeneralNote,
         topic = topicState,
         willEnableServerSync = ContactNoteFormWorkflow.willEnableServerSync(this, draft(), topicState),
-        initialNoteText = if (isGeneralNote) "" else initialNoteText,
+        initialNoteText = initialNoteText,
     )
 
     private fun seedInitialValues() {
@@ -189,7 +192,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         val initialState = topicState
         topicExecutor.execute {
             val loadedState = ContactNoteFormWorkflow.loadTopics(applicationContext, initialState)
-            val loadedServerValues = if (loadedState.companies.isNotEmpty()) {
+            val loadedServerValues = if (isGeneralNote || loadedState.companies.isNotEmpty()) {
                 runCatching { ContactNoteScopeTextResolver.loadServerValues(applicationContext, draft()) }.getOrNull()
             } else null
             runOnUiThread {

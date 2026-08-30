@@ -25,6 +25,8 @@ class InlineNoteReplyReceiver : BroadcastReceiver() {
             callAt = intent.getLongExtra(PostCallOverlayService.EXTRA_CALL_AT, 0L),
             durationSeconds = intent.getLongExtra(PostCallOverlayService.EXTRA_DURATION, 0L),
             actionIssuedAt = intent.getLongExtra(CallNoteTargetResolver.EXTRA_ACTION_ISSUED_AT, 0L),
+            // The notification input is a call-note action, never a main-note fallback.
+            syncToCrm = false,
         ).saved
 
         if (saved) {

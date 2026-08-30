@@ -18,6 +18,10 @@ internal object PostCallPendingNoteSaver {
                 callAt = state.callAt,
                 durationSeconds = state.durationSeconds,
                 actionIssuedAt = state.actionIssuedAt,
+                // This is an explicitly blue/call note. While the system call-log
+                // row is still delayed, preserve it as pending instead of turning it
+                // into the yellow general note.
+                syncToCrm = false,
             ).saved && saved
         }
         if (saved) {

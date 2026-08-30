@@ -131,7 +131,7 @@ internal class OverlayContactNoteFormController(
         val stateAtStart = topicState
         Thread {
             val loadedState = ContactNoteFormWorkflow.loadTopics(service.applicationContext, stateAtStart)
-            val loadedValues = if (loadedState.companies.isNotEmpty()) {
+            val loadedValues = if (draft.isGeneralNote || loadedState.companies.isNotEmpty()) {
                 runCatching {
                     ContactNoteScopeTextResolver.loadServerValues(service.applicationContext, draft)
                 }.getOrNull()
