@@ -1,6 +1,5 @@
 package com.onlineimoti.calllog
 
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,7 +11,7 @@ class ContactNoteTopicRenderPolicyTest {
         updatedAtMs = 100L,
     )
 
-    @Test fun matchingLiveRefreshDoesNotRebuildCachedCompanyFields() {
+    @Test fun matchingLiveRefreshRebindsCachedFieldsWhenServerLoadingCompletes() {
         val cached = ContactNoteTopicState(
             visible = true,
             loading = true,
@@ -27,7 +26,9 @@ class ContactNoteTopicRenderPolicyTest {
             cachedCompaniesUpdatedAtMs = 0L,
         )
 
-        assertFalse(ContactNoteTopicRenderPolicy.shouldRebind(cached, live, scopeValuesChanged = false))
+        // Even with an unchanged company list, the server note values were loaded in
+        // the same async pass and must be rebound on the very first editor open.
+        assertTrue(ContactNoteTopicRenderPolicy.shouldRebind(cached, live, scopeValuesChanged = false))
     }
 
     @Test fun changedCompanyFromLiveRefreshRebuildsFields() {
