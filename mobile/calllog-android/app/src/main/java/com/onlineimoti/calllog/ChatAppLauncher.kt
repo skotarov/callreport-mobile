@@ -1,6 +1,7 @@
 package com.onlineimoti.calllog
 
 import android.app.Activity
+import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.IntentSender
@@ -11,9 +12,9 @@ import android.widget.Toast
 internal class ChatAppLauncher(
     private val activity: Activity,
 ) {
-    fun open(app: ChatApp, phone: String) {
+    fun open(app: ChatApp, phone: String, contactName: String = "") {
         val normalized = PhoneNormalizer.normalize(phone)
-        if (app.requiresPhone() && normalized.isBlank()) {
+        if (ChatAppOpenPolicy.usesPhone(app) && normalized.isBlank()) {
             Toast.makeText(activity, R.string.chat_invalid_phone, Toast.LENGTH_SHORT).show()
             return
         }
@@ -22,7 +23,7 @@ internal class ChatAppLauncher(
             ChatApp.WHATSAPP -> openWhatsApp(normalized, app.packageNames)
             ChatApp.TELEGRAM -> openTelegram(normalized, app.packageNames)
             ChatApp.MESSAGES -> openMessages(normalized, app.packageNames)
-            else -> openInstalledApp(app.packageNames)
+            else -> openSearchByName(app, contactName) || openInstalledApp(app.packageNames)
         }
         if (!opened) {
             Toast.makeText(
@@ -35,17 +36,13 @@ internal class ChatAppLauncher(
 
     private fun openViber(phone: String): Boolean {
         val packageName = ChatApp.VIBER.packageNames.first()
-        val chat = Intent(
+        // Viber's old chat URI may be accepted and then show an in-app update/error page.
+        // The add URI keeps the phone as the destination and works across newer clients.
+        val addContact = Intent(
             Intent.ACTION_VIEW,
-            Uri.parse("viber://chat?number=${Uri.encode(phone)}"),
+            Uri.parse("viber://add?number=${Uri.encode(phone.filter(Char::isDigit))}"),
         ).setPackage(packageName)
-        if (start(chat)) return true
-        return start(
-            Intent(
-                Intent.ACTION_VIEW,
-                Uri.parse("viber://add?number=${phone.filter(Char::isDigit)}"),
-            ).setPackage(packageName),
-        )
+        return start(addContact) || openInstalledApp(ChatApp.VIBER.packageNames)
     }
 
     private fun openWhatsApp(phone: String, packages: List<String>): Boolean {
@@ -57,7 +54,7 @@ internal class ChatAppLauncher(
         val digits = phone.filter(Char::isDigit)
         val intent = Intent(
             Intent.ACTION_VIEW,
-            Uri.parse("tg://resolve?phone=${Uri.encode(digits)}&profile"),
+            Uri.parse("tg://resolve?phone=${Uri.encode(digits)}"),
         )
         return startForPackages(intent, packages) || start(intent)
     }
@@ -66,6 +63,14 @@ internal class ChatAppLauncher(
         return startForPackages(
             Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${Uri.encode(phone)}")),
             packages,
+        )
+    }
+
+    private fun openSearchByName(app: ChatApp, contactName: String): Boolean {
+        val query = ChatAppOpenPolicy.searchQuery(app, contactName) ?: return false
+        return startForPackages(
+            Intent(Intent.ACTION_SEARCH).putExtra(SearchManager.QUERY, query),
+            app.packageNames,
         )
     }
 
@@ -95,14 +100,6 @@ internal class ChatAppLauncher(
             if (start(Intent(baseIntent).setPackage(packageName))) return true
         }
         return false
-    }
-
-    private fun ChatApp.requiresPhone(): Boolean = when (this) {
-        ChatApp.VIBER,
-        ChatApp.WHATSAPP,
-        ChatApp.TELEGRAM,
-        ChatApp.MESSAGES -> true
-        else -> false
     }
 
     private fun start(intent: Intent): Boolean = try {

@@ -16,7 +16,7 @@ internal class ContactNotesChatActionsUi(
 ) {
     private val launcher by lazy { ChatAppLauncher(activity) }
 
-    fun row(phone: String): LinearLayout {
+    fun row(phone: String, contactName: String): LinearLayout {
         val installedApps = ChatAppVisibilityStore.enabledApps(activity).mapNotNull { app ->
             installedIcon(app)?.let { icon -> app to icon }
         }
@@ -33,13 +33,13 @@ internal class ContactNotesChatActionsUi(
             }
             installedApps.forEachIndexed { index, (app, icon) ->
                 if (index > 0) addView(divider())
-                addView(chatSlot(app, phone, icon))
+                addView(chatSlot(app, phone, contactName, icon))
             }
             visibility = if (installedApps.isEmpty()) View.GONE else View.VISIBLE
         }
     }
 
-    private fun chatSlot(app: ChatApp, phone: String, appIcon: Drawable): LinearLayout =
+    private fun chatSlot(app: ChatApp, phone: String, contactName: String, appIcon: Drawable): LinearLayout =
         LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -67,7 +67,7 @@ internal class ContactNotesChatActionsUi(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 dp(CHAT_LABEL_HEIGHT_DP),
             ).apply { topMargin = dp(2) })
-            setOnClickListener { launcher.open(app, phone) }
+            setOnClickListener { launcher.open(app, phone, contactName) }
         }
 
     private fun divider(): View = View(activity).apply {

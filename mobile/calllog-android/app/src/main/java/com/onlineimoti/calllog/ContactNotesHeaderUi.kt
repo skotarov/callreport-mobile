@@ -121,7 +121,7 @@ class ContactNotesHeaderUi(
             addView(topBar)
             addView(identityAnchor)
             addView(actionAnchor)
-            addView(chatActions.row(phone))
+            addView(chatActions.row(phone, namePresentation.primary))
         }
     }
 
