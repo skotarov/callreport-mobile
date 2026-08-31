@@ -97,6 +97,7 @@ internal class ContactNotesRestoredController(
         titleText = intent?.getStringExtra(ContactNotesActivity.EXTRA_TITLE).orEmpty().ifBlank {
             phone.ifBlank { activity.getString(R.string.dynamic_notes_default_title) }
         }
+        refreshTitleFromContacts()
         historyController.loadOnce(phone)
         render()
     }
@@ -106,8 +107,10 @@ internal class ContactNotesRestoredController(
             skipNextResumeRefresh = false
             return
         }
+        val titleChanged = refreshTitleFromContacts()
         // Ordinary navigation back to History needs one refresh, not a second confirmation request.
         refreshHistoryInBackground(scheduleConfirmationRefresh = false)
+        if (titleChanged) render()
     }
 
     fun onDataChanged() {
@@ -141,10 +144,23 @@ internal class ContactNotesRestoredController(
             return
         }
         pullRefreshRequested = true
+        refreshTitleFromContacts()
         // Even unchanged data must produce one final render to stop the pull-refresh indicator.
         historyController.forceNextRenderAfterDataReady()
         refreshHistoryInBackground(scheduleConfirmationRefresh = false)
         render()
+    }
+
+    /** Contacts are edited outside this activity, so never keep the launch title as a permanent cache. */
+    private fun refreshTitleFromContacts(): Boolean {
+        if (phone.isBlank()) return false
+        val updatedTitle = ContactNotesTitleRefreshPolicy.updatedTitle(
+            currentTitle = titleText,
+            contactsDisplayName = ContactGroupFilter.resolveDisplayName(activity.applicationContext, phone),
+        )
+        if (updatedTitle == titleText) return false
+        titleText = updatedTitle
+        return true
     }
 
     private fun selectListMode(mode: ContactHistoryListMode) {
