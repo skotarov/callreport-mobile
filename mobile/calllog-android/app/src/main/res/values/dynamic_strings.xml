@@ -41,6 +41,7 @@
     <string name="dynamic_action_note">Note</string>
     <string name="dynamic_action_write_sms">Write SMS</string>
     <string name="dynamic_action_calendar">Calendar</string>
+    <string name="dynamic_action_meeting">Meeting</string>
     <string name="dynamic_clipboard_phone_label">Phone</string>
     <string name="dynamic_clipboard_name_label">Name</string>
     <string name="dynamic_phone_copied">Phone number copied</string>

@@ -274,7 +274,7 @@ internal class UnifiedNoteEditorContentUi(
         setPadding(dp(10), dp(7), dp(12), dp(7))
         isClickable = true
         isFocusable = true
-        contentDescription = context.getString(R.string.dynamic_action_calendar)
+        contentDescription = context.getString(R.string.dynamic_action_meeting)
         setOnClickListener { action() }
         addView(ImageView(context).apply {
             setImageResource(R.drawable.ic_calendar_event)
@@ -282,7 +282,7 @@ internal class UnifiedNoteEditorContentUi(
             layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(6) }
         })
         addView(TextView(context).apply {
-            text = context.getString(R.string.dynamic_action_calendar)
+            text = context.getString(R.string.dynamic_action_meeting)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(55, 65, 81))
