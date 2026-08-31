@@ -364,6 +364,15 @@ class HomeActivity : FontScaledAppCompatActivity() {
         HomeCallPageLoader.clearSearchCache()
         HomeTimelineLoader.invalidateCache()
         companyGeneralNotesController.invalidate()
+        if (HomeRefreshRenderPolicy.shouldKeepRowsForProviderRefresh(
+                activeSearchQuery = activeSearchQuery,
+                crmCallLogEnabled = isCrmModeEnabled(),
+                crmContactsMode = isCrmContactsMode(),
+                hasRenderedRows = HomePagedListUi.visiblePageCount(binding.homeCallsContainer) > 0,
+            )
+        ) {
+            HomeRefreshRenderPolicy.requestKeepExistingRows()
+        }
         if (activeSearchQuery.isBlank() && !isCrmContactsMode()) resetTimelineForRefresh()
         if (homeIsResumed) renderCalls() else refreshWhenResumed = true
     }
@@ -371,7 +380,6 @@ class HomeActivity : FontScaledAppCompatActivity() {
     private fun resetTimelineForRefresh() {
         edgePaging.cancel()
         pageIndex = 0
-        homeContentRenderer.clearCalls()
     }
 
     private fun renderCalls() {

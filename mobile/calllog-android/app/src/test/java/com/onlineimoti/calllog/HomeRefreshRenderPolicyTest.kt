@@ -20,6 +20,26 @@ class HomeRefreshRenderPolicyTest {
     }
 
     @Test
+    fun providerRefreshKeepsVisibleOrdinaryCallLogInsteadOfBlankingIt() {
+        assertTrue(
+            HomeRefreshRenderPolicy.shouldKeepRowsForProviderRefresh(
+                activeSearchQuery = "",
+                crmCallLogEnabled = false,
+                crmContactsMode = false,
+                hasRenderedRows = true,
+            ),
+        )
+    }
+
+    @Test
+    fun providerRefreshDoesNotRetainRowsForSearchOrOtherTimelineModes() {
+        assertFalse(HomeRefreshRenderPolicy.shouldKeepRowsForProviderRefresh("име", false, false, true))
+        assertFalse(HomeRefreshRenderPolicy.shouldKeepRowsForProviderRefresh("", true, false, true))
+        assertFalse(HomeRefreshRenderPolicy.shouldKeepRowsForProviderRefresh("", false, true, true))
+        assertFalse(HomeRefreshRenderPolicy.shouldKeepRowsForProviderRefresh("", false, false, false))
+    }
+
+    @Test
     fun forcesExactlyOnePageRebuild() {
         HomeRefreshRenderPolicy.requestForceRebuild()
 

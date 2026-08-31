@@ -12,6 +12,17 @@ internal object HomeRefreshRenderPolicy {
         keepExistingRowsOnce = true
     }
 
+    /** A provider notification is a background recheck, never a reason to blank an open Call Log. */
+    fun shouldKeepRowsForProviderRefresh(
+        activeSearchQuery: String,
+        crmCallLogEnabled: Boolean,
+        crmContactsMode: Boolean,
+        hasRenderedRows: Boolean,
+    ): Boolean = activeSearchQuery.isBlank() &&
+        !crmCallLogEnabled &&
+        !crmContactsMode &&
+        hasRenderedRows
+
     /** Rebuilds the page even when the loaded data equals the retained in-memory model. */
     @Synchronized
     fun requestForceRebuild() {
