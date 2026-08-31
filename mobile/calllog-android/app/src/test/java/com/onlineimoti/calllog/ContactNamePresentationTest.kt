@@ -9,7 +9,10 @@ class ContactNamePresentationTest {
         val presentation = ContactNamePresentation.from("Светльо | автобояджия | препоръчан от Иво")
 
         assertEquals("Светльо", presentation.primary)
-        assertEquals(listOf("автобояджия", "препоръчан от Иво"), presentation.secondary)
+        assertEquals(
+            listOf(ContactNameDetail("автобояджия"), ContactNameDetail("препоръчан от Иво")),
+            presentation.secondary,
+        )
     }
 
     @Test
@@ -17,14 +20,20 @@ class ContactNamePresentationTest {
         val presentation = ContactNamePresentation.from("Светльо |  | автобояджия")
 
         assertEquals("Светльо", presentation.primary)
-        assertEquals(listOf("автобояджия"), presentation.secondary)
+        assertEquals(listOf(ContactNameDetail("автобояджия")), presentation.secondary)
     }
 
     @Test
-    fun parenthesizedDetailAppearsOnItsOwnSecondaryLine() {
+    fun parenthesizedDetailKeepsBracketsAndUsesItalicOnItsOwnLine() {
         val presentation = ContactNamePresentation.from("Светльо (автобояджия) | София")
 
         assertEquals("Светльо", presentation.primary)
-        assertEquals(listOf("автобояджия", "София"), presentation.secondary)
+        assertEquals(
+            listOf(
+                ContactNameDetail("(автобояджия)", italic = true),
+                ContactNameDetail("София"),
+            ),
+            presentation.secondary,
+        )
     }
 }

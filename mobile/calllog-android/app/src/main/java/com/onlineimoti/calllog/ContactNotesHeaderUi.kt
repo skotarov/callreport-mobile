@@ -409,9 +409,10 @@ class ContactNotesHeaderUi(
         }
     }
 
-    private fun contactNameDetailText(detail: String): TextView = TextView(activity).apply {
-        text = detail
+    private fun contactNameDetailText(detail: ContactNameDetail): TextView = TextView(activity).apply {
+        text = detail.text
         textSize = 16f
+        typeface = if (detail.italic) Typeface.create(Typeface.DEFAULT, Typeface.ITALIC) else Typeface.DEFAULT
         setTextColor(Color.rgb(71, 85, 105))
         gravity = Gravity.CENTER
         textAlignment = View.TEXT_ALIGNMENT_CENTER
