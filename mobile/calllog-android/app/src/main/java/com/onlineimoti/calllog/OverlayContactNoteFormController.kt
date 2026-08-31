@@ -102,6 +102,19 @@ internal class OverlayContactNoteFormController(
             .orEmpty()
     }
 
+    fun calendarGeneralNotes(): List<String> {
+        captureScopeTexts()
+        val stored = ContactNoteCalendarContent.storedGeneralNotes(
+            context = service.applicationContext,
+            phone = draft.phone,
+            companyIds = topicState.companies.map { it.id },
+        )
+        return (if (draft.isGeneralNote) scopeIds().map { scopeTexts[it].orEmpty() } else emptyList()) + stored
+    }
+
+    /** Do not pull a different call's note from History when this form is yellow. */
+    fun currentCallNoteForCalendar(): String? = if (draft.isGeneralNote) null else focusedText()
+
     fun effectiveCompanyId(): String = focusedScopeId
 
     fun focusInput(): EditText? =

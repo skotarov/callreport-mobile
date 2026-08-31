@@ -383,9 +383,23 @@ class ContactNoteEditActivity : FontScaledActivity() {
             direction,
             callAt,
             durationSeconds,
-            focusedText(),
+            calendarGeneralNotes(),
+            currentCallNoteForCalendar(),
         )
     }
+
+    private fun calendarGeneralNotes(): List<String> {
+        captureScopeTexts()
+        val stored = ContactNoteCalendarContent.storedGeneralNotes(
+            context = applicationContext,
+            phone = phone,
+            companyIds = topicState.companies.map { it.id },
+        )
+        return (if (isGeneralNote) scopeIds().map { scopeTexts[it].orEmpty() } else emptyList()) + stored
+    }
+
+    /** Only a Call editor owns a blue note; a General editor must not inspect History for one. */
+    private fun currentCallNoteForCalendar(): String? = if (isGeneralNote) null else focusedText()
 
     private fun focusedText(): String {
         captureScopeTexts()

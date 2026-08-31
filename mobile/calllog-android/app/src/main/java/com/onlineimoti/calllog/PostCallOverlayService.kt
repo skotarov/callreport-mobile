@@ -202,7 +202,11 @@ class PostCallOverlayService : FontScaledService() {
 
     private fun showNoteEditor() = noteEditor.show(UnifiedNoteKind.CALL)
     private fun showGeneralNoteEditor() = noteEditor.show(UnifiedNoteKind.GENERAL)
-    private fun openCalendarEvent(displayName: String) = calendarActions.openCalendarEvent(displayName)
+    private fun openCalendarEvent(
+        displayName: String,
+        generalNotes: List<String>,
+        currentCallNote: String?,
+    ) = calendarActions.openCalendarEvent(displayName, generalNotes, currentCallNote)
 
     private fun addDraggableOverlay(view: View, focusable: Boolean, defaultY: Int, timeoutMs: Long) {
         windowController.addDraggableOverlay(view, focusable, defaultY, timeoutMs)

@@ -25,7 +25,7 @@ internal class PostCallUnifiedNoteEditor(
     private val setWindowManager: (WindowManager) -> Unit,
     private val removeOverlay: () -> Unit,
     private val addDraggableOverlay: (View, Boolean, Int, Long) -> Unit,
-    private val openCalendarEvent: (String) -> Unit,
+    private val openCalendarEvent: (String, List<String>, String?) -> Unit,
     private val openContactNotesScreen: () -> Unit,
     private val pendingCallNote: () -> String?,
     private val setPendingCallNote: (String) -> Unit,
@@ -136,7 +136,13 @@ internal class PostCallUnifiedNoteEditor(
                     )
                 },
                 openCalendar = {
-                    runAfterSave { openCalendarEvent(titleText) }
+                    runAfterSave {
+                        openCalendarEvent(
+                            titleText,
+                            form.calendarGeneralNotes(),
+                            form.currentCallNoteForCalendar(),
+                        )
+                    }
                 },
                 delete = null,
                 openHistory = {

@@ -15,10 +15,11 @@ internal object ContactNoteCalendarActions {
         direction: String,
         callAt: Long,
         durationSeconds: Long,
-        noteText: String,
+        generalNotes: Collection<String>,
+        currentCallNote: String?,
     ) {
         val safeName = titleText.ifBlank { phone.ifBlank { activity.getString(R.string.dynamic_calendar_default_contact) } }
-        val description = buildString {
+        val contactDescription = buildString {
             appendLine(activity.getString(R.string.dynamic_calendar_name_line, safeName))
             if (phone.isNotBlank()) appendLine(activity.getString(R.string.dynamic_calendar_phone_line, phone))
             if (!isGeneralNote && callAt > 0L) {
@@ -29,12 +30,14 @@ internal object ContactNoteCalendarActions {
                 ).filter { it.isNotBlank() }.joinToString(" • ")
                 if (callInfo.isNotBlank()) appendLine(activity.getString(R.string.dynamic_calendar_call_line, callInfo))
             }
-            if (noteText.isNotBlank()) {
-                appendLine()
-                appendLine(activity.getString(R.string.dynamic_calendar_note_heading))
-                appendLine(noteText.trim())
-            }
         }.trim()
+        val description = ContactNoteCalendarContent.appendNotes(
+            baseDescription = contactDescription,
+            generalNotes = generalNotes,
+            currentCallNote = currentCallNote,
+            generalHeading = activity.getString(R.string.dynamic_note_general_title),
+            callHeading = activity.getString(R.string.dynamic_note_call_title),
+        )
         val begin = System.currentTimeMillis() + 60 * 60 * 1000L
         val end = begin + 60 * 60 * 1000L
         val intent = Intent(Intent.ACTION_INSERT).apply {
