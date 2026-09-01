@@ -16,6 +16,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
     private var durationSeconds = 0L
     private var actionIssuedAt = 0L
     private var isGeneralNote = false
+    private var launchedAsGeneralNote = false
     private var preferredCompanyId = ""
     private var initialNoteText = ""
     private var initialServerClientEventId = ""
@@ -116,6 +117,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         durationSeconds = intent.getLongExtra(PostCallOverlayService.EXTRA_DURATION, 0L)
         actionIssuedAt = intent.getLongExtra(CallNoteTargetResolver.EXTRA_ACTION_ISSUED_AT, 0L)
         isGeneralNote = intent.getStringExtra(PostCallOverlayService.EXTRA_MODE) == PostCallOverlayService.MODE_GENERAL_NOTE
+        launchedAsGeneralNote = isGeneralNote
         preferredCompanyId = intent.getStringExtra(CompanyMainNoteEditorLauncher.EXTRA_COMPANY_ID).orEmpty().trim()
         // A company main note has already been loaded on History. Retain that
         // authoritative value so the first editor render is populated instead of
@@ -135,7 +137,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
                 localOnly = false,
                 loading = base.visible,
             )
-            !isGeneralNote && initialNoteText.isNotBlank() && base.visible && !base.localOnly ->
+            !isGeneralNote && initialValueBelongsToCurrentKind() && initialNoteText.isNotBlank() && base.visible && !base.localOnly ->
                 base.copy(selectedCompanyId = ContactNoteTopicState.LOCAL_COMPANY_ID)
             else -> base
         }
@@ -170,23 +172,29 @@ class ContactNoteEditActivity : FontScaledActivity() {
         persistedScopeValues[localId] = localValue
         scopeTexts[localId] = localValue.text
 
+        val initialTextForCurrentKind = initialNoteText.takeIf { initialValueBelongsToCurrentKind() }.orEmpty()
+        val initialServerIdForCurrentKind = serverClientEventId.takeIf { initialValueBelongsToCurrentKind() }.orEmpty()
+
         val initialScopeId = preferredCompanyId
             .ifBlank { topicState.selectedCompanyId }
             .ifBlank { localId }
-        if (initialScopeId != localId && (initialNoteText.isNotBlank() || serverClientEventId.isNotBlank())) {
+        if (initialScopeId != localId && (initialTextForCurrentKind.isNotBlank() || initialServerIdForCurrentKind.isNotBlank())) {
             val initialValue = ContactNoteScopeValue(
-                text = initialNoteText,
-                serverClientEventId = serverClientEventId,
-                confirmedServer = serverClientEventId.isNotBlank() && ServerRecordIndex.isConfirmed(this, serverClientEventId),
+                text = initialTextForCurrentKind,
+                serverClientEventId = initialServerIdForCurrentKind,
+                confirmedServer = initialServerIdForCurrentKind.isNotBlank() && ServerRecordIndex.isConfirmed(this, initialServerIdForCurrentKind),
             )
             persistedScopeValues[initialScopeId] = initialValue
             scopeTexts[initialScopeId] = initialValue.text
-        } else if (initialScopeId == localId && initialNoteText.isNotBlank() && localValue.text.isBlank()) {
-            val initialValue = localValue.copy(text = initialNoteText)
+        } else if (initialScopeId == localId && initialTextForCurrentKind.isNotBlank() && localValue.text.isBlank()) {
+            val initialValue = localValue.copy(text = initialTextForCurrentKind)
             persistedScopeValues[localId] = initialValue
             scopeTexts[localId] = initialValue.text
         }
     }
+
+    private fun initialValueBelongsToCurrentKind(): Boolean =
+        ContactNoteInitialValuePolicy.belongsToCurrentKind(launchedAsGeneralNote, isGeneralNote)
 
     private fun loadTopicCompanies(generation: Int) {
         val initialState = topicState
