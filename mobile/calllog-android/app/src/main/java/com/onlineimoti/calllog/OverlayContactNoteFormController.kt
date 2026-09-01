@@ -13,6 +13,7 @@ internal class OverlayContactNoteFormController(
     private val dp: (Int) -> Int,
     private val draft: ContactNoteFormDraft,
     preferredCompanyId: String = "",
+    private val initialTextAppliesToDraft: Boolean = false,
 ) {
     private val fieldsUi by lazy { ContactNoteMultiScopeFieldsUi(service, dp) }
     private var topicState = initialTopicState(preferredCompanyId)
@@ -25,7 +26,10 @@ internal class OverlayContactNoteFormController(
 
     fun addTopicFieldTo(container: LinearLayout, legacyInput: EditText) {
         val localId = ContactNoteTopicState.LOCAL_COMPANY_ID
-        val initialText = legacyInput.text?.toString().orEmpty()
+        val initialText = legacyInput.text?.toString()
+            .orEmpty()
+            .takeIf { initialTextAppliesToDraft }
+            .orEmpty()
         legacyInput.visibility = View.GONE
 
         val localValue = ContactNoteScopeTextResolver.cachedValue(service, draft, localId)

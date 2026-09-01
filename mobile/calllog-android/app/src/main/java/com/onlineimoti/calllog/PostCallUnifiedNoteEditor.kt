@@ -82,6 +82,12 @@ internal class PostCallUnifiedNoteEditor(
             dp = ui::dp,
             draft = draft,
             preferredCompanyId = initialCompanyId,
+            // The overlay's supplied initial value belongs to the blue call row.
+            // The yellow form must load its own general-note values instead.
+            initialTextAppliesToDraft = ContactNoteInitialValuePolicy.belongsToCurrentKind(
+                launchedAsGeneral = false,
+                currentIsGeneral = kind.isGeneral,
+            ),
         )
 
         fun saveCurrent(): Boolean {

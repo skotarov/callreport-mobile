@@ -16,6 +16,16 @@ class ContactNoteInitialValuePolicyTest {
     }
 
     @Test
+    fun floatingCallNoteIsNotUsedAsTheGeneralNoteAfterSwitchingTabs() {
+        assertFalse(
+            ContactNoteInitialValuePolicy.belongsToCurrentKind(
+                launchedAsGeneral = false,
+                currentIsGeneral = true,
+            )
+        )
+    }
+
+    @Test
     fun generalNoteIsNotUsedAsTheCallNoteAfterSwitchingTabs() {
         assertFalse(
             ContactNoteInitialValuePolicy.belongsToCurrentKind(
