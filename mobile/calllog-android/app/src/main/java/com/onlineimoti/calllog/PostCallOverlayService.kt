@@ -37,7 +37,7 @@ class PostCallOverlayService : FontScaledService() {
             pendingGeneralNote = { state.pendingGeneralNote },
             setPendingGeneralNote = { state.pendingGeneralNote = it },
             notifyNotesChanged = ::notifyNotesChanged,
-            stopOverlay = { stopSelf() },
+            closeEditor = ::closeNoteEditor,
         )
     }
     private val lookupPopup: PostCallLookupPopup by lazy {
@@ -121,10 +121,20 @@ class PostCallOverlayService : FontScaledService() {
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var loadingAnimator: ObjectAnimator? = null
+    private var noteEditorIsVisible = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        state.readExtras(intent)
         val mode = intent?.getStringExtra(EXTRA_MODE).orEmpty()
+        // The call-end broadcast arrives through this same service. Replacing an
+        // open form here destroys text that is still being entered, so leave that
+        // form in place until the user explicitly saves or closes it.
+        if (
+            mode == MODE_CALL_ENDED &&
+            PostCallOverlayEditorTransitionPolicy.keepEditorWhenCallEnds(noteEditorIsVisible)
+        ) {
+            return START_NOT_STICKY
+        }
+        state.readExtras(intent)
         // Lookup data is already resolved asynchronously by the coordinator. Do not
         // read Call Log synchronously on the service main thread before first paint.
         if (mode != MODE_LOOKUP) state.hydrateLatestCallIfNeeded(this)
@@ -136,8 +146,8 @@ class PostCallOverlayService : FontScaledService() {
         when (mode) {
             MODE_LOADING -> loadingPopup.show()
             MODE_LOOKUP -> lookupPopup.show()
-            MODE_NOTE -> noteEditor.show(UnifiedNoteKind.CALL)
-            MODE_GENERAL_NOTE -> noteEditor.show(UnifiedNoteKind.GENERAL)
+            MODE_NOTE -> showNoteEditor()
+            MODE_GENERAL_NOTE -> showGeneralNoteEditor()
             MODE_CALL_ENDED -> showBubbleWithTimeout()
             else -> showBubbleWithTimeout()
         }
@@ -200,8 +210,28 @@ class PostCallOverlayService : FontScaledService() {
         }
     }
 
-    private fun showNoteEditor() = noteEditor.show(UnifiedNoteKind.CALL)
-    private fun showGeneralNoteEditor() = noteEditor.show(UnifiedNoteKind.GENERAL)
+    private fun showNoteEditor() {
+        noteEditorIsVisible = true
+        noteEditor.show(UnifiedNoteKind.CALL)
+    }
+
+    private fun showGeneralNoteEditor() {
+        noteEditorIsVisible = true
+        noteEditor.show(UnifiedNoteKind.GENERAL)
+    }
+
+    private fun closeNoteEditor() {
+        noteEditorIsVisible = false
+        if (
+            PostCallOverlayEditorTransitionPolicy.showActiveCallBubbleAfterEditorClosed(
+                CallLifecycleStore.isActive(this, state.phone),
+            )
+        ) {
+            showBubbleUntilCallEnds()
+        } else {
+            showBubbleWithTimeout()
+        }
+    }
     private fun openCalendarEvent(
         displayName: String,
         generalNotes: List<String>,

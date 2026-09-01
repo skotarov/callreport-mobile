@@ -32,7 +32,7 @@ internal class PostCallUnifiedNoteEditor(
     private val pendingGeneralNote: () -> String?,
     private val setPendingGeneralNote: (String) -> Unit,
     private val notifyNotesChanged: () -> Unit,
-    private val stopOverlay: () -> Unit,
+    private val closeEditor: () -> Unit,
 ) {
     fun show(kind: UnifiedNoteKind) {
         handler.removeCallbacksAndMessages(null)
@@ -131,14 +131,14 @@ internal class PostCallUnifiedNoteEditor(
                             if (kind.isGeneral) "Основните бележки са записани" else "Бележките към обаждането са записани",
                             Toast.LENGTH_SHORT,
                         ).show()
-                        stopOverlay()
+                        closeEditor()
                     }
                 },
                 close = {
                     NoteEditorCloseConfirmation.requestOverlay(
                         service = service,
                         hasUnsavedChanges = form.hasChanges(),
-                        closeWithoutSaving = stopOverlay,
+                        closeWithoutSaving = closeEditor,
                     )
                 },
                 openCalendar = {
