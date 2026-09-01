@@ -18,7 +18,7 @@ internal class ContactNoteMultiScopeFieldsUi(
     fun create(
         state: ContactNoteTopicState,
         kind: UnifiedNoteKind,
-        textFor: (String) -> String,
+        fieldStateFor: (String) -> ContactNoteScopeFieldUiState,
         onInputReady: (String, EditText) -> Unit,
     ): LinearLayout = LinearLayout(context).apply {
         tag = FIELD_TAG
@@ -27,14 +27,14 @@ internal class ContactNoteMultiScopeFieldsUi(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = dp(8) }
-        bind(this, state, kind, textFor, onInputReady)
+        bind(this, state, kind, fieldStateFor, onInputReady)
     }
 
     fun bind(
         container: LinearLayout,
         state: ContactNoteTopicState,
         kind: UnifiedNoteKind,
-        textFor: (String) -> String,
+        fieldStateFor: (String) -> ContactNoteScopeFieldUiState,
         onInputReady: (String, EditText) -> Unit,
     ) {
         container.removeAllViews()
@@ -44,7 +44,7 @@ internal class ContactNoteMultiScopeFieldsUi(
             companyId = ContactNoteTopicState.LOCAL_COMPANY_ID,
             label = if (AppLocaleText.isBulgarian()) "Лична" else "Personal",
             kind = kind,
-            text = textFor(ContactNoteTopicState.LOCAL_COMPANY_ID),
+            fieldState = fieldStateFor(ContactNoteTopicState.LOCAL_COMPANY_ID),
             serverBacked = false,
             onInputReady = onInputReady,
         )
@@ -58,7 +58,7 @@ internal class ContactNoteMultiScopeFieldsUi(
                     companyId = company.id,
                     label = company.name.ifBlank { company.id },
                     kind = kind,
-                    text = textFor(company.id),
+                    fieldState = fieldStateFor(company.id),
                     serverBacked = true,
                     onInputReady = onInputReady,
                 )
@@ -85,7 +85,7 @@ internal class ContactNoteMultiScopeFieldsUi(
         companyId: String,
         label: String,
         kind: UnifiedNoteKind,
-        text: String,
+        fieldState: ContactNoteScopeFieldUiState,
         serverBacked: Boolean,
         onInputReady: (String, EditText) -> Unit,
     ) {
@@ -117,7 +117,7 @@ internal class ContactNoteMultiScopeFieldsUi(
             }
         })
         val input = EditText(context).apply {
-            setText(text)
+            setText(fieldState.text)
             setSelection(this.text?.length ?: 0)
             minLines = 1
             maxLines = Int.MAX_VALUE
@@ -130,9 +130,12 @@ internal class ContactNoteMultiScopeFieldsUi(
             gravity = Gravity.TOP or Gravity.START
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = roundedRect(colors.background, dp(10), colors.border, if (colors.border == Color.TRANSPARENT) 0 else dp(1))
-            isFocusable = true
-            isFocusableInTouchMode = true
-            isLongClickable = true
+            isEnabled = fieldState.editable
+            isFocusable = fieldState.editable
+            isFocusableInTouchMode = fieldState.editable
+            isLongClickable = fieldState.editable
+            showSoftInputOnFocus = fieldState.editable
+            alpha = if (fieldState.editable) 1f else 0.72f
             tag = companyId
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -140,6 +143,14 @@ internal class ContactNoteMultiScopeFieldsUi(
             ).apply { topMargin = dp(3) }
         }
         wrapper.addView(input)
+        if (fieldState.helperText.isNotBlank()) {
+            wrapper.addView(TextView(context).apply {
+                text = fieldState.helperText
+                textSize = 12f
+                setTextColor(Color.rgb(100, 116, 139))
+                setPadding(dp(2), dp(5), dp(2), 0)
+            })
+        }
         container.addView(wrapper)
         onInputReady(companyId, input)
     }

@@ -56,7 +56,7 @@ internal class OverlayContactNoteFormController(
         val fields = fieldsUi.create(
             state = topicState,
             kind = if (draft.isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
-            textFor = ::textForScope,
+            fieldStateFor = ::fieldStateForScope,
             onInputReady = ::onScopeInputReady,
         )
         fieldsContainer = fields
@@ -190,7 +190,7 @@ internal class OverlayContactNoteFormController(
             container = container,
             state = topicState,
             kind = if (draft.isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
-            textFor = ::textForScope,
+            fieldStateFor = ::fieldStateForScope,
             onInputReady = ::onScopeInputReady,
         )
     }
@@ -219,6 +219,16 @@ internal class OverlayContactNoteFormController(
         ).also { persistedScopeValues[companyId] = it }
         return value.text
     }
+
+    private fun fieldStateForScope(companyId: String): ContactNoteScopeFieldUiState =
+        persistedScopeValues.containsKey(companyId).let { hadPersistedValue ->
+            ContactNoteScopeFieldLoadPolicy.resolve(
+                companyId = companyId,
+                topicState = topicState,
+                text = textForScope(companyId),
+                hasPersistedValue = hadPersistedValue,
+            )
+        }
 
     private fun scopeIds(): List<String> = buildList {
         add(ContactNoteTopicState.LOCAL_COMPANY_ID)

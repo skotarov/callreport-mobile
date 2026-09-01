@@ -28,7 +28,7 @@ internal data class ContactNoteEditUiState(
 internal class ContactNoteEditUi(
     private val activity: Activity,
     private val state: () -> ContactNoteEditUiState,
-    private val textForScope: (String) -> String,
+    private val fieldStateForScope: (String) -> ContactNoteScopeFieldUiState,
     private val onScopeInputReady: (String, EditText) -> Unit,
     private val onFieldsReady: (LinearLayout) -> Unit,
     private val saveAndSwitch: (UnifiedNoteKind, String) -> Unit,
@@ -65,7 +65,7 @@ internal class ContactNoteEditUi(
                 val fields = multiFieldsUi.create(
                     state = current.topic,
                     kind = if (current.isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
-                    textFor = textForScope,
+                    fieldStateFor = fieldStateForScope,
                     onInputReady = { companyId, input ->
                         if (firstInput == null && companyId == ContactNoteTopicState.LOCAL_COMPANY_ID) {
                             firstInput = input

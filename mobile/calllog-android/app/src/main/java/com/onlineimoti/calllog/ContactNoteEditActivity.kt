@@ -96,7 +96,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
         setContentView(ContactNoteEditUi(
             activity = this,
             state = ::uiState,
-            textForScope = ::textForScope,
+            fieldStateForScope = ::fieldStateForScope,
             onScopeInputReady = ::onScopeInputReady,
             onFieldsReady = { fieldsContainer = it },
             saveAndSwitch = ::saveAndSwitch,
@@ -249,7 +249,7 @@ class ContactNoteEditActivity : FontScaledActivity() {
             container = container,
             state = topicState,
             kind = if (isGeneralNote) UnifiedNoteKind.GENERAL else UnifiedNoteKind.CALL,
-            textFor = ::textForScope,
+            fieldStateFor = ::fieldStateForScope,
             onInputReady = ::onScopeInputReady,
         )
     }
@@ -272,6 +272,16 @@ class ContactNoteEditActivity : FontScaledActivity() {
         ).also { persistedScopeValues[companyId] = it }
         return value.text
     }
+
+    private fun fieldStateForScope(companyId: String): ContactNoteScopeFieldUiState =
+        persistedScopeValues.containsKey(companyId).let { hadPersistedValue ->
+            ContactNoteScopeFieldLoadPolicy.resolve(
+                companyId = companyId,
+                topicState = topicState,
+                text = textForScope(companyId),
+                hasPersistedValue = hadPersistedValue,
+            )
+        }
 
     private fun captureScopeTexts() {
         scopeInputs.forEach { (companyId, input) ->
